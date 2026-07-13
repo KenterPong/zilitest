@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>字力測驗 — App 畫面提案 03</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@500;700;900&family=Noto+Sans+TC:wght@400;500;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#F6F3EA; --paper-deep:#EFEBDD; --ink:#1E2A40; --ink-soft:#4A5568;
+    --stamp-red:#A32B26; --stamp-red-deep:#7E211D; --gold:#B08A34; --line:#DAD4C1; --white:#FFFDF8;
+    --line-green:#06C755; --line-green-deep:#059F45;
+  }
+  *{ box-sizing:border-box; margin:0; padding:0; }
+  body{ background:#DCD8C9; color:var(--ink); font-family:"Noto Sans TC","Inter",sans-serif; line-height:1.6; padding:40px 0 100px; }
+  .note{ max-width:900px; margin:0 auto 40px; padding:16px 22px; background:var(--white); border:1px dashed var(--line); border-radius:4px; font-size:13.5px; color:var(--ink-soft); }
+  .note b{ color:var(--ink); }
+  .screen-block{ max-width:1120px; margin:0 auto 64px; }
+  .screen-label{ display:flex; align-items:center; gap:10px; margin-bottom:14px; padding:0 4px; }
+  .screen-label .num{ font-family:"IBM Plex Mono"; font-size:12px; background:var(--stamp-red); color:var(--white); padding:3px 9px; border-radius:2px; letter-spacing:.05em; }
+  .screen-label .name{ font-family:"Noto Serif TC"; font-weight:700; font-size:17px; }
+  .frame{ background:var(--paper); border:1px solid var(--line); border-radius:8px; box-shadow:0 18px 40px rgba(30,42,64,0.14); overflow:hidden; }
+  a{ color:inherit; text-decoration:none; }
+
+  .app-nav{ display:flex; align-items:center; justify-content:space-between; padding:16px 32px; border-bottom:1px solid var(--line); background:rgba(246,243,234,.9); }
+  .app-logo{ font-family:"Noto Serif TC"; font-weight:900; font-size:19px; }
+  .app-user{ display:flex; align-items:center; gap:10px; font-size:13.5px; color:var(--ink-soft); }
+  .avatar{ width:30px; height:30px; border-radius:50%; background:var(--stamp-red); color:var(--white); display:flex; align-items:center; justify-content:center; font-family:"Noto Serif TC"; font-weight:700; font-size:13px; }
+  .app-body{ padding:28px 32px 40px; }
+  .breadcrumb{ font-size:12.5px; color:var(--ink-soft); margin-bottom:10px; }
+  .breadcrumb a{ border-bottom:1px dotted var(--ink-soft); }
+
+  /* ---- LOGIN screen ---- */
+  .login-wrap{ min-height:520px; display:flex; align-items:center; justify-content:center; position:relative; }
+  .login-texture{ position:absolute; inset:0; background-image:radial-gradient(circle, rgba(30,42,64,0.06) 1.4px, transparent 1.4px); background-size:22px 22px; }
+  .login-card{ position:relative; z-index:2; width:400px; max-width:90%; background:var(--white); border:1px solid var(--line); border-radius:10px; box-shadow:0 14px 34px rgba(30,42,64,.14); padding:44px 38px; text-align:center; }
+  .login-logo{ font-family:"Noto Serif TC"; font-weight:900; font-size:24px; margin-bottom:8px; }
+  .login-sub{ font-size:13.5px; color:var(--ink-soft); margin-bottom:32px; }
+  .btn-line{ display:flex; align-items:center; justify-content:center; gap:10px; background:var(--line-green); color:var(--white); font-weight:700; font-size:15px; padding:14px; border-radius:6px; margin-bottom:18px; }
+  .btn-line:hover{ background:var(--line-green-deep); }
+  .btn-line svg{ width:20px; height:20px; }
+  .login-fine{ font-size:11.5px; color:var(--ink-soft); }
+  .login-fine a{ border-bottom:1px dotted var(--ink-soft); }
+  .login-stamp{ position:absolute; top:-18px; right:26px; width:64px; height:64px; z-index:3; }
+
+  /* ---- EXCEL IMPORT (stepper) ---- */
+  .stepper{ display:flex; gap:0; margin-bottom:28px; }
+  .step{ flex:1; text-align:center; padding-bottom:12px; border-bottom:3px solid var(--line); font-family:"IBM Plex Mono"; font-size:11.5px; color:var(--ink-soft); }
+  .step.on{ border-color:var(--stamp-red); color:var(--ink); font-weight:600; }
+  .step .n{ display:inline-block; width:18px; height:18px; border-radius:50%; background:var(--line); color:var(--white); font-size:10px; line-height:18px; margin-right:6px; }
+  .step.on .n{ background:var(--stamp-red); }
+
+  .import-panels{ display:grid; grid-template-columns:repeat(3,1fr); gap:18px; }
+  @media (max-width:900px){ .import-panels{ grid-template-columns:1fr; } }
+  .import-panel{ background:var(--white); border:1px solid var(--line); border-radius:8px; padding:22px; }
+  .import-panel h4{ font-family:"Noto Serif TC"; font-size:15px; margin-bottom:12px; }
+  .dropzone{ border:2px dashed var(--line); border-radius:6px; padding:30px 14px; text-align:center; font-size:13px; color:var(--ink-soft); margin-bottom:14px; }
+  .dropzone b{ color:var(--ink); }
+  .col-hint{ font-family:"IBM Plex Mono"; font-size:11px; color:var(--ink-soft); background:var(--paper-deep); border-radius:4px; padding:8px 10px; margin-bottom:14px; }
+  .mini-table{ width:100%; border-collapse:collapse; font-size:12px; margin-bottom:12px; }
+  .mini-table th{ text-align:left; font-family:"IBM Plex Mono"; font-size:9.5px; color:var(--ink-soft); background:var(--paper-deep); padding:6px 8px; }
+  .mini-table td{ padding:6px 8px; border-top:1px solid var(--line); }
+  .import-warn{ font-size:11.5px; color:var(--stamp-red-deep); background:#FBEAE3; border:1px solid #E9BCAE; padding:7px 10px; border-radius:4px; margin-bottom:12px; }
+  .import-ok{ font-size:11.5px; color:#3E7A4F; background:#E7F1E9; border:1px solid #BFDCC6; padding:7px 10px; border-radius:4px; margin-bottom:12px; }
+  .btn-primary3{ background:var(--ink); color:var(--white); font-weight:600; font-size:13px; padding:10px 0; border-radius:5px; display:block; text-align:center; }
+  .btn-primary3.red{ background:var(--stamp-red); }
+  .success-box{ text-align:center; padding:24px 0; }
+  .success-box .check{ width:44px; height:44px; border-radius:50%; background:#3E7A4F; color:#fff; display:flex; align-items:center; justify-content:center; margin:0 auto 14px; font-size:20px; }
+
+  /* ---- ACCOUNT SETTINGS ---- */
+  .settings-title{ font-family:"Noto Serif TC"; font-weight:900; font-size:24px; margin-bottom:24px; }
+  .settings-grid{ display:grid; grid-template-columns:1fr 1fr; gap:18px; }
+  @media (max-width:900px){ .settings-grid{ grid-template-columns:1fr; } }
+  .settings-card{ background:var(--white); border:1px solid var(--line); border-radius:8px; padding:24px; }
+  .settings-card h4{ font-family:"Noto Serif TC"; font-size:16px; margin-bottom:16px; }
+  .profile-row{ display:flex; align-items:center; gap:14px; margin-bottom:18px; }
+  .profile-row .avatar{ width:46px; height:46px; font-size:17px; }
+  .profile-row .pname{ font-weight:700; }
+  .profile-row .pmeta{ font-size:12px; color:var(--ink-soft); font-family:"IBM Plex Mono"; }
+  .field-label{ font-family:"IBM Plex Mono"; font-size:11px; color:var(--ink-soft); margin-bottom:6px; }
+  .field-input{ width:100%; border:1px solid var(--line); border-radius:5px; padding:10px 12px; font-size:13.5px; margin-bottom:8px; }
+  .field-hint{ font-size:12px; color:var(--ink-soft); margin-bottom:16px; }
+  .btn-save{ background:var(--ink); color:var(--white); font-weight:600; font-size:13px; padding:10px 18px; border-radius:5px; }
+
+  .sub-status-row{ display:flex; justify-content:space-between; align-items:center; padding:12px 0; border-bottom:1px dashed var(--line); font-size:13.5px; }
+  .sub-status-row:last-child{ border-bottom:none; }
+  .status-badge{ font-family:"IBM Plex Mono"; font-size:10.5px; padding:3px 10px; border-radius:20px; background:var(--amber-bg,#FBF1DE); border:1px solid #E3CE9D; color:#6B5015; }
+
+  .login-methods{ display:flex; flex-direction:column; gap:10px; }
+  .method-row{ display:flex; align-items:center; justify-content:space-between; padding:10px 14px; border:1px solid var(--line); border-radius:6px; font-size:13.5px; }
+  .method-row .tag-connected{ font-family:"IBM Plex Mono"; font-size:10.5px; color:#3E7A4F; }
+  .method-row .tag-soon{ font-family:"IBM Plex Mono"; font-size:10.5px; color:var(--ink-soft); }
+
+  .danger-zone{ border:1px solid var(--stamp-red); background:#FBEAE3; }
+  .danger-zone h4{ color:var(--stamp-red-deep); }
+  .btn-danger{ border:1.5px solid var(--stamp-red); color:var(--stamp-red-deep); background:var(--white); font-weight:600; font-size:13px; padding:9px 16px; border-radius:5px; }
+</style>
+</head>
+<body>
+
+<div class="note">
+  第四批,也是把原本規劃的畫面補完:<b>⑦ LINE 登入頁</b>、<b>⑧ Excel 匯入流程(上傳/預覽/確認三步驟)</b>、<b>⑨ 帳號設定頁</b>。這批做完,之前列的「核心流程 + 帳號/登入」畫面就全部涵蓋了。
+</div>
+
+<!-- ============ SCREEN 7: LINE 登入頁 ============ -->
+<div class="screen-block">
+  <div class="screen-label"><span class="num">畫面 7</span><span class="name">LINE 登入頁</span></div>
+  <div class="frame">
+    <div class="login-wrap">
+      <div class="login-texture"></div>
+      <div class="login-card">
+        <svg class="login-stamp" viewBox="0 0 140 140" xmlns="http://www.w3.org/2000/svg">
+          <defs><filter id="rough2"><feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="2" result="noise"/><feDisplacementMap in="SourceGraphic" in2="noise" scale="3"/></filter></defs>
+          <g filter="url(#rough2)">
+            <circle cx="70" cy="70" r="62" fill="none" stroke="#A32B26" stroke-width="4"/>
+            <circle cx="70" cy="70" r="50" fill="none" stroke="#A32B26" stroke-width="1.5"/>
+            <text x="70" y="62" text-anchor="middle" font-family="Noto Serif TC" font-weight="900" font-size="26" fill="#A32B26">字力</text>
+            <text x="70" y="90" text-anchor="middle" font-family="Noto Serif TC" font-weight="700" font-size="15" fill="#A32B26">認證</text>
+          </g>
+        </svg>
+        <div class="login-logo">字力測驗</div>
+        <div class="login-sub">用 LINE 帳號登入,免額外註冊</div>
+        <a class="btn-line" href="#">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 5.8 2 10.4c0 4.13 3.58 7.59 8.42 8.28.33.07.77.22.88.5.1.26.07.66.03.92l-.14.86c-.04.26-.2 1 .87.55 1.08-.46 5.8-3.42 7.92-5.85C21.3 13.9 22 12.24 22 10.4 22 5.8 17.52 2 12 2z"/></svg>
+          使用 LINE 登入
+        </a>
+        <div class="login-fine">登入即代表你同意<a href="#">服務條款</a>與<a href="#">隱私權政策</a></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ SCREEN 8: Excel 匯入流程 ============ -->
+<div class="screen-block">
+  <div class="screen-label"><span class="num">畫面 8</span><span class="name">Excel 匯入流程(上傳 → 預覽 → 確認)</span></div>
+  <div class="frame">
+    <div class="app-nav">
+      <div class="app-logo">字力測驗</div>
+      <div class="app-user"><div class="avatar">阿</div>阿凱</div>
+    </div>
+    <div class="app-body">
+      <div class="breadcrumb"><a href="#">TOEIC 核心 2000</a> ／ Excel 匯入</div>
+
+      <div class="stepper">
+        <div class="step on"><span class="n">1</span>上傳檔案</div>
+        <div class="step on"><span class="n">2</span>預覽確認</div>
+        <div class="step"><span class="n">3</span>完成</div>
+      </div>
+
+      <div class="import-panels">
+
+        <div class="import-panel">
+          <h4>步驟 1・上傳檔案</h4>
+          <div class="dropzone">將 Excel / CSV 拖曳至此<br>或<b>點擊選擇檔案</b></div>
+          <div class="col-hint">僅支援 3 欄:單字(term)・答案(answer)・描述(description)</div>
+          <a class="btn-primary3" href="#">上傳並解析</a>
+        </div>
+
+        <div class="import-panel">
+          <h4>步驟 2・預覽確認</h4>
+          <table class="mini-table">
+            <thead><tr><th>單字</th><th>答案</th><th>描述</th></tr></thead>
+            <tbody>
+              <tr><td>diligent</td><td>勤勉的</td><td>adj.</td></tr>
+              <tr><td>reimburse</td><td>償還</td><td>v.</td></tr>
+              <tr><td>itinerary</td><td>行程表</td><td>n.</td></tr>
+              <tr><td colspan="3" style="color:var(--ink-soft);">... 共 62 筆</td></tr>
+            </tbody>
+          </table>
+          <div class="import-warn">目前 218 字 + 本次 62 筆 = 280 字,未超過試用期 500 字上限</div>
+          <a class="btn-primary3" href="#">確認匯入 62 筆</a>
+        </div>
+
+        <div class="import-panel">
+          <h4>步驟 3・完成</h4>
+          <div class="success-box">
+            <div class="check">✓</div>
+            <div style="font-family:'Noto Serif TC'; font-weight:700; margin-bottom:6px;">匯入完成</div>
+            <div style="font-size:12.5px; color:var(--ink-soft); margin-bottom:18px;">已新增 62 個單字到「TOEIC 核心 2000」<br>標籤可於單字列表手動設定</div>
+          </div>
+          <a class="btn-primary3 red" href="#">回單字本列表</a>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ SCREEN 9: 帳號設定頁 ============ -->
+<div class="screen-block">
+  <div class="screen-label"><span class="num">畫面 9</span><span class="name">帳號設定頁</span></div>
+  <div class="frame">
+    <div class="app-nav">
+      <div class="app-logo">字力測驗</div>
+      <div class="app-user"><div class="avatar">阿</div>阿凱</div>
+    </div>
+    <div class="app-body">
+      <div class="settings-title">帳號設定</div>
+
+      <div class="settings-grid">
+
+        <div class="settings-card">
+          <h4>個人資料</h4>
+          <div class="profile-row">
+            <div class="avatar">阿</div>
+            <div><div class="pname">阿凱</div><div class="pmeta">透過 LINE 登入</div></div>
+          </div>
+          <div class="field-label">EMAIL(選填)</div>
+          <input class="field-input" type="email" placeholder="填寫後可收到到期/扣款提醒信">
+          <div class="field-hint">未填寫仍可正常使用,僅無法收到 email 提醒,登入畫面一律會顯示提醒 banner</div>
+          <a class="btn-save" href="#">儲存</a>
+        </div>
+
+        <div class="settings-card">
+          <h4>訂閱狀態</h4>
+          <div class="sub-status-row"><span>目前方案</span><span class="status-badge">試用中</span></div>
+          <div class="sub-status-row"><span>剩餘天數</span><span>12 天(500 字上限)</span></div>
+          <div class="sub-status-row"><span>到期日</span><span>2026/07/24</span></div>
+          <a class="btn-save" href="#" style="margin-top:14px; display:inline-block;">升級為付費版(NT$70/月)</a>
+        </div>
+
+        <div class="settings-card">
+          <h4>登入方式</h4>
+          <div class="login-methods">
+            <div class="method-row"><span>LINE</span><span class="tag-connected">已連結</span></div>
+            <div class="method-row"><span>Facebook</span><span class="tag-soon">即將推出</span></div>
+            <div class="method-row"><span>Google</span><span class="tag-soon">即將推出</span></div>
+          </div>
+        </div>
+
+        <div class="settings-card">
+          <h4>資料備份</h4>
+          <div class="field-hint" style="margin-bottom:14px;">將所有單字本匯出為 Excel,無論試用、付費或帳號已暫停(3 個月保留期內)皆可使用</div>
+          <a class="btn-save" href="#">匯出全部單字本(Excel)</a>
+        </div>
+
+        <div class="settings-card danger-zone" style="grid-column:1 / -1;">
+          <h4>刪除帳號</h4>
+          <div class="field-hint" style="margin-bottom:14px; color:var(--ink-soft);">刪除後帳號內所有單字本、測驗紀錄將被清空,無法復原。若只是想暫停付費,不需要刪除帳號。</div>
+          <a class="btn-danger" href="#">刪除我的帳號</a>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

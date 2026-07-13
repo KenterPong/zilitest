@@ -1,0 +1,27 @@
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&family=Noto+Sans+TC:wght@400;500;700&family=Noto+Serif+TC:wght@500;700;900&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --paper: #f6f3ea;
+  --paper-deep: #efebe0;
+  --ink: #1e2a40;
+  --ink-soft: #4a5568;
+  --stamp-red: #a32b26;
+  --stamp-red-deep: #7e211d;
+  --gold: #b08a34;
+  --line: #dad4c1;
+  --white: #fffdf8;
+  --amber-bg: #fbf1de;
+  --amber-line: #e3ce9d;
+}
+
+body {
+  background: var(--paper);
+  color: var(--ink);
+  font-family: 'Noto Sans TC', 'Inter', sans-serif;
+  line-height: 1.7;
+  -webkit-font-smoothing: antialiased;
+}

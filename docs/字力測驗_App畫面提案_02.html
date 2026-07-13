@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>字力測驗 — App 畫面提案 02</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@500;700;900&family=Noto+Sans+TC:wght@400;500;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#F6F3EA; --paper-deep:#EFEBDD; --ink:#1E2A40; --ink-soft:#4A5568;
+    --stamp-red:#A32B26; --stamp-red-deep:#7E211D; --gold:#B08A34; --line:#DAD4C1; --white:#FFFDF8;
+    --good:#3E7A4F; --good-bg:#E7F1E9;
+  }
+  *{ box-sizing:border-box; margin:0; padding:0; }
+  body{ background:#DCD8C9; color:var(--ink); font-family:"Noto Sans TC","Inter",sans-serif; line-height:1.6; padding:40px 0 100px; }
+  .note{ max-width:900px; margin:0 auto 40px; padding:16px 22px; background:var(--white); border:1px dashed var(--line); border-radius:4px; font-size:13.5px; color:var(--ink-soft); }
+  .note b{ color:var(--ink); }
+  .screen-block{ max-width:1120px; margin:0 auto 64px; }
+  .screen-label{ display:flex; align-items:center; gap:10px; margin-bottom:14px; padding:0 4px; }
+  .screen-label .num{ font-family:"IBM Plex Mono"; font-size:12px; background:var(--stamp-red); color:var(--white); padding:3px 9px; border-radius:2px; letter-spacing:.05em; }
+  .screen-label .name{ font-family:"Noto Serif TC"; font-weight:700; font-size:17px; }
+  .frame{ background:var(--paper); border:1px solid var(--line); border-radius:8px; box-shadow:0 18px 40px rgba(30,42,64,0.14); overflow:hidden; }
+  a{ color:inherit; text-decoration:none; }
+
+  .app-nav{ display:flex; align-items:center; justify-content:space-between; padding:16px 32px; border-bottom:1px solid var(--line); background:rgba(246,243,234,.9); }
+  .app-logo{ font-family:"Noto Serif TC"; font-weight:900; font-size:19px; }
+  .app-user{ display:flex; align-items:center; gap:10px; font-size:13.5px; color:var(--ink-soft); }
+  .avatar{ width:30px; height:30px; border-radius:50%; background:var(--stamp-red); color:var(--white); display:flex; align-items:center; justify-content:center; font-family:"Noto Serif TC"; font-weight:700; font-size:13px; }
+  .app-body{ padding:28px 32px 40px; }
+  .breadcrumb{ font-size:12.5px; color:var(--ink-soft); margin-bottom:10px; }
+  .breadcrumb a{ border-bottom:1px dotted var(--ink-soft); }
+
+  /* ---- 測驗設定 ---- */
+  .setup-title{ font-family:"Noto Serif TC"; font-weight:900; font-size:24px; margin-bottom:26px; }
+  .setup-group{ margin-bottom:26px; }
+  .setup-label{ font-family:"IBM Plex Mono"; font-size:11.5px; letter-spacing:.06em; color:var(--ink-soft); margin-bottom:10px; }
+  .chip-row{ display:flex; gap:8px; flex-wrap:wrap; }
+  .chip{ font-family:"IBM Plex Mono"; font-size:12px; padding:7px 14px; border-radius:20px; border:1px solid var(--line); background:var(--white); color:var(--ink-soft); }
+  .chip.on{ background:var(--ink); color:var(--white); border-color:var(--ink); }
+
+  .qtype-grid{ display:grid; grid-template-columns:repeat(3,1fr); gap:12px; }
+  .qtype-card{ background:var(--white); border:1.5px solid var(--line); border-radius:6px; padding:16px 18px; }
+  .qtype-card.on{ border-color:var(--stamp-red); }
+  .qtype-card .qname{ font-family:"Noto Serif TC"; font-weight:700; font-size:15px; margin-bottom:4px; }
+  .qtype-card .qdesc{ font-size:12.5px; color:var(--ink-soft); }
+  .qtype-card .radio{ float:right; width:14px; height:14px; border-radius:50%; border:1.5px solid var(--line); }
+  .qtype-card.on .radio{ border-color:var(--stamp-red); background:radial-gradient(circle,var(--stamp-red) 40%,transparent 44%); }
+
+  .count-row{ display:flex; align-items:center; gap:14px; }
+  .count-box{ font-family:"IBM Plex Mono"; font-size:18px; font-weight:600; border:1px solid var(--line); background:var(--white); padding:9px 18px; border-radius:5px; }
+  .count-note{ font-size:12.5px; color:var(--ink-soft); }
+  .warn-note{ font-size:12.5px; color:var(--stamp-red-deep); background:#FBEAE3; border:1px solid #E9BCAE; padding:8px 12px; border-radius:4px; margin-top:8px; }
+
+  .btn-start{ background:var(--stamp-red); color:var(--white); font-weight:700; font-size:15px; padding:15px 30px; border-radius:4px; display:inline-block; margin-top:8px; }
+
+  /* ---- 測驗進行 三種題型 ---- */
+  .quiz-grid{ display:grid; grid-template-columns:repeat(3,1fr); gap:18px; }
+  @media (max-width:900px){ .quiz-grid{ grid-template-columns:1fr; } }
+  .quiz-card{ background:var(--white); border:1px solid var(--line); border-radius:8px; padding:22px; }
+  .quiz-card .qtag{ font-family:"IBM Plex Mono"; font-size:10.5px; color:var(--ink-soft); margin-bottom:12px; }
+  .quiz-card .progress{ font-family:"IBM Plex Mono"; font-size:11px; color:var(--ink-soft); float:right; }
+  .quiz-term{ font-family:"Noto Serif TC"; font-weight:900; font-size:24px; margin-bottom:18px; text-align:center; padding-top:6px; }
+
+  .tf-row{ display:flex; align-items:center; justify-content:center; gap:8px; font-size:15px; margin-bottom:18px; padding:14px; background:var(--paper-deep); border-radius:6px; }
+  .tf-actions{ display:flex; gap:10px; }
+  .tf-actions a{ flex:1; text-align:center; padding:11px; border-radius:4px; font-weight:700; font-size:13.5px; border:1.5px solid var(--line); }
+  .tf-actions .t{ border-color:var(--good); color:var(--good); }
+  .tf-actions .f{ border-color:var(--stamp-red); color:var(--stamp-red-deep); }
+
+  .mc-options{ display:flex; flex-direction:column; gap:8px; }
+  .mc-options a{ display:block; padding:11px 14px; border:1px solid var(--line); border-radius:5px; font-size:13.5px; background:var(--paper); }
+  .mc-options a:hover{ border-color:var(--stamp-red); }
+
+  .fib-box{ text-align:center; }
+  .fib-input{ width:100%; border:1.5px solid var(--line); border-radius:5px; padding:12px 14px; font-size:15px; text-align:center; margin-bottom:14px; font-family:"IBM Plex Mono"; }
+  .fib-submit{ background:var(--ink); color:var(--white); font-weight:700; padding:11px 0; border-radius:5px; display:block; font-size:13.5px; }
+
+  /* ---- 測驗結果頁 ---- */
+  .result-summary{ display:flex; align-items:center; gap:32px; background:var(--white); border:1px solid var(--line); border-radius:8px; padding:26px 30px; margin-bottom:26px; }
+  .score-circle{ width:92px; height:92px; border-radius:50%; border:5px solid var(--stamp-red); display:flex; flex-direction:column; align-items:center; justify-content:center; flex-shrink:0; }
+  .score-circle .pct{ font-family:"Noto Serif TC"; font-weight:900; font-size:22px; }
+  .score-circle .lbl{ font-family:"IBM Plex Mono"; font-size:9px; color:var(--ink-soft); }
+  .result-stats{ display:flex; gap:36px; }
+  .result-stats div{ font-size:13px; color:var(--ink-soft); }
+  .result-stats b{ display:block; font-family:"Noto Serif TC"; font-size:20px; color:var(--ink); }
+
+  .result-section-label{ font-family:"IBM Plex Mono"; font-size:11.5px; letter-spacing:.06em; color:var(--ink-soft); margin-bottom:14px; }
+  .wrong-item{ background:var(--white); border:1px solid var(--line); border-radius:6px; padding:16px 20px; margin-bottom:10px; display:flex; align-items:center; justify-content:space-between; gap:20px; flex-wrap:wrap; }
+  .wrong-term{ font-family:"Noto Serif TC"; font-weight:700; font-size:16px; min-width:110px; }
+  .wrong-compare{ display:flex; gap:22px; font-size:14px; }
+  .wrong-compare .col-label{ font-family:"IBM Plex Mono"; font-size:9.5px; color:var(--ink-soft); display:block; margin-bottom:3px; }
+  .diff-input .ok{ color:var(--ink); }
+  .diff-input .bad{ color:var(--stamp-red); font-weight:700; text-decoration:underline wavy var(--stamp-red); }
+  .diff-input .missing{ color:var(--stamp-red); font-weight:700; }
+  .diff-correct{ font-weight:600; }
+  .result-actions{ display:flex; gap:12px; margin-top:24px; }
+  .btn-primary2{ background:var(--stamp-red); color:var(--white); font-weight:700; padding:13px 24px; border-radius:5px; font-size:14px; }
+  .btn-ghost2{ border:1px solid var(--line); background:var(--white); padding:13px 24px; border-radius:5px; font-size:14px; font-weight:500; }
+</style>
+</head>
+<body>
+
+<div class="note">
+  第三批:<b>④ 測驗設定</b>、<b>⑤ 測驗進行(是非/選擇/填空 三種題型並排給你比較)</b>、<b>⑥ 測驗結果頁</b>。結果頁裡的填空題錯誤,是照技術文件的 Levenshtein 紅字標記邏輯示意(拼錯字母標紅、少字母標底線)。確認完這批,剩下帳號設定頁與登入頁。
+</div>
+
+<!-- ============ SCREEN 4: 測驗設定 ============ -->
+<div class="screen-block">
+  <div class="screen-label"><span class="num">畫面 4</span><span class="name">測驗設定</span></div>
+  <div class="frame">
+    <div class="app-nav">
+      <div class="app-logo">字力測驗</div>
+      <div class="app-user"><div class="avatar">阿</div>阿凱</div>
+    </div>
+    <div class="app-body">
+      <div class="breadcrumb"><a href="#">我的單字本</a> ／ <a href="#">TOEIC 核心 2000</a> ／ 測驗設定</div>
+      <div class="setup-title">開始一場測驗</div>
+
+      <div class="setup-group">
+        <div class="setup-label">單字本(可複選)</div>
+        <div class="chip-row">
+          <span class="chip on">TOEIC 核心 2000</span>
+          <span class="chip">JLPT N2 單字</span>
+          <span class="chip">多益必考片語</span>
+        </div>
+      </div>
+
+      <div class="setup-group">
+        <div class="setup-label">標籤篩選(可複選,不選則不篩選)</div>
+        <div class="chip-row">
+          <span class="chip">動詞</span>
+          <span class="chip on">形容詞</span>
+          <span class="chip">考古題</span>
+          <span class="chip on">易錯字</span>
+        </div>
+      </div>
+
+      <div class="setup-group">
+        <div class="setup-label">題型</div>
+        <div class="qtype-grid">
+          <div class="qtype-card"><span class="radio"></span><div class="qname">是非題</div><div class="qdesc">判斷單字與翻譯配對是否正確</div></div>
+          <div class="qtype-card on"><span class="radio"></span><div class="qname">選擇題</div><div class="qdesc">從 4 個選項選出正確翻譯</div></div>
+          <div class="qtype-card"><span class="radio"></span><div class="qname">填空題</div><div class="qdesc">自行輸入翻譯,逐字比對</div></div>
+        </div>
+      </div>
+
+      <div class="setup-group">
+        <div class="setup-label">題數</div>
+        <div class="count-row">
+          <div class="count-box">25</div>
+          <div class="count-note">目前篩選條件下符合的單字池共 47 個</div>
+        </div>
+        <div class="warn-note">選擇題單字池需至少 4 個字才能出題,目前篩選結果足夠。</div>
+      </div>
+
+      <a class="btn-start" href="#">開始測驗</a>
+    </div>
+  </div>
+</div>
+
+<!-- ============ SCREEN 5: 測驗進行(三種題型) ============ -->
+<div class="screen-block">
+  <div class="screen-label"><span class="num">畫面 5</span><span class="name">測驗進行(是非題 ・ 選擇題 ・ 填空題)</span></div>
+  <div class="frame">
+    <div class="app-nav">
+      <div class="app-logo">字力測驗</div>
+      <div class="app-user"><div class="avatar">阿</div>阿凱</div>
+    </div>
+    <div class="app-body">
+      <div class="quiz-grid">
+
+        <div class="quiz-card">
+          <div class="qtag">是非題 <span class="progress">第 8 / 25 題</span></div>
+          <div class="quiz-term">reimburse</div>
+          <div class="tf-row">中文翻譯:<b>&nbsp;獎勵、獎金&nbsp;</b></div>
+          <div class="tf-actions">
+            <a class="t" href="#">正確</a>
+            <a class="f" href="#">錯誤</a>
+          </div>
+        </div>
+
+        <div class="quiz-card">
+          <div class="qtag">選擇題 <span class="progress">第 8 / 25 題</span></div>
+          <div class="quiz-term">itinerary</div>
+          <div class="mc-options">
+            <a href="#">A. 發票</a>
+            <a href="#">B. 行程表</a>
+            <a href="#">C. 保證書</a>
+            <a href="#">D. 附屬品</a>
+          </div>
+        </div>
+
+        <div class="quiz-card">
+          <div class="qtag">填空題 <span class="progress">第 8 / 25 題</span></div>
+          <div class="quiz-term">subsidiary</div>
+          <div class="fib-box">
+            <input class="fib-input" type="text" placeholder="輸入中文翻譯...">
+            <a class="fib-submit" href="#">送出答案</a>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ SCREEN 6: 測驗結果頁 ============ -->
+<div class="screen-block">
+  <div class="screen-label"><span class="num">畫面 6</span><span class="name">測驗結果頁</span></div>
+  <div class="frame">
+    <div class="app-nav">
+      <div class="app-logo">字力測驗</div>
+      <div class="app-user"><div class="avatar">阿</div>阿凱</div>
+    </div>
+    <div class="app-body">
+      <div class="breadcrumb"><a href="#">TOEIC 核心 2000</a> ／ 測驗結果</div>
+
+      <div class="result-summary">
+        <div class="score-circle"><div class="pct">72%</div><div class="lbl">正確率</div></div>
+        <div class="result-stats">
+          <div>總題數<b>25</b></div>
+          <div>答對<b>18</b></div>
+          <div>答錯<b>7</b></div>
+          <div>題型<b>填空題</b></div>
+        </div>
+      </div>
+
+      <div class="result-section-label">答錯的單字(譯義比對)</div>
+
+      <div class="wrong-item">
+        <div class="wrong-term">diligent</div>
+        <div class="wrong-compare">
+          <div><span class="col-label">你的輸入</span><span class="diff-input">勤<span class="bad">勞</span>的</span></div>
+          <div><span class="col-label">正確答案</span><span class="diff-correct">勤勉的</span></div>
+        </div>
+      </div>
+
+      <div class="wrong-item">
+        <div class="wrong-term">reimburse</div>
+        <div class="wrong-compare">
+          <div><span class="col-label">你的輸入</span><span class="diff-input">償還<span class="missing">_</span></span></div>
+          <div><span class="col-label">正確答案</span><span class="diff-correct">償還、退款</span></div>
+        </div>
+      </div>
+
+      <div class="wrong-item">
+        <div class="wrong-term">subsidiary</div>
+        <div class="wrong-compare">
+          <div><span class="col-label">你的輸入</span><span class="diff-input">分店</span></div>
+          <div><span class="col-label">正確答案</span><span class="diff-correct">子公司</span></div>
+        </div>
+      </div>
+
+      <div class="result-actions">
+        <a class="btn-primary2" href="#">重新測驗(同樣範圍)</a>
+        <a class="btn-ghost2" href="#">回單字本</a>
+      </div>
+      <div style="font-size:12px; color:var(--ink-soft); margin-top:10px;">答錯率越高的單字,下次測驗出現的機率越高,不需要手動挑錯的字重測。</div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

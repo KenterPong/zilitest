@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>字力測驗 — App 畫面提案 01</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@500;700;900&family=Noto+Sans+TC:wght@400;500;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper: #F6F3EA;
+    --paper-deep: #EFEBDD;
+    --ink: #1E2A40;
+    --ink-soft: #4A5568;
+    --stamp-red: #A32B26;
+    --stamp-red-deep: #7E211D;
+    --gold: #B08A34;
+    --line: #DAD4C1;
+    --white: #FFFDF8;
+    --amber-bg: #FBF1DE;
+    --amber-line: #E3CE9D;
+  }
+  *{ box-sizing:border-box; margin:0; padding:0; }
+  body{
+    background:#DCD8C9; color:var(--ink); font-family:"Noto Sans TC","Inter",sans-serif;
+    line-height:1.6; padding:40px 0 100px;
+  }
+  .note{
+    max-width:900px; margin:0 auto 40px; padding:16px 22px; background:var(--white);
+    border:1px dashed var(--line); border-radius:4px; font-size:13.5px; color:var(--ink-soft);
+  }
+  .note b{ color:var(--ink); }
+  .screen-block{ max-width:1120px; margin:0 auto 64px; }
+  .screen-label{
+    display:flex; align-items:center; gap:10px; margin-bottom:14px; padding:0 4px;
+  }
+  .screen-label .num{
+    font-family:"IBM Plex Mono"; font-size:12px; background:var(--stamp-red); color:var(--white);
+    padding:3px 9px; border-radius:2px; letter-spacing:.05em;
+  }
+  .screen-label .name{ font-family:"Noto Serif TC"; font-weight:700; font-size:17px; }
+  .frame{
+    background:var(--paper); border:1px solid var(--line); border-radius:8px;
+    box-shadow:0 18px 40px rgba(30,42,64,0.14); overflow:hidden;
+  }
+  a{ color:inherit; text-decoration:none; }
+
+  /* ---- shared app chrome ---- */
+  .app-nav{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:16px 32px; border-bottom:1px solid var(--line); background:rgba(246,243,234,.9);
+  }
+  .app-logo{ font-family:"Noto Serif TC"; font-weight:900; font-size:19px; }
+  .app-user{ display:flex; align-items:center; gap:10px; font-size:13.5px; color:var(--ink-soft); }
+  .avatar{ width:30px; height:30px; border-radius:50%; background:var(--stamp-red); color:var(--white);
+    display:flex; align-items:center; justify-content:center; font-family:"Noto Serif TC"; font-weight:700; font-size:13px; }
+
+  .app-body{ padding:28px 32px 40px; }
+
+  /* ---- status banners (example states) ---- */
+  .banner-group{ display:flex; flex-direction:column; gap:10px; margin-bottom:26px; }
+  .banner{
+    display:flex; align-items:center; justify-content:space-between; gap:16px;
+    padding:13px 18px; border-radius:5px; font-size:13.5px; flex-wrap:wrap;
+  }
+  .banner .tag{ font-family:"IBM Plex Mono"; font-size:10.5px; letter-spacing:.06em; opacity:.75; margin-right:8px; }
+  .banner-trial{ background:var(--amber-bg); border:1px solid var(--amber-line); color:#6B5015; }
+  .banner-grace{ background:#FBEAE3; border:1px solid #E9BCAE; color:var(--stamp-red-deep); }
+  .banner-suspended{ background:#F3E1E0; border:1px solid var(--stamp-red); color:var(--stamp-red-deep); font-weight:500; }
+  .banner-cta{ font-weight:700; border-bottom:1px solid currentColor; white-space:nowrap; }
+
+  /* ---- wordbook grid ---- */
+  .section-row{ display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; }
+  .section-row h2{ font-family:"Noto Serif TC"; font-weight:700; font-size:19px; }
+  .btn-primary{ background:var(--ink); color:var(--white); font-size:13.5px; font-weight:500; padding:9px 16px; border-radius:3px; }
+  .btn-primary:hover{ background:var(--stamp-red-deep); }
+  .btn-ghost{ border:1px solid var(--line); background:var(--white); font-size:13.5px; font-weight:500; padding:9px 16px; border-radius:3px; color:var(--ink); }
+
+  .book-grid{ display:grid; grid-template-columns:repeat(3,1fr); gap:16px; }
+  .book-card{ background:var(--white); border:1px solid var(--line); border-radius:6px; padding:20px 20px 18px; position:relative; }
+  .book-card h3{ font-family:"Noto Serif TC"; font-size:16.5px; margin-bottom:10px; padding-right:10px; }
+  .book-meta{ display:flex; gap:14px; font-family:"IBM Plex Mono"; font-size:11.5px; color:var(--ink-soft); margin-bottom:16px; }
+  .book-meta b{ color:var(--ink); font-weight:600; }
+  .book-actions{ display:flex; gap:8px; }
+  .book-actions a{ flex:1; text-align:center; font-size:12.5px; font-weight:600; padding:8px 0; border-radius:3px; }
+  .act-quiz{ background:var(--stamp-red); color:var(--white); }
+  .act-card{ background:var(--paper-deep); border:1px solid var(--line); color:var(--ink); }
+  .act-manage{ position:absolute; top:18px; right:16px; font-size:11px; color:var(--ink-soft); font-family:"IBM Plex Mono"; }
+  .book-card.add{ display:flex; align-items:center; justify-content:center; border-style:dashed; color:var(--ink-soft); font-size:14px; font-weight:500; min-height:150px; }
+
+  @media (max-width:900px){ .book-grid{ grid-template-columns:1fr 1fr; } }
+
+  /* ---- word table screen ---- */
+  .breadcrumb{ font-size:12.5px; color:var(--ink-soft); margin-bottom:6px; }
+  .breadcrumb a{ border-bottom:1px dotted var(--ink-soft); }
+  .title-row{ display:flex; align-items:flex-end; justify-content:space-between; margin-bottom:6px; flex-wrap:wrap; gap:10px; }
+  .title-row h2{ font-family:"Noto Serif TC"; font-weight:900; font-size:24px; }
+  .limit-pill{ font-family:"IBM Plex Mono"; font-size:11.5px; color:var(--ink-soft); }
+  .limit-bar{ height:5px; background:var(--paper-deep); border:1px solid var(--line); border-radius:3px; overflow:hidden; margin-bottom:22px; max-width:320px; }
+  .limit-fill{ height:100%; background:var(--gold); width:44%; }
+
+  .toolbar{ display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; flex-wrap:wrap; gap:12px; }
+  .toolbar-actions{ display:flex; gap:10px; }
+  .tag-filter{ display:flex; gap:8px; flex-wrap:wrap; margin-bottom:18px; }
+  .chip{ font-family:"IBM Plex Mono"; font-size:11.5px; padding:5px 11px; border-radius:20px; border:1px solid var(--line); background:var(--white); color:var(--ink-soft); }
+  .chip.active{ background:var(--ink); color:var(--white); border-color:var(--ink); }
+
+  table{ width:100%; border-collapse:collapse; background:var(--white); border:1px solid var(--line); border-radius:6px; overflow:hidden; }
+  thead th{ text-align:left; font-family:"IBM Plex Mono"; font-size:11px; letter-spacing:.05em; color:var(--ink-soft); background:var(--paper-deep); padding:11px 16px; font-weight:500; }
+  tbody td{ padding:13px 16px; font-size:14px; border-top:1px solid var(--line); vertical-align:middle; }
+  .term-cell{ font-family:"Noto Serif TC"; font-weight:700; font-size:15.5px; }
+  .acc-good{ color:#3E7A4F; font-weight:600; }
+  .acc-mid{ color:var(--gold); font-weight:600; }
+  .acc-low{ color:var(--stamp-red); font-weight:600; }
+  .acc-none{ color:var(--ink-soft); }
+  .word-tags{ display:flex; gap:5px; flex-wrap:wrap; }
+  .word-tags span{ font-family:"IBM Plex Mono"; font-size:10px; color:var(--ink-soft); background:var(--paper-deep); padding:2px 7px; border-radius:9px; }
+  .row-actions{ display:flex; gap:12px; font-size:12px; color:var(--ink-soft); }
+  .row-actions a:hover{ color:var(--stamp-red); }
+
+  /* ---- flashcard screen ---- */
+  .flash-wrap{ display:flex; flex-direction:column; align-items:center; padding:20px 0 10px; }
+  .filter-chip-row{ display:flex; align-items:center; gap:10px; font-size:13px; color:var(--ink-soft); margin-bottom:26px; }
+  .filter-chip-row .edit{ font-family:"IBM Plex Mono"; font-size:11.5px; border-bottom:1px dotted var(--ink-soft); }
+  .flash-progress{ font-family:"IBM Plex Mono"; font-size:12px; color:var(--ink-soft); margin-bottom:18px; }
+  .flashcard{
+    width:420px; max-width:90%; min-height:230px; background:var(--white); border:1px solid var(--line);
+    border-radius:10px; box-shadow:0 14px 30px rgba(30,42,64,.12); display:flex; flex-direction:column;
+    align-items:center; justify-content:center; text-align:center; padding:30px; position:relative;
+  }
+  .flashcard .term{ font-family:"Noto Serif TC"; font-weight:900; font-size:34px; margin-bottom:14px; }
+  .flashcard .answer{ font-size:15.5px; color:var(--ink-soft); margin-bottom:8px; }
+  .flashcard .desc{ font-size:12.5px; color:var(--ink-soft); border-top:1px dashed var(--line); padding-top:10px; margin-top:10px; max-width:320px; }
+  .flip-hint{ font-family:"IBM Plex Mono"; font-size:11px; color:var(--ink-soft); margin-top:14px; }
+
+  .flash-actions{ display:flex; gap:14px; margin-top:26px; }
+  .btn-unknown{ background:var(--white); border:1.5px solid var(--stamp-red); color:var(--stamp-red-deep); font-weight:700; padding:13px 30px; border-radius:4px; font-size:14.5px; }
+  .btn-known{ background:var(--ink); color:var(--white); font-weight:700; padding:13px 30px; border-radius:4px; font-size:14.5px; }
+  .flash-nav{ display:flex; gap:20px; margin-top:20px; font-size:12.5px; color:var(--ink-soft); }
+  .flash-nav a:hover{ color:var(--ink); }
+  .flash-footer{ margin-top:30px; border-top:1px solid var(--line); padding-top:18px; width:100%; text-align:center; }
+  .flash-footer a{ font-weight:700; color:var(--stamp-red-deep); border-bottom:1px solid var(--stamp-red-deep); }
+</style>
+</head>
+<body>
+
+<div class="note">
+  這是第二批畫面稿(延續首頁的紙感 + 印章視覺)。這批先做「登入後最常用」的三個畫面:<b>① 首頁(單字本列表)</b>、<b>② 單字本內單字管理</b>、<b>③ 卡牌背誦模式</b>。狀態 banner 那邊我把「試用中 / 寬限期 / 已暫停」三種情境都列出來給你一起看,實際上線一次只會顯示其中一則。確認這批之後,再繼續做測驗設定/進行/結果、帳號設定、登入頁。
+</div>
+
+<!-- ============ SCREEN 1: 首頁 ============ -->
+<div class="screen-block">
+  <div class="screen-label"><span class="num">畫面 1</span><span class="name">首頁・單字本列表</span></div>
+  <div class="frame">
+    <div class="app-nav">
+      <div class="app-logo">字力測驗</div>
+      <div class="app-user"><div class="avatar">阿</div>阿凱</div>
+    </div>
+    <div class="app-body">
+
+      <div class="banner-group">
+        <div class="banner banner-trial">
+          <div><span class="tag">情境・試用中</span>免費試用剩餘 12 天,目前已用 218 / 500 個單字</div>
+          <a class="banner-cta" href="#">查看付費方案</a>
+        </div>
+        <div class="banner banner-grace">
+          <div><span class="tag">情境・寬限期</span>本月扣款失敗,寬限期剩餘 6 天,請確認付款方式</div>
+          <a class="banner-cta" href="#">前往更新付款</a>
+        </div>
+        <div class="banner banner-suspended">
+          <div><span class="tag">情境・已暫停</span>帳號已暫停使用,資料將保留至 2026/10/12</div>
+          <a class="banner-cta" href="#">立即付費恢復 ・ 匯出資料</a>
+        </div>
+      </div>
+
+      <div class="section-row">
+        <h2>我的單字本</h2>
+        <a class="btn-primary" href="#">+ 新增單字本</a>
+      </div>
+
+      <div class="book-grid">
+        <div class="book-card">
+          <span class="act-manage">管理</span>
+          <h3>TOEIC 核心 2000</h3>
+          <div class="book-meta"><span><b>130</b> 字</span></div>
+          <div class="book-actions">
+            <a class="act-card" href="#">背誦</a>
+            <a class="act-quiz" href="#">測驗</a>
+          </div>
+        </div>
+        <div class="book-card">
+          <span class="act-manage">管理</span>
+          <h3>JLPT N2 單字</h3>
+          <div class="book-meta"><span><b>68</b> 字</span></div>
+          <div class="book-actions">
+            <a class="act-card" href="#">背誦</a>
+            <a class="act-quiz" href="#">測驗</a>
+          </div>
+        </div>
+        <div class="book-card">
+          <span class="act-manage">管理</span>
+          <h3>多益必考片語</h3>
+          <div class="book-meta"><span><b>20</b> 字</span></div>
+          <div class="book-actions">
+            <a class="act-card" href="#">背誦</a>
+            <a class="act-quiz" href="#">測驗</a>
+          </div>
+        </div>
+        <div class="book-card add">+ 建立新的單字本</div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ============ SCREEN 2: 單字本內單字管理 ============ -->
+<div class="screen-block">
+  <div class="screen-label"><span class="num">畫面 2</span><span class="name">單字本內單字管理</span></div>
+  <div class="frame">
+    <div class="app-nav">
+      <div class="app-logo">字力測驗</div>
+      <div class="app-user"><div class="avatar">阿</div>阿凱</div>
+    </div>
+    <div class="app-body">
+
+      <div class="breadcrumb"><a href="#">我的單字本</a> ／ TOEIC 核心 2000</div>
+      <div class="title-row">
+        <h2>TOEIC 核心 2000</h2>
+        <div class="limit-pill">218 / 500 字(試用中)</div>
+      </div>
+      <div class="limit-bar"><div class="limit-fill"></div></div>
+
+      <div class="toolbar">
+        <div class="toolbar-actions">
+          <a class="btn-primary" href="#">+ 新增單字</a>
+          <a class="btn-ghost" href="#">Excel 匯入</a>
+          <a class="btn-ghost" href="#">管理標籤</a>
+        </div>
+        <div class="btn-ghost" style="cursor:default;">共 130 個單字</div>
+      </div>
+
+      <div class="tag-filter">
+        <span class="chip active">全部標籤</span>
+        <span class="chip">動詞</span>
+        <span class="chip">形容詞</span>
+        <span class="chip">考古題</span>
+        <span class="chip">易錯字</span>
+      </div>
+
+      <table>
+        <thead>
+          <tr><th>單字</th><th>答案</th><th>正確率</th><th>標籤</th><th>操作</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="term-cell">diligent</td>
+            <td>勤勉的</td>
+            <td class="acc-good">82%</td>
+            <td><div class="word-tags"><span>形容詞</span></div></td>
+            <td><div class="row-actions"><a href="#">編輯</a><a href="#">刪除</a></div></td>
+          </tr>
+          <tr>
+            <td class="term-cell">reimburse</td>
+            <td>償還、退款</td>
+            <td class="acc-low">31%</td>
+            <td><div class="word-tags"><span>動詞</span><span>易錯字</span></div></td>
+            <td><div class="row-actions"><a href="#">編輯</a><a href="#">刪除</a></div></td>
+          </tr>
+          <tr>
+            <td class="term-cell">itinerary</td>
+            <td>行程表</td>
+            <td class="acc-mid">58%</td>
+            <td><div class="word-tags"><span>考古題</span></div></td>
+            <td><div class="row-actions"><a href="#">編輯</a><a href="#">刪除</a></div></td>
+          </tr>
+          <tr>
+            <td class="term-cell">subsidiary</td>
+            <td>子公司</td>
+            <td class="acc-none">尚未測驗</td>
+            <td><div class="word-tags"></div></td>
+            <td><div class="row-actions"><a href="#">編輯</a><a href="#">刪除</a></div></td>
+          </tr>
+        </tbody>
+      </table>
+
+    </div>
+  </div>
+</div>
+
+<!-- ============ SCREEN 3: 卡牌背誦模式 ============ -->
+<div class="screen-block">
+  <div class="screen-label"><span class="num">畫面 3</span><span class="name">卡牌背誦模式</span></div>
+  <div class="frame">
+    <div class="app-nav">
+      <div class="app-logo">字力測驗</div>
+      <div class="app-user"><div class="avatar">阿</div>阿凱</div>
+    </div>
+    <div class="app-body">
+
+      <div class="flash-wrap">
+        <div class="filter-chip-row">
+          背誦範圍: TOEIC 核心 2000 ・ 全部標籤 <span class="edit">變更篩選</span>
+        </div>
+        <div class="flash-progress">第 12 / 60 張 ・ 不認得 4・認得 7</div>
+
+        <div class="flashcard">
+          <div class="term">reimburse</div>
+          <div class="flip-hint">點卡片查看答案</div>
+        </div>
+
+        <div class="flash-actions">
+          <a class="btn-unknown" href="#">不認得</a>
+          <a class="btn-known" href="#">認得</a>
+        </div>
+
+        <div class="flash-nav">
+          <a href="#">← 上一張</a>
+          <a href="#">結束背誦</a>
+        </div>
+
+        <div class="flash-footer">
+          背完想確認記得多少?<br>
+          <a href="#">直接開始測驗 →</a>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+</body>
+</html>
