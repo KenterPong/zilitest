@@ -5,6 +5,8 @@ import { AppNav } from '@/components/AppNav'
 import { StatusBanner } from '@/components/StatusBanner'
 import { getSessionUser } from '@/lib/auth'
 
+export const dynamic = 'force-dynamic'
+
 export default async function AppHomePage() {
   const user = await getSessionUser()
   if (!user || user.status === 'cancelled') {

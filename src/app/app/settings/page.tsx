@@ -4,6 +4,8 @@ import { redirect } from 'next/navigation'
 import { getSessionUser, daysRemaining } from '@/lib/auth'
 import { TRIAL_WORD_LIMIT } from '@/types/user'
 
+export const dynamic = 'force-dynamic'
+
 export default async function SettingsPage() {
   const user = await getSessionUser()
   if (!user || user.status === 'cancelled') {
