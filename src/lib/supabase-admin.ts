@@ -30,11 +30,19 @@ let _client: SupabaseClient | null = null
 export function getSupabaseAdmin(): SupabaseClient {
   if (_client) return _client
 
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL?.trim()
-  const serviceRoleKey = (process.env.SUPABASE_SERVICE_ROLE_KEY ?? '').trim()
+  const url = (process.env.NEXT_PUBLIC_SUPABASE_URL ?? '')
+    .trim()
+    .replace(/^["']|["']$/g, '')
+    .replace(/\/$/, '')
+  const serviceRoleKey = (process.env.SUPABASE_SERVICE_ROLE_KEY ?? '')
+    .trim()
+    .replace(/^["']|["']$/g, '')
 
   if (!url) {
     throw new Error('Missing env: NEXT_PUBLIC_SUPABASE_URL')
+  }
+  if (!/^https:\/\/[a-z0-9-]+\.supabase\.co$/i.test(url)) {
+    throw new Error(`Invalid NEXT_PUBLIC_SUPABASE_URL format: ${url}`)
   }
   if (!isPlausibleServiceRoleKey(serviceRoleKey)) {
     const r = serviceRoleKey.startsWith('eyJ') ? jwtPayloadRole(serviceRoleKey) : null
