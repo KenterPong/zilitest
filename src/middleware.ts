@@ -20,6 +20,13 @@ export function middleware(req: NextRequest) {
     }
   }
 
+  // 一律把 apex 導到 www，避免 cookie / LINE callback 網域不一致
+  const root = process.env.NEXT_PUBLIC_ROOT_DOMAIN?.trim().toLowerCase()
+  if (root && hostname === root) {
+    const dest = new URL(req.nextUrl.pathname + req.nextUrl.search, `https://www.${root}`)
+    return NextResponse.redirect(dest, 308)
+  }
+
   if (pathname.startsWith('/app')) {
     const userId = req.cookies.get(USER_ID_COOKIE)?.value
     if (!userId) {

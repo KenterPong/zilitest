@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 
 import { buildTrialFields, setUserSessionCookie } from '@/lib/auth'
-import { supabaseAdmin } from '@/lib/supabase-admin'
+import { getSupabaseAdmin } from '@/lib/supabase-admin'
 
 export const runtime = 'nodejs'
 
@@ -63,17 +63,33 @@ export async function POST(req: NextRequest) {
     }
 
     const profile = (await profileRes.json()) as LineProfile
+    const supabase = getSupabaseAdmin()
 
-    const { data: existing } = await supabaseAdmin
+    const { data: existing, error: existingError } = await supabase
       .from('users')
       .select('id, status')
       .eq('line_user_id', profile.userId)
       .maybeSingle()
 
+    if (existingError) {
+      console.error('User lookup error:', existingError)
+      return NextResponse.json(
+        {
+          error: '讀取帳號失敗',
+          details: {
+            message: existingError.message,
+            code: existingError.code,
+            hint: existingError.hint,
+          },
+        },
+        { status: 500 },
+      )
+    }
+
     let userId: string
 
     if (!existing) {
-      const { data: created, error } = await supabaseAdmin
+      const { data: created, error } = await supabase
         .from('users')
         .insert({
           line_user_id: profile.userId,
@@ -86,11 +102,24 @@ export async function POST(req: NextRequest) {
 
       if (error || !created) {
         console.error('User insert error:', error)
-        return NextResponse.json({ error: '建立帳號失敗' }, { status: 500 })
+        return NextResponse.json(
+          {
+            error: '建立帳號失敗',
+            details: error
+              ? {
+                  message: error.message,
+                  code: error.code,
+                  hint: error.hint,
+                  details: error.details,
+                }
+              : null,
+          },
+          { status: 500 },
+        )
       }
       userId = created.id
     } else if (existing.status === 'cancelled') {
-      const { data: revived, error } = await supabaseAdmin
+      const { data: revived, error } = await supabase
         .from('users')
         .update({
           display_name: profile.displayName,
@@ -103,11 +132,19 @@ export async function POST(req: NextRequest) {
 
       if (error || !revived) {
         console.error('User revive error:', error)
-        return NextResponse.json({ error: '重新啟用帳號失敗' }, { status: 500 })
+        return NextResponse.json(
+          {
+            error: '重新啟用帳號失敗',
+            details: error
+              ? { message: error.message, code: error.code, hint: error.hint }
+              : null,
+          },
+          { status: 500 },
+        )
       }
       userId = revived.id
     } else {
-      const { data: updated, error } = await supabaseAdmin
+      const { data: updated, error } = await supabase
         .from('users')
         .update({
           display_name: profile.displayName,
@@ -119,7 +156,15 @@ export async function POST(req: NextRequest) {
 
       if (error || !updated) {
         console.error('User update error:', error)
-        return NextResponse.json({ error: '更新帳號失敗' }, { status: 500 })
+        return NextResponse.json(
+          {
+            error: '更新帳號失敗',
+            details: error
+              ? { message: error.message, code: error.code, hint: error.hint }
+              : null,
+          },
+          { status: 500 },
+        )
       }
       userId = updated.id
     }
@@ -129,6 +174,7 @@ export async function POST(req: NextRequest) {
     return response
   } catch (error) {
     console.error('Auth callback error:', error)
-    return NextResponse.json({ error: '伺服器錯誤' }, { status: 500 })
+    const message = error instanceof Error ? error.message : '未知錯誤'
+    return NextResponse.json({ error: '伺服器錯誤', details: message }, { status: 500 })
   }
 }

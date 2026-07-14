@@ -80,7 +80,17 @@ function CallbackHandler() {
           setIsError(true)
           try {
             const data = await res.json()
-            setErrorMessage(data?.error ?? `登入失敗（HTTP ${res.status}）`)
+            const detail =
+              data?.details != null
+                ? typeof data.details === 'string'
+                  ? data.details
+                  : JSON.stringify(data.details)
+                : ''
+            setErrorMessage(
+              [data?.error ?? `登入失敗（HTTP ${res.status}）`, detail]
+                .filter(Boolean)
+                .join(' — '),
+            )
           } catch {
             setErrorMessage(`登入失敗（HTTP ${res.status}）`)
           }
