@@ -11,10 +11,26 @@ export function AppNav({ user }: AppNavProps) {
 
   return (
     <nav className="flex items-center justify-between px-8 py-4 border-b border-line bg-paper/90">
-      <Link href="/app" className="font-serif font-black text-xl text-ink">
-        字力測驗
-      </Link>
-      <div className="flex items-center gap-2.5 text-sm text-ink-soft">
+      <div className="flex items-center gap-6">
+        <Link href="/app" className="font-serif font-black text-xl text-ink">
+          字力測驗
+        </Link>
+        <div className="hidden sm:flex items-center gap-4 text-sm text-ink-soft">
+          <Link href="/app/cards" className="hover:text-ink">
+            背誦
+          </Link>
+          <Link href="/app/quiz" className="hover:text-ink">
+            測驗
+          </Link>
+          <Link href="/app/settings" className="hover:text-ink">
+            設定
+          </Link>
+        </div>
+      </div>
+      <Link
+        href="/app/settings"
+        className="flex items-center gap-2.5 text-sm text-ink-soft hover:text-ink"
+      >
         {user.avatar_url ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
@@ -28,7 +44,7 @@ export function AppNav({ user }: AppNavProps) {
           </div>
         )}
         <span>{user.display_name ?? '使用者'}</span>
-      </div>
+      </Link>
     </nav>
   )
 }

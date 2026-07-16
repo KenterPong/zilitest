@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 
+import { ExportWordsButton } from '@/components/ExportWordsButton'
 import { getSessionUser, daysRemaining } from '@/lib/auth'
 import { TRIAL_WORD_LIMIT } from '@/types/user'
 
@@ -38,6 +39,12 @@ export default async function SettingsPage() {
                   {trialDays ?? '—'} 天（{TRIAL_WORD_LIMIT} 字上限）
                 </dd>
               </div>
+              <div className="flex justify-between border-b border-dashed border-line pb-2">
+                <dt>單字用量</dt>
+                <dd>
+                  {user.word_count} / {TRIAL_WORD_LIMIT}
+                </dd>
+              </div>
               <div className="flex justify-between pb-2">
                 <dt>到期日</dt>
                 <dd>
@@ -63,13 +70,7 @@ export default async function SettingsPage() {
         <p className="text-sm text-ink-soft mb-4">
           將所有單字本匯出為 Excel，無論試用、付費或帳號已暫停（3 個月保留期內）皆可使用。
         </p>
-        <button
-          type="button"
-          disabled
-          className="bg-ink text-cream font-semibold text-sm px-4 py-2 rounded opacity-60 cursor-not-allowed"
-        >
-          匯出全部單字本（Phase 1）
-        </button>
+        <ExportWordsButton />
       </div>
     </div>
   )
