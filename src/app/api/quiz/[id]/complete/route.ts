@@ -76,6 +76,7 @@ export async function POST(request: Request, context: Ctx) {
   const results: {
     word_id: string
     term: string
+    prompt: string
     correct_answer: string
     is_correct: boolean
     user_input?: string
@@ -102,7 +103,8 @@ export async function POST(request: Request, context: Ctx) {
     } else if (session.question_type === '選擇題') {
       isCorrect = (ans.selected_answer ?? '').trim() === word.answer
     } else {
-      isCorrect = isExactAnswerMatch(ans.user_input ?? '', word.answer)
+      // 填空：顯示中文，輸入外文 → 比對 term
+      isCorrect = isExactAnswerMatch(ans.user_input ?? '', word.term)
     }
 
     if (isCorrect) correctCount++
@@ -111,7 +113,9 @@ export async function POST(request: Request, context: Ctx) {
     results.push({
       word_id: word.id,
       term: word.term,
-      correct_answer: word.answer,
+      prompt: word.answer,
+      correct_answer:
+        session.question_type === '輸入題' ? word.term : word.answer,
       is_correct: isCorrect,
       user_input: ans.user_input,
       display_answer: ans.display_answer,
@@ -119,7 +123,7 @@ export async function POST(request: Request, context: Ctx) {
       user_says_true: ans.user_says_true,
       diff:
         session.question_type === '輸入題' && !isCorrect
-          ? buildAnswerDiff(ans.user_input ?? '', word.answer)
+          ? buildAnswerDiff(ans.user_input ?? '', word.term)
           : null,
     })
   }

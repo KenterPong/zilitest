@@ -4,6 +4,8 @@ import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 import * as XLSX from 'xlsx'
 
+import { useAppDialog } from '@/components/AppDialog'
+
 interface ImportExcelButtonProps {
   wordbookId: string
   canMutate: boolean
@@ -24,6 +26,7 @@ export function ImportExcelButton({
   onImported,
 }: ImportExcelButtonProps) {
   const router = useRouter()
+  const { alert } = useAppDialog()
   const [open, setOpen] = useState(false)
   const [rows, setRows] = useState<PreviewRow[]>([])
   const [truncate, setTruncate] = useState(true)
@@ -99,9 +102,10 @@ export function ImportExcelButton({
       setFileName(null)
       onImported?.()
       router.refresh()
-      alert(
+      await alert(
         `已匯入 ${data.inserted} 筆` +
-          (data.skipped ? `（略過 ${data.skipped} 筆，因試用上限）` : '')
+          (data.skipped ? `（略過 ${data.skipped} 筆，因試用上限）` : ''),
+        '匯入完成'
       )
     } catch {
       setError('網路錯誤')

@@ -75,6 +75,11 @@ export async function POST(request: Request) {
   )
 
   const questions: QuizQuestion[] = selected.map((word) => {
+    if (questionType === '輸入題') {
+      // 填空：顯示中文，使用者輸入外文單字
+      return { word_id: word.id, prompt: word.answer }
+    }
+
     const base: QuizQuestion = { word_id: word.id, term: word.term }
 
     if (questionType === '是非題') {

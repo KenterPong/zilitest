@@ -5,13 +5,14 @@ import { useRouter } from 'next/navigation'
 import { useCallback, useState } from 'react'
 
 import { ScopeFilter } from '@/components/ScopeFilter'
+import { useAppDialog } from '@/components/AppDialog'
 import type { QuestionType, QuizQuestion } from '@/types/quiz'
 import type { DbTag, WordbookWithCount } from '@/types/vocab'
 
 const QTYPES: { type: QuestionType; name: string; desc: string }[] = [
   { type: '是非題', name: '是非題', desc: '判斷單字與翻譯配對是否正確' },
   { type: '選擇題', name: '選擇題', desc: '從 4 個選項選出正確翻譯' },
-  { type: '輸入題', name: '填空題', desc: '自行輸入翻譯，逐字比對' },
+  { type: '輸入題', name: '填空題', desc: '顯示中文，輸入外文單字' },
 ]
 
 interface QuizSetupClientProps {
@@ -34,6 +35,7 @@ export function QuizSetupClient({
   initialWordbookId,
 }: QuizSetupClientProps) {
   const router = useRouter()
+  const { confirm } = useAppDialog()
   const [wordbookIds, setWordbookIds] = useState<string[]>(
     initialWordbookId ? [initialWordbookId] : []
   )
@@ -59,6 +61,7 @@ export function QuizSetupClient({
     results: {
       word_id: string
       term: string
+      prompt?: string
       correct_answer: string
       is_correct: boolean
       user_input?: string
@@ -197,7 +200,7 @@ export function QuizSetupClient({
                 className="bg-cream border border-line rounded-md px-5 py-4 mb-2.5 flex items-center justify-between gap-5 flex-wrap"
               >
                 <div className="font-serif font-bold text-base min-w-[110px]">
-                  {r.term}
+                  {result.question_type === '輸入題' ? (r.prompt ?? r.term) : r.term}
                 </div>
                 <div className="flex gap-5 text-sm">
                   {result.question_type === '輸入題' && (
@@ -206,7 +209,7 @@ export function QuizSetupClient({
                         你的輸入
                       </span>
                       {r.diff ? (
-                        <span>
+                        <span className="font-mono">
                           {r.diff.map((p, i) => {
                             if (p.type === 'ok') return <span key={i}>{p.text}</span>
                             if (p.type === 'bad' || p.type === 'extra')
@@ -226,7 +229,7 @@ export function QuizSetupClient({
                           })}
                         </span>
                       ) : (
-                        <span>{r.user_input || '（空白）'}</span>
+                        <span className="font-mono">{r.user_input || '（空白）'}</span>
                       )}
                     </div>
                   )}
@@ -234,7 +237,7 @@ export function QuizSetupClient({
                     <span className="font-mono text-[9.5px] text-ink-soft block mb-0.5">
                       正確答案
                     </span>
-                    <span className="font-semibold">{r.correct_answer}</span>
+                    <span className="font-semibold font-mono">{r.correct_answer}</span>
                   </div>
                 </div>
               </div>
@@ -280,7 +283,7 @@ export function QuizSetupClient({
         </div>
         <div className="bg-cream border border-line rounded-lg p-6">
           <div className="font-serif font-black text-2xl text-center mb-5 pt-1">
-            {q.term}
+            {qtype === '輸入題' ? q.prompt : q.term}
           </div>
 
           {qtype === '是非題' && (
@@ -344,6 +347,7 @@ export function QuizSetupClient({
 
           {qtype === '輸入題' && (
             <div className="text-center">
+              <p className="text-xs text-ink-soft mb-3">請輸入對應的外文單字</p>
               <input
                 value={inputVal}
                 onChange={(e) => setInputVal(e.target.value)}
@@ -355,9 +359,12 @@ export function QuizSetupClient({
                     })
                   }
                 }}
-                placeholder="輸入中文翻譯…"
+                placeholder="輸入英文單字…"
                 className="w-full border-[1.5px] border-line rounded-md px-3.5 py-3 text-[15px] text-center mb-3.5 font-mono"
                 autoFocus
+                autoCapitalize="off"
+                autoCorrect="off"
+                spellCheck={false}
               />
               <button
                 type="button"
@@ -378,8 +385,13 @@ export function QuizSetupClient({
 
         <button
           type="button"
-          onClick={() => {
-            if (confirm('確定結束測驗？目前進度將不會儲存。')) {
+          onClick={async () => {
+            const ok = await confirm('確定結束測驗？目前進度將不會儲存。', {
+              title: '放棄測驗',
+              confirmLabel: '結束測驗',
+              danger: true,
+            })
+            if (ok) {
               setPhase('setup')
               setQuestions([])
               setSessionId(null)

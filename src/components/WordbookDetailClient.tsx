@@ -5,8 +5,10 @@ import { useRouter } from 'next/navigation'
 import { useMemo, useState } from 'react'
 
 import { ImportExcelButton } from '@/components/ImportExcelButton'
+import { useAppDialog } from '@/components/AppDialog'
 import type { DbTag, WordWithMeta } from '@/types/vocab'
 import { TRIAL_WORD_LIMIT } from '@/types/user'
+
 
 interface WordbookDetailClientProps {
   wordbookId: string
@@ -38,6 +40,7 @@ export function WordbookDetailClient({
   canMutate,
 }: WordbookDetailClientProps) {
   const router = useRouter()
+  const { alert, confirm } = useAppDialog()
   const [words, setWords] = useState(initialWords)
   const [tags, setTags] = useState(initialTags)
   const [filterTagId, setFilterTagId] = useState<string | null>(null)
@@ -139,11 +142,16 @@ export function WordbookDetailClient({
   }
 
   async function deleteWord(word: WordWithMeta) {
-    if (!confirm(`確定刪除「${word.term}」？`)) return
+    const ok = await confirm(`確定刪除「${word.term}」？`, {
+      title: '刪除單字',
+      confirmLabel: '刪除',
+      danger: true,
+    })
+    if (!ok) return
     const res = await fetch(`/api/words/${word.id}`, { method: 'DELETE' })
     const data = await res.json()
     if (!res.ok) {
-      alert(data.error ?? '刪除失敗')
+      await alert(data.error ?? '刪除失敗', '無法刪除')
       return
     }
     if (typeof data.word_count === 'number') setWordCount(data.word_count)
@@ -177,11 +185,15 @@ export function WordbookDetailClient({
   }
 
   async function deleteWordbook() {
-    if (!confirm(`確定刪除單字本「${displayName}」？其中所有單字都會一併刪除。`)) return
+    const ok = await confirm(
+      `確定刪除單字本「${displayName}」？其中所有單字都會一併刪除。`,
+      { title: '刪除單字本', confirmLabel: '刪除', danger: true }
+    )
+    if (!ok) return
     const res = await fetch(`/api/wordbooks/${wordbookId}`, { method: 'DELETE' })
     const data = await res.json()
     if (!res.ok) {
-      alert(data.error ?? '刪除失敗')
+      await alert(data.error ?? '刪除失敗', '無法刪除')
       return
     }
     router.push('/app')
@@ -213,11 +225,16 @@ export function WordbookDetailClient({
   }
 
   async function deleteTag(tag: DbTag) {
-    if (!confirm(`刪除標籤「${tag.name}」？單字上的此標籤會一併移除。`)) return
+    const ok = await confirm(`刪除標籤「${tag.name}」？單字上的此標籤會一併移除。`, {
+      title: '刪除標籤',
+      confirmLabel: '刪除',
+      danger: true,
+    })
+    if (!ok) return
     const res = await fetch(`/api/tags/${tag.id}`, { method: 'DELETE' })
     const data = await res.json()
     if (!res.ok) {
-      alert(data.error ?? '刪除失敗')
+      await alert(data.error ?? '刪除失敗', '無法刪除')
       return
     }
     setTags((prev) => prev.filter((t) => t.id !== tag.id))
