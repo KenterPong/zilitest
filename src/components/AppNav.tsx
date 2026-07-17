@@ -1,3 +1,4 @@
+import Image from 'next/image'
 import Link from 'next/link'
 
 import type { DbUser } from '@/types/user'
@@ -12,7 +13,8 @@ export function AppNav({ user }: AppNavProps) {
   return (
     <nav className="flex items-center justify-between px-8 py-4 border-b border-line bg-paper/90">
       <div className="flex items-center gap-6">
-        <Link href="/app" className="font-serif font-black text-xl text-ink">
+        <Link href="/app" className="font-serif font-black text-xl text-ink flex items-center gap-2.5">
+          <Image src="/logo.png" alt="" width={32} height={32} className="rounded-sm" />
           字力測驗
         </Link>
         <div className="hidden sm:flex items-center gap-4 text-sm text-ink-soft">

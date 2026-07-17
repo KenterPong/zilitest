@@ -7,6 +7,10 @@ import './globals.css'
 export const metadata: Metadata = {
   title: '字力測驗 zilitest',
   description: '英文、日文檢定單字背誦與測驗工具，LINE 登入即可使用。',
+  icons: {
+    icon: '/favicon.ico',
+    apple: '/logo.png',
+  },
 }
 
 export default function RootLayout({

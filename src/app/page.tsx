@@ -1,3 +1,4 @@
+import Image from 'next/image'
 import Link from 'next/link'
 
 export default function HomePage() {
@@ -5,8 +6,11 @@ export default function HomePage() {
     <>
       <nav className="sticky top-0 z-40 bg-paper/90 backdrop-blur border-b border-line">
         <div className="max-w-6xl mx-auto flex items-center justify-between px-8 py-4">
-          <div className="font-serif font-black text-xl flex items-baseline gap-2">
-            字力測驗 <span className="font-mono text-[11px] text-ink-soft tracking-widest">ZILITEST</span>
+          <div className="font-serif font-black text-xl flex items-center gap-2.5">
+            <Image src="/logo.png" alt="字力測驗" width={36} height={36} className="rounded-sm" priority />
+            <span className="flex items-baseline gap-2">
+              字力測驗 <span className="font-mono text-[11px] text-ink-soft tracking-widest">ZILITEST</span>
+            </span>
           </div>
           <div className="hidden md:flex gap-8 text-sm text-ink-soft">
             <a href="#features">功能特色</a>
@@ -172,7 +176,10 @@ export default function HomePage() {
       <footer className="border-t border-line py-12">
         <div className="max-w-6xl mx-auto px-8 flex flex-wrap justify-between gap-6 items-end">
           <div>
-            <div className="font-serif font-black text-lg mb-2">字力測驗</div>
+            <div className="font-serif font-black text-lg mb-2 flex items-center gap-2.5">
+              <Image src="/logo.png" alt="" width={28} height={28} className="rounded-sm" />
+              字力測驗
+            </div>
             <p className="text-sm text-ink-soft max-w-sm">
               英文、日文檢定單字背誦與測驗工具，免下載 App，LINE 登入即可使用。
             </p>
