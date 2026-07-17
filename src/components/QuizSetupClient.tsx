@@ -42,11 +42,13 @@ export function QuizSetupClient({
   const [tagIds, setTagIds] = useState<string[]>([])
   const [poolSize, setPoolSize] = useState(0)
   const [qtype, setQtype] = useState<QuestionType>('選擇題')
-  const [countInput, setCountInput] = useState('10')
+  const [countInput, setCountInput] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
 
-  const [phase, setPhase] = useState<'setup' | 'play' | 'result'>('setup')
+  const [phase, setPhase] = useState<'setup' | 'play' | 'scoring' | 'result'>(
+    'setup'
+  )
   const [sessionId, setSessionId] = useState<string | null>(null)
   const [questions, setQuestions] = useState<QuizQuestion[]>([])
   const [answers, setAnswers] = useState<AnswerDraft[]>([])
@@ -146,6 +148,8 @@ export function QuizSetupClient({
     const nextAnswers = [...answers, draft]
     setAnswers(nextAnswers)
     if (idx + 1 >= questions.length) {
+      setPhase('scoring')
+      setError(null)
       await finish(nextAnswers)
     } else {
       setIdx(idx + 1)
@@ -165,12 +169,14 @@ export function QuizSetupClient({
       const data = await res.json()
       if (!res.ok) {
         setError(data.error ?? '提交失敗')
+        setPhase('play')
         return
       }
       setResult(data)
       setPhase('result')
     } catch {
       setError('網路錯誤')
+      setPhase('play')
     } finally {
       setLoading(false)
     }
@@ -297,6 +303,17 @@ export function QuizSetupClient({
         <p className="text-xs text-ink-soft mt-2.5">
           答錯率越高的單字，下次測驗出現的機率越高。
         </p>
+      </div>
+    )
+  }
+
+  if (phase === 'scoring') {
+    return (
+      <div className="max-w-md mx-auto py-16 text-center">
+        <div className="bg-cream border border-line rounded-lg p-8">
+          <p className="font-serif font-bold text-xl mb-2">成績計算中</p>
+          <p className="text-sm text-ink-soft">正在核對答案，請稍候…</p>
+        </div>
       </div>
     )
   }
@@ -493,20 +510,27 @@ export function QuizSetupClient({
             inputMode="numeric"
             pattern="[0-9]*"
             value={countInput}
+            placeholder="輸入題數"
             onChange={(e) => {
               const next = e.target.value.replace(/[^\d]/g, '')
               setCountInput(next)
               setError(null)
             }}
             onBlur={() => {
+              if (!countInput.trim()) return
               const parsed = parseCountInput(countInput)
-              if (parsed === null) return
-              const capped = Math.min(parsed, maxCount)
-              if (capped !== parsed || String(parsed) !== countInput.trim()) {
-                setCountInput(String(capped))
+              if (parsed === null) {
+                setError('請輸入正整數題數')
+                return
               }
+              if (parsed > maxCount) {
+                setCountInput(String(maxCount))
+                setError(`題數不可超過可出題數（最多 ${maxCount} 題）`)
+                return
+              }
+              setCountInput(String(parsed))
             }}
-            className="font-mono text-lg font-semibold border border-line bg-cream px-4 py-2 rounded-md w-24"
+            className="font-mono text-lg font-semibold border border-line bg-cream px-4 py-2 rounded-md w-24 placeholder:text-ink-soft placeholder:font-sans placeholder:text-sm placeholder:font-normal"
             aria-label="題數"
           />
           <span className="text-[12.5px] text-ink-soft">最多 {poolSize || '—'} 題</span>
