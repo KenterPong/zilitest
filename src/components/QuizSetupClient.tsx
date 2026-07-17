@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 
 import { ScopeFilter } from '@/components/ScopeFilter'
 import { useAppDialog } from '@/components/AppDialog'
@@ -42,7 +42,7 @@ export function QuizSetupClient({
   const [tagIds, setTagIds] = useState<string[]>([])
   const [poolSize, setPoolSize] = useState(0)
   const [qtype, setQtype] = useState<QuestionType>('選擇題')
-  const [count, setCount] = useState(10)
+  const [countInput, setCountInput] = useState('10')
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
 
@@ -52,6 +52,7 @@ export function QuizSetupClient({
   const [answers, setAnswers] = useState<AnswerDraft[]>([])
   const [idx, setIdx] = useState(0)
   const [inputVal, setInputVal] = useState('')
+  const answerInputRef = useRef<HTMLInputElement>(null)
   const [result, setResult] = useState<{
     total: number
     correct: number
@@ -78,8 +79,36 @@ export function QuizSetupClient({
     []
   )
 
+  useEffect(() => {
+    if (phase !== 'play' || qtype !== '輸入題') return
+    const id = window.requestAnimationFrame(() => {
+      answerInputRef.current?.focus()
+    })
+    return () => window.cancelAnimationFrame(id)
+  }, [phase, qtype, idx])
+
+  function parseCountInput(raw: string): number | null {
+    const trimmed = raw.trim()
+    if (!trimmed) return null
+    if (!/^\d+$/.test(trimmed)) return null
+    const n = Number(trimmed)
+    if (!Number.isInteger(n) || n < 1) return null
+    return n
+  }
+
   async function startQuiz() {
     setError(null)
+    const maxCount = Math.max(poolSize, 1)
+    const parsed = parseCountInput(countInput)
+    if (parsed === null) {
+      setError('請輸入正整數題數')
+      return
+    }
+    if (parsed > maxCount) {
+      setError(`題數不可超過可出題數（最多 ${maxCount} 題）`)
+      return
+    }
+    setCountInput(String(parsed))
     setLoading(true)
     try {
       const res = await fetch('/api/quiz/start', {
@@ -89,7 +118,7 @@ export function QuizSetupClient({
           wordbook_ids: wordbookIds,
           tag_ids: tagIds,
           question_type: qtype,
-          word_count: count,
+          word_count: parsed,
         }),
       })
       const data = await res.json()
@@ -349,6 +378,7 @@ export function QuizSetupClient({
             <div className="text-center">
               <p className="text-xs text-ink-soft mb-3">請輸入對應的外文單字</p>
               <input
+                ref={answerInputRef}
                 value={inputVal}
                 onChange={(e) => setInputVal(e.target.value)}
                 onKeyDown={(e) => {
@@ -407,7 +437,13 @@ export function QuizSetupClient({
   }
 
   const minPool = qtype === '選擇題' ? 4 : qtype === '是非題' ? 2 : 1
-  const canStart = wordbookIds.length > 0 && poolSize >= minPool && count >= 1
+  const parsedCount = parseCountInput(countInput)
+  const maxCount = Math.max(poolSize, 1)
+  const canStart =
+    wordbookIds.length > 0 &&
+    poolSize >= minPool &&
+    parsedCount !== null &&
+    parsedCount <= maxCount
 
   return (
     <div>
@@ -453,12 +489,25 @@ export function QuizSetupClient({
         </div>
         <div className="flex items-center gap-3.5">
           <input
-            type="number"
-            min={1}
-            max={Math.max(poolSize, 1)}
-            value={count}
-            onChange={(e) => setCount(Math.max(1, Number(e.target.value) || 1))}
+            type="text"
+            inputMode="numeric"
+            pattern="[0-9]*"
+            value={countInput}
+            onChange={(e) => {
+              const next = e.target.value.replace(/[^\d]/g, '')
+              setCountInput(next)
+              setError(null)
+            }}
+            onBlur={() => {
+              const parsed = parseCountInput(countInput)
+              if (parsed === null) return
+              const capped = Math.min(parsed, maxCount)
+              if (capped !== parsed || String(parsed) !== countInput.trim()) {
+                setCountInput(String(capped))
+              }
+            }}
             className="font-mono text-lg font-semibold border border-line bg-cream px-4 py-2 rounded-md w-24"
+            aria-label="題數"
           />
           <span className="text-[12.5px] text-ink-soft">最多 {poolSize || '—'} 題</span>
         </div>

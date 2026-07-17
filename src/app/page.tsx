@@ -41,7 +41,7 @@ export default function HomePage() {
               把單字，練成<em className="not-italic text-stamp-red">你的字力</em>。
             </h1>
             <p className="text-ink-soft text-lg mb-8 max-w-md">
-              功能完整、價格合理，讓你更專注在背單字這件事。免下載 App，LINE 登入就能開始練。
+              功能完整、價格合理，讓你更專注在背單字這件事。免下載 App，LINE 登入就能開始練。我們不會取得或儲存你的 LINE 密碼。
             </p>
             <div className="flex flex-wrap items-center gap-4 mb-4">
               <Link
