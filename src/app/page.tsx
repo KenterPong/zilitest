@@ -177,7 +177,7 @@ export default function HomePage() {
         <div className="max-w-6xl mx-auto px-8 flex flex-wrap justify-between gap-6 items-end">
           <div>
             <div className="font-serif font-black text-lg mb-2 flex items-center gap-2.5">
-              <Image src="/logo.png" alt="" width={28} height={28} className="rounded-sm" />
+              <Image src="/logo.png" alt="字力測驗" width={28} height={28} className="rounded-sm" />
               字力測驗
             </div>
             <p className="text-sm text-ink-soft max-w-sm">
