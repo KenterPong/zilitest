@@ -1,6 +1,8 @@
 import Image from 'next/image'
 import Link from 'next/link'
 
+import { SiteFooter } from '@/components/SiteChrome'
+
 export default function HomePage() {
   return (
     <>
@@ -178,28 +180,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      <footer className="border-t border-line py-12">
-        <div className="max-w-6xl mx-auto px-8 flex flex-wrap justify-between gap-6 items-end">
-          <div>
-            <div className="font-serif font-black text-lg mb-2 flex items-center gap-2.5">
-              <Image src="/logo.png" alt="字力測驗" width={28} height={28} className="rounded-sm" />
-              字力測驗
-            </div>
-            <p className="text-sm text-ink-soft max-w-sm">
-              英文、日文檢定單字背誦與測驗工具，免下載 App，LINE 登入即可使用。
-            </p>
-            <div className="flex gap-4 mt-3 text-xs text-ink-soft">
-              <Link href="/privacy" className="underline">
-                隱私權政策
-              </Link>
-              <Link href="/terms" className="underline">
-                服務條款
-              </Link>
-            </div>
-          </div>
-          <div className="font-mono text-sm text-ink-soft">zilitest.com</div>
-        </div>
-      </footer>
+      <SiteFooter />
     </>
   )
 }
