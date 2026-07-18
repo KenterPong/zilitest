@@ -1,6 +1,5 @@
 import { redirect } from 'next/navigation'
 
-import { AppNav } from '@/components/AppNav'
 import { StatusBanner } from '@/components/StatusBanner'
 import { WordbookGrid } from '@/components/WordbookGrid'
 import { getSessionUser } from '@/lib/auth'
@@ -18,12 +17,9 @@ export default async function AppHomePage() {
   const canMutate = user.status !== 'suspended'
 
   return (
-    <div className="min-h-screen bg-paper">
-      <AppNav user={user} />
-      <main className="px-8 py-7 max-w-5xl mx-auto">
-        <StatusBanner user={user} />
-        <WordbookGrid wordbooks={wordbooks} canMutate={canMutate} />
-      </main>
-    </div>
+    <main className="px-8 py-7 max-w-5xl mx-auto">
+      <StatusBanner user={user} />
+      <WordbookGrid wordbooks={wordbooks} canMutate={canMutate} />
+    </main>
   )
 }

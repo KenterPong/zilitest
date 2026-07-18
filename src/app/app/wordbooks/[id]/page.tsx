@@ -1,6 +1,5 @@
 import { notFound, redirect } from 'next/navigation'
 
-import { AppNav } from '@/components/AppNav'
 import { WordbookDetailClient } from '@/components/WordbookDetailClient'
 import { getSessionUser } from '@/lib/auth'
 import {
@@ -29,19 +28,16 @@ export default async function WordbookDetailPage({ params }: Props) {
   ])
 
   return (
-    <div className="min-h-screen bg-paper">
-      <AppNav user={user} />
-      <main className="px-8 py-7 max-w-5xl mx-auto">
-        <WordbookDetailClient
-          wordbookId={book.id}
-          wordbookName={book.name}
-          words={words}
-          tags={tags}
-          accountWordCount={user.word_count}
-          userStatus={user.status}
-          canMutate={user.status !== 'suspended'}
-        />
-      </main>
-    </div>
+    <main className="px-8 py-7 max-w-5xl mx-auto">
+      <WordbookDetailClient
+        wordbookId={book.id}
+        wordbookName={book.name}
+        words={words}
+        tags={tags}
+        accountWordCount={user.word_count}
+        userStatus={user.status}
+        canMutate={user.status !== 'suspended'}
+      />
+    </main>
   )
 }
