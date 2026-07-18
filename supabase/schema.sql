@@ -16,6 +16,7 @@ CREATE TABLE users (
   status                   TEXT NOT NULL DEFAULT 'trial'
                            CHECK (status IN ('trial', 'active', 'payment_failed', 'suspended', 'cancelled')),
   auto_renew               BOOLEAN NOT NULL DEFAULT true,
+  is_early_bird            BOOLEAN NOT NULL DEFAULT false,
   trial_start_at           TIMESTAMPTZ,
   trial_end_at             TIMESTAMPTZ,
   first_paid_at            TIMESTAMPTZ,
@@ -33,6 +34,8 @@ CREATE TABLE users (
 
 CREATE INDEX users_line_user_id_idx ON users (line_user_id);
 CREATE INDEX users_status_idx ON users (status);
+CREATE INDEX users_early_bird_active_idx ON users (is_early_bird)
+  WHERE is_early_bird = true AND status <> 'cancelled';
 
 -- =============================================
 -- 單字本
@@ -164,6 +167,128 @@ CREATE TRIGGER card_familiarity_updated_at
   BEFORE UPDATE ON card_familiarity FOR EACH ROW EXECUTE FUNCTION update_card_familiarity_updated_at();
 
 -- =============================================
+-- 使用者回饋
+-- =============================================
+CREATE TABLE feedback (
+  id          UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id     UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  content     TEXT NOT NULL,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  CONSTRAINT feedback_content_len CHECK (char_length(content) BETWEEN 1 AND 2000)
+);
+
+CREATE INDEX feedback_user_id_idx ON feedback (user_id);
+CREATE INDEX feedback_created_at_idx ON feedback (created_at DESC);
+
+-- =============================================
+-- LINE 註冊／登入（含早鳥名額原子判定）
+-- =============================================
+CREATE OR REPLACE FUNCTION register_line_user(
+  p_line_user_id text,
+  p_display_name text,
+  p_avatar_url text
+)
+RETURNS json
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_user users%ROWTYPE;
+  v_is_early boolean := false;
+  v_cnt int;
+  v_now timestamptz := timezone('utc', now());
+  v_trial_end timestamptz;
+  v_taipei_today date;
+BEGIN
+  SELECT * INTO v_user
+  FROM users
+  WHERE line_user_id = p_line_user_id
+  FOR UPDATE;
+
+  IF FOUND THEN
+    IF v_user.status = 'cancelled' THEN
+      -- 再登入：一律一般 30 天試用，不再發早鳥
+      UPDATE users SET
+        display_name = p_display_name,
+        avatar_url = p_avatar_url,
+        status = 'trial',
+        is_early_bird = false,
+        auto_renew = true,
+        trial_start_at = v_now,
+        trial_end_at = v_now + interval '30 days',
+        word_count = 0,
+        first_paid_at = NULL,
+        next_billing_at = NULL,
+        payment_failed_at = NULL,
+        grace_period_end_at = NULL,
+        suspended_at = NULL,
+        data_purge_scheduled_at = NULL,
+        last_reminder_sent_at = NULL,
+        cancelled_at = NULL,
+        updated_at = v_now
+      WHERE id = v_user.id
+      RETURNING * INTO v_user;
+      RETURN row_to_json(v_user);
+    END IF;
+
+    UPDATE users SET
+      display_name = p_display_name,
+      avatar_url = p_avatar_url,
+      updated_at = v_now
+    WHERE id = v_user.id
+    RETURNING * INTO v_user;
+    RETURN row_to_json(v_user);
+  END IF;
+
+  -- 新註冊：advisory lock 避免早鳥超收；cancelled 不佔名額
+  PERFORM pg_advisory_xact_lock(87001100);
+
+  v_taipei_today := (timezone('Asia/Taipei', v_now))::date;
+  IF v_taipei_today <= DATE '2026-12-31' THEN
+    SELECT COUNT(*)::int INTO v_cnt
+    FROM users
+    WHERE is_early_bird = true
+      AND status <> 'cancelled';
+    IF v_cnt < 100 THEN
+      v_is_early := true;
+    END IF;
+  END IF;
+
+  IF v_is_early THEN
+    v_trial_end := timezone('Asia/Taipei', timestamp '2026-12-31 23:59:59');
+  ELSE
+    v_trial_end := v_now + interval '30 days';
+  END IF;
+
+  INSERT INTO users (
+    line_user_id,
+    display_name,
+    avatar_url,
+    status,
+    is_early_bird,
+    auto_renew,
+    trial_start_at,
+    trial_end_at,
+    word_count
+  ) VALUES (
+    p_line_user_id,
+    p_display_name,
+    p_avatar_url,
+    'trial',
+    v_is_early,
+    true,
+    v_now,
+    v_trial_end,
+    0
+  )
+  RETURNING * INTO v_user;
+
+  RETURN row_to_json(v_user);
+END;
+$$;
+
+-- =============================================
 -- 撤銷 anon / authenticated 直接存取權限
 -- =============================================
 REVOKE ALL ON TABLE users            FROM anon, authenticated;
@@ -175,6 +300,7 @@ REVOKE ALL ON TABLE word_stats       FROM anon, authenticated;
 REVOKE ALL ON TABLE quiz_sessions    FROM anon, authenticated;
 REVOKE ALL ON TABLE quiz_answers     FROM anon, authenticated;
 REVOKE ALL ON TABLE card_familiarity FROM anon, authenticated;
+REVOKE ALL ON TABLE feedback         FROM anon, authenticated;
 
 GRANT ALL ON TABLE users            TO service_role;
 GRANT ALL ON TABLE wordbooks        TO service_role;
@@ -185,3 +311,6 @@ GRANT ALL ON TABLE word_stats       TO service_role;
 GRANT ALL ON TABLE quiz_sessions    TO service_role;
 GRANT ALL ON TABLE quiz_answers     TO service_role;
 GRANT ALL ON TABLE card_familiarity TO service_role;
+GRANT ALL ON TABLE feedback         TO service_role;
+
+GRANT EXECUTE ON FUNCTION register_line_user(text, text, text) TO service_role;

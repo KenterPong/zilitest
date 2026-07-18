@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 
-import { buildTrialFields, setUserSessionCookie } from '@/lib/auth'
+import { setUserSessionCookie } from '@/lib/auth'
 import { getSupabaseAdmin } from '@/lib/supabase-admin'
 
 export const runtime = 'nodejs'
@@ -9,6 +9,10 @@ interface LineProfile {
   userId: string
   displayName: string
   pictureUrl?: string
+}
+
+interface RegisteredUser {
+  id: string
 }
 
 export async function POST(req: NextRequest) {
@@ -48,7 +52,7 @@ export async function POST(req: NextRequest) {
       }
       return NextResponse.json(
         { error: 'LINE 驗證失敗', details, status: tokenRes.status },
-        { status: 401 },
+        { status: 401 }
       )
     }
 
@@ -65,112 +69,36 @@ export async function POST(req: NextRequest) {
     const profile = (await profileRes.json()) as LineProfile
     const supabase = getSupabaseAdmin()
 
-    const { data: existing, error: existingError } = await supabase
-      .from('users')
-      .select('id, status')
-      .eq('line_user_id', profile.userId)
-      .maybeSingle()
+    const { data, error } = await supabase.rpc('register_line_user', {
+      p_line_user_id: profile.userId,
+      p_display_name: profile.displayName,
+      p_avatar_url: profile.pictureUrl ?? null,
+    })
 
-    if (existingError) {
-      console.error('User lookup error:', existingError)
+    if (error || !data) {
+      console.error('register_line_user error:', error)
       return NextResponse.json(
         {
-          error: '讀取帳號失敗',
-          details: {
-            message: existingError.message,
-            code: existingError.code,
-            hint: existingError.hint,
-          },
+          error: '帳號處理失敗',
+          details: error
+            ? {
+                message: error.message,
+                code: error.code,
+                hint: error.hint,
+              }
+            : null,
         },
-        { status: 500 },
+        { status: 500 }
       )
     }
 
-    let userId: string
-
-    if (!existing) {
-      const { data: created, error } = await supabase
-        .from('users')
-        .insert({
-          line_user_id: profile.userId,
-          display_name: profile.displayName,
-          avatar_url: profile.pictureUrl ?? null,
-          ...buildTrialFields(),
-        })
-        .select('id')
-        .single()
-
-      if (error || !created) {
-        console.error('User insert error:', error)
-        return NextResponse.json(
-          {
-            error: '建立帳號失敗',
-            details: error
-              ? {
-                  message: error.message,
-                  code: error.code,
-                  hint: error.hint,
-                  details: error.details,
-                }
-              : null,
-          },
-          { status: 500 },
-        )
-      }
-      userId = created.id
-    } else if (existing.status === 'cancelled') {
-      const { data: revived, error } = await supabase
-        .from('users')
-        .update({
-          display_name: profile.displayName,
-          avatar_url: profile.pictureUrl ?? null,
-          ...buildTrialFields(),
-        })
-        .eq('id', existing.id)
-        .select('id')
-        .single()
-
-      if (error || !revived) {
-        console.error('User revive error:', error)
-        return NextResponse.json(
-          {
-            error: '重新啟用帳號失敗',
-            details: error
-              ? { message: error.message, code: error.code, hint: error.hint }
-              : null,
-          },
-          { status: 500 },
-        )
-      }
-      userId = revived.id
-    } else {
-      const { data: updated, error } = await supabase
-        .from('users')
-        .update({
-          display_name: profile.displayName,
-          avatar_url: profile.pictureUrl ?? null,
-        })
-        .eq('id', existing.id)
-        .select('id')
-        .single()
-
-      if (error || !updated) {
-        console.error('User update error:', error)
-        return NextResponse.json(
-          {
-            error: '更新帳號失敗',
-            details: error
-              ? { message: error.message, code: error.code, hint: error.hint }
-              : null,
-          },
-          { status: 500 },
-        )
-      }
-      userId = updated.id
+    const user = data as RegisteredUser
+    if (!user.id) {
+      return NextResponse.json({ error: '帳號處理失敗：缺少使用者 id' }, { status: 500 })
     }
 
     const response = NextResponse.json({ ok: true })
-    setUserSessionCookie(response, userId)
+    setUserSessionCookie(response, user.id)
     return response
   } catch (error) {
     console.error('Auth callback error:', error)

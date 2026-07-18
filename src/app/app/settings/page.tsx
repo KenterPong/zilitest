@@ -2,7 +2,8 @@ import Link from 'next/link'
 import { redirect } from 'next/navigation'
 
 import { ExportWordsButton } from '@/components/ExportWordsButton'
-import { getSessionUser, daysRemaining } from '@/lib/auth'
+import { FeedbackForm } from '@/components/FeedbackForm'
+import { daysRemaining, formatTrialEndDate, getSessionUser } from '@/lib/auth'
 import { TRIAL_WORD_LIMIT } from '@/types/user'
 
 export const dynamic = 'force-dynamic'
@@ -28,7 +29,11 @@ export default async function SettingsPage() {
           <div className="flex justify-between border-b border-dashed border-line pb-2">
             <dt>目前方案</dt>
             <dd className="font-mono text-xs bg-amber-bg border border-amber-line px-2 py-0.5 rounded-full">
-              {user.status === 'trial' ? '試用中' : user.status}
+              {user.status === 'trial'
+                ? user.is_early_bird
+                  ? '早鳥試用中'
+                  : '試用中'
+                : user.status}
             </dd>
           </div>
           {user.status === 'trial' && (
@@ -46,16 +51,17 @@ export default async function SettingsPage() {
                 </dd>
               </div>
               <div className="flex justify-between pb-2">
-                <dt>到期日</dt>
-                <dd>
-                  {user.trial_end_at
-                    ? new Date(user.trial_end_at).toLocaleDateString('zh-TW')
-                    : '—'}
-                </dd>
+                <dt>{user.is_early_bird ? '早鳥到期日' : '到期日'}</dt>
+                <dd>{formatTrialEndDate(user.trial_end_at)}</dd>
               </div>
             </>
           )}
         </dl>
+        {user.is_early_bird && user.status === 'trial' && (
+          <p className="text-xs text-ink-soft mt-3">
+            你是前 100 名早鳥會員，可免費使用至 2026/12/31（台北時間）。期滿後若未付費，帳號將暫停並保留資料 3 個月。
+          </p>
+        )}
         <button
           type="button"
           disabled
@@ -63,6 +69,14 @@ export default async function SettingsPage() {
         >
           升級為付費版 NT$70/月（Phase 2）
         </button>
+      </div>
+
+      <div className="bg-cream border border-line rounded-lg p-6 mb-4">
+        <h2 className="font-serif font-bold mb-2">意見回饋</h2>
+        <p className="text-sm text-ink-soft mb-4">
+          歡迎告訴我們使用心得或想要的功能。MVP 階段僅收集內容，我們會直接在資料庫檢視。
+        </p>
+        <FeedbackForm />
       </div>
 
       <div className="bg-cream border border-line rounded-lg p-6">

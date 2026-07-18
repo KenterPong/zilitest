@@ -15,6 +15,7 @@ export interface DbUser {
   email: string | null
   status: UserStatus
   auto_renew: boolean
+  is_early_bird: boolean
   trial_start_at: string | null
   trial_end_at: string | null
   first_paid_at: string | null
@@ -32,3 +33,7 @@ export interface DbUser {
 
 export const TRIAL_WORD_LIMIT = 500
 export const TRIAL_DAYS = 30
+export const EARLY_BIRD_LIMIT = 100
+/** 早鳥免費截止（台北時間當日結束） */
+export const EARLY_BIRD_END_DATE = '2026-12-31'
+export const FEEDBACK_MAX_LENGTH = 2000

@@ -6,8 +6,9 @@
 
 1. 建立新 Supabase 專案
 2. Dashboard → **SQL Editor** → 貼上 [`supabase/schema.sql`](../supabase/schema.sql) → **Run**
-3. 確認 Table Editor 出現 9 張表：`users`、`wordbooks`、`words`、`tags`、`word_tags`、`word_stats`、`quiz_sessions`、`quiz_answers`、`card_familiarity`
-4. Settings → API 複製：
+3. 確認 Table Editor 出現表：`users`、`wordbooks`、`words`、`tags`、`word_tags`、`word_stats`、`quiz_sessions`、`quiz_answers`、`card_familiarity`、`feedback`
+4. **既有專案升級**：若先前已跑過舊 schema，改執行 [`supabase/migration_early_bird_feedback.sql`](../supabase/migration_early_bird_feedback.sql)（會加 `is_early_bird`、`feedback`、`register_line_user`，並為現有帳號補發早鳥）
+5. Settings → API 複製：
    - `Project URL` → `NEXT_PUBLIC_SUPABASE_URL`
    - `anon` key → `NEXT_PUBLIC_SUPABASE_ANON_KEY`
    - `service_role` key → `SUPABASE_SERVICE_ROLE_KEY`（僅伺服器端，勿公開）
