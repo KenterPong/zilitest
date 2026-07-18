@@ -1,14 +1,23 @@
 import Link from 'next/link'
 
 import { SiteFooter, SiteHeader } from '@/components/SiteChrome'
+import { getSessionUser } from '@/lib/auth'
 
-export default function TermsPage() {
+export const dynamic = 'force-dynamic'
+
+export default async function TermsPage() {
+  const user = await getSessionUser()
+  const loggedIn = Boolean(user && user.status !== 'cancelled')
+
   return (
     <>
       <SiteHeader />
       <main className="max-w-3xl mx-auto px-8 py-16 min-h-[60vh]">
-        <Link href="/" className="text-sm text-ink-soft hover:text-ink mb-6 inline-block">
-          ← 返回首頁
+        <Link
+          href={loggedIn ? '/app' : '/'}
+          className="text-sm text-ink-soft hover:text-ink mb-6 inline-block"
+        >
+          {loggedIn ? '← 返回 App' : '← 返回首頁'}
         </Link>
         <h1 className="font-serif font-black text-3xl mb-6">服務條款</h1>
         <div className="space-y-6 text-sm text-ink-soft leading-relaxed">
