@@ -1,1 +1,0 @@
-database password = "QJn*P7BLV2n?bQ.";
