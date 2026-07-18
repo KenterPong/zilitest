@@ -70,6 +70,9 @@ export function SiteFooter() {
             <Link href="/terms" className="underline">
               服務條款
             </Link>
+            <Link href="/app/feedback" className="underline">
+              改善建議
+            </Link>
           </div>
         </div>
         <div className="font-mono text-sm text-ink-soft">zilitest.com</div>

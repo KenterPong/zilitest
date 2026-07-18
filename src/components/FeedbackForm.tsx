@@ -14,7 +14,7 @@ export function FeedbackForm() {
     e.preventDefault()
     const trimmed = content.trim()
     if (!trimmed) {
-      await alert('請輸入回饋內容', '無法送出')
+      await alert('請輸入改善建議', '無法送出')
       return
     }
     setLoading(true)
@@ -30,7 +30,7 @@ export function FeedbackForm() {
         return
       }
       setContent('')
-      await alert('感謝你的回饋，我們會認真參考。', '已送出')
+      await alert('感謝你的建議，我們會認真參考。', '已送出')
     } catch {
       await alert('網路錯誤，請稍後再試', '無法送出')
     } finally {
@@ -56,7 +56,7 @@ export function FeedbackForm() {
           disabled={loading || !content.trim()}
           className="bg-ink text-cream font-semibold text-sm px-4 py-2 rounded-sm disabled:opacity-60"
         >
-          {loading ? '送出中…' : '送出回饋'}
+          {loading ? '送出中…' : '送出建議'}
         </button>
       </div>
     </form>

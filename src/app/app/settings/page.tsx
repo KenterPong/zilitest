@@ -2,7 +2,6 @@ import Link from 'next/link'
 import { redirect } from 'next/navigation'
 
 import { ExportWordsButton } from '@/components/ExportWordsButton'
-import { FeedbackForm } from '@/components/FeedbackForm'
 import { daysRemaining, formatTrialEndDate, getSessionUser } from '@/lib/auth'
 import { TRIAL_WORD_LIMIT } from '@/types/user'
 
@@ -69,14 +68,6 @@ export default async function SettingsPage() {
         >
           升級為付費版 NT$70/月（Phase 2）
         </button>
-      </div>
-
-      <div className="bg-cream border border-line rounded-lg p-6 mb-4">
-        <h2 className="font-serif font-bold mb-2">意見回饋</h2>
-        <p className="text-sm text-ink-soft mb-4">
-          歡迎告訴我們使用心得或想要的功能。MVP 階段僅收集內容，我們會直接在資料庫檢視。
-        </p>
-        <FeedbackForm />
       </div>
 
       <div className="bg-cream border border-line rounded-lg p-6">
