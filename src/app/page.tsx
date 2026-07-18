@@ -130,7 +130,12 @@ export default function HomePage() {
       <section id="pricing" className="pb-20 max-w-6xl mx-auto px-8">
         <div className="mb-10">
           <div className="font-mono text-xs tracking-widest text-stamp-red-deep mb-3">定價</div>
-          <h2 className="font-serif font-black text-3xl">先免費用 30 天，再決定要不要付費</h2>
+          <h2 className="font-serif font-black text-3xl mb-4">
+            先免費用 30 天，再決定要不要付費
+          </h2>
+          <p className="text-sm text-stamp-red-deep bg-amber-bg border border-amber-line rounded-md px-4 py-3 max-w-2xl">
+            前 100 名註冊會員，可以免費使用到今年（2026 年）的 12/31。
+          </p>
         </div>
         <div className="grid md:grid-cols-2 gap-6">
           <div className="bg-cream border border-line rounded-md p-9">
