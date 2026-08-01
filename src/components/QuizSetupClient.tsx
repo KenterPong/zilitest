@@ -41,6 +41,7 @@ export function QuizSetupClient({
   )
   const [tagIds, setTagIds] = useState<string[]>([])
   const [poolSize, setPoolSize] = useState(0)
+  const [poolLoading, setPoolLoading] = useState(!!initialWordbookId)
   const [qtype, setQtype] = useState<QuestionType>('選擇題')
   const [countInput, setCountInput] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -73,10 +74,11 @@ export function QuizSetupClient({
   } | null>(null)
 
   const onFilterChange = useCallback(
-    (wb: string[], tg: string[], size: number) => {
+    (wb: string[], tg: string[], size: number, loadingPool: boolean) => {
       setWordbookIds(wb)
       setTagIds(tg)
       setPoolSize(size)
+      setPoolLoading(loadingPool)
     },
     []
   )
@@ -458,6 +460,7 @@ export function QuizSetupClient({
   const maxCount = Math.max(poolSize, 1)
   const canStart =
     wordbookIds.length > 0 &&
+    !poolLoading &&
     poolSize >= minPool &&
     parsedCount !== null &&
     parsedCount <= maxCount
@@ -533,9 +536,11 @@ export function QuizSetupClient({
             className="font-mono text-lg font-semibold border border-line bg-cream px-4 py-2 rounded-md w-24 placeholder:text-ink-soft placeholder:font-sans placeholder:text-sm placeholder:font-normal"
             aria-label="題數"
           />
-          <span className="text-[12.5px] text-ink-soft">最多 {poolSize || '—'} 題</span>
+          <span className="text-[12.5px] text-ink-soft">
+            最多 {poolLoading ? '計算中…' : poolSize || '—'} 題
+          </span>
         </div>
-        {poolSize > 0 && poolSize < minPool && (
+        {!poolLoading && poolSize > 0 && poolSize < minPool && (
           <div className="text-[12.5px] text-stamp-red-deep bg-[#FBEAE3] border border-[#E9BCAE] px-3 py-2 rounded mt-2">
             {qtype}單字池需至少 {minPool} 個字，目前僅 {poolSize} 個，請擴大篩選或改題型。
           </div>
@@ -550,7 +555,7 @@ export function QuizSetupClient({
         onClick={startQuiz}
         className="bg-stamp-red text-cream font-bold text-[15px] px-8 py-3.5 rounded-sm disabled:opacity-60"
       >
-        {loading ? '準備中…' : '開始測驗'}
+        {loading ? '準備中…' : poolLoading ? '計算單字池…' : '開始測驗'}
       </button>
       <button
         type="button"

@@ -9,7 +9,12 @@ interface ScopeFilterProps {
   wordbooks: WordbookWithCount[]
   tags: DbTag[]
   initialWordbookIds?: string[]
-  onChange: (wordbookIds: string[], tagIds: string[], poolSize: number) => void
+  onChange: (
+    wordbookIds: string[],
+    tagIds: string[],
+    poolSize: number,
+    poolLoading: boolean
+  ) => void
 }
 
 export function ScopeFilter({
@@ -21,14 +26,22 @@ export function ScopeFilter({
   const [wordbookIds, setWordbookIds] = useState<string[]>(initialWordbookIds)
   const [tagIds, setTagIds] = useState<string[]>([])
   const [poolSize, setPoolSize] = useState(0)
+  const [poolLoading, setPoolLoading] = useState(initialWordbookIds.length > 0)
 
   const refreshPool = useCallback(
-    async (wbIds: string[], tIds: string[]) => {
+    async (wbIds: string[], tIds: string[], requestId: { current: number }) => {
+      const myId = ++requestId.current
+
       if (wbIds.length === 0) {
+        setPoolLoading(false)
         setPoolSize(0)
-        onChange(wbIds, tIds, 0)
+        onChange(wbIds, tIds, 0, false)
         return
       }
+
+      setPoolLoading(true)
+      onChange(wbIds, tIds, 0, true)
+
       try {
         const res = await fetch('/api/words/pool-preview', {
           method: 'POST',
@@ -36,19 +49,27 @@ export function ScopeFilter({
           body: JSON.stringify({ wordbook_ids: wbIds, tag_ids: tIds }),
         })
         const data = await res.json()
+        if (myId !== requestId.current) return
         const size = data.pool_size ?? 0
         setPoolSize(size)
-        onChange(wbIds, tIds, size)
+        setPoolLoading(false)
+        onChange(wbIds, tIds, size, false)
       } catch {
+        if (myId !== requestId.current) return
         setPoolSize(0)
-        onChange(wbIds, tIds, 0)
+        setPoolLoading(false)
+        onChange(wbIds, tIds, 0, false)
       }
     },
     [onChange]
   )
 
   useEffect(() => {
-    void refreshPool(wordbookIds, tagIds)
+    const requestId = { current: 0 }
+    void refreshPool(wordbookIds, tagIds, requestId)
+    return () => {
+      requestId.current += 1
+    }
     // 僅初值與選取變更時；onChange 由父層穩定或接受重複呼叫
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [wordbookIds, tagIds])
@@ -123,8 +144,23 @@ export function ScopeFilter({
       </div>
 
       <p className="text-[12.5px] text-ink-soft mb-2">
-        目前篩選條件下符合的單字池共{' '}
-        <b className="text-ink font-mono">{poolSize}</b> 個
+        {poolLoading ? (
+          <>
+            目前篩選條件下符合的單字池{' '}
+            <b className="text-ink font-mono inline-flex items-center gap-1.5">
+              <span
+                className="inline-block w-3 h-3 border-2 border-ink/25 border-t-ink rounded-full animate-spin"
+                aria-hidden
+              />
+              計算中…
+            </b>
+          </>
+        ) : (
+          <>
+            目前篩選條件下符合的單字池共{' '}
+            <b className="text-ink font-mono">{poolSize}</b> 個
+          </>
+        )}
       </p>
     </div>
   )

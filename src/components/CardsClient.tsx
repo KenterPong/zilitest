@@ -30,6 +30,7 @@ export function CardsClient({
   )
   const [tagIds, setTagIds] = useState<string[]>([])
   const [poolSize, setPoolSize] = useState(0)
+  const [poolLoading, setPoolLoading] = useState(!!initialWordbookId)
   const [phase, setPhase] = useState<'setup' | 'play'>('setup')
   const [cards, setCards] = useState<CardItem[]>([])
   const [idx, setIdx] = useState(0)
@@ -39,11 +40,15 @@ export function CardsClient({
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
 
-  const onFilterChange = useCallback((wb: string[], tg: string[], size: number) => {
-    setWordbookIds(wb)
-    setTagIds(tg)
-    setPoolSize(size)
-  }, [])
+  const onFilterChange = useCallback(
+    (wb: string[], tg: string[], size: number, loadingPool: boolean) => {
+      setWordbookIds(wb)
+      setTagIds(tg)
+      setPoolSize(size)
+      setPoolLoading(loadingPool)
+    },
+    []
+  )
 
   async function start() {
     setError(null)
@@ -247,11 +252,13 @@ export function CardsClient({
 
       <button
         type="button"
-        disabled={wordbookIds.length === 0 || poolSize === 0 || loading}
+        disabled={
+          wordbookIds.length === 0 || poolLoading || poolSize === 0 || loading
+        }
         onClick={start}
         className="bg-stamp-red text-cream font-bold text-[15px] px-8 py-3.5 rounded-sm disabled:opacity-60"
       >
-        {loading ? '準備中…' : '開始背誦'}
+        {loading ? '準備中…' : poolLoading ? '計算單字池…' : '開始背誦'}
       </button>
       <Link href="/app" className="ml-3 text-sm text-ink-soft underline">
         返回

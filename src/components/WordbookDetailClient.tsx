@@ -111,8 +111,25 @@ export function WordbookDetailClient({
           return
         }
         if (typeof data.word_count === 'number') setWordCount(data.word_count)
+        if (data.word) {
+          const selectedTags = tags.filter((t) => form.tag_ids.includes(t.id))
+          const created: WordWithMeta = {
+            id: data.word.id,
+            wordbook_id: data.word.wordbook_id,
+            term: data.word.term,
+            answer: data.word.answer,
+            description: data.word.description ?? null,
+            created_at: data.word.created_at,
+            tags: selectedTags,
+            attempt_count: 0,
+            correct_count: 0,
+            accuracy: null,
+          }
+          setWords((prev) => [created, ...prev])
+        }
       } else if (wordModal && typeof wordModal === 'object') {
-        const res = await fetch(`/api/words/${wordModal.id}`, {
+        const editing = wordModal
+        const res = await fetch(`/api/words/${editing.id}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -127,13 +144,23 @@ export function WordbookDetailClient({
           setError(data.error ?? '更新失敗')
           return
         }
+        const selectedTags = tags.filter((t) => form.tag_ids.includes(t.id))
+        setWords((prev) =>
+          prev.map((w) =>
+            w.id === editing.id
+              ? {
+                  ...w,
+                  term: form.term.trim(),
+                  answer: form.answer.trim(),
+                  description: form.description.trim() || null,
+                  tags: selectedTags,
+                }
+              : w
+          )
+        )
       }
       setWordModal(null)
       router.refresh()
-      // 重新拉列表以取得 tags / stats
-      const listRes = await fetch(`/api/wordbooks/${wordbookId}/words`)
-      const listData = await listRes.json()
-      if (listRes.ok) setWords(listData.words)
     } catch {
       setError('網路錯誤')
     } finally {
@@ -456,21 +483,24 @@ export function WordbookDetailClient({
             <input
               value={form.term}
               onChange={(e) => setForm((f) => ({ ...f, term: e.target.value }))}
-              className="w-full border border-line rounded-sm px-3 py-2 text-sm bg-white mb-3"
+              className="w-full border border-line rounded-sm px-3 py-2 text-sm bg-white mb-3 disabled:opacity-60"
               required
+              disabled={loading}
             />
             <label className="block text-xs text-ink-soft mb-1">答案（中文）</label>
             <input
               value={form.answer}
               onChange={(e) => setForm((f) => ({ ...f, answer: e.target.value }))}
-              className="w-full border border-line rounded-sm px-3 py-2 text-sm bg-white mb-3"
+              className="w-full border border-line rounded-sm px-3 py-2 text-sm bg-white mb-3 disabled:opacity-60"
               required
+              disabled={loading}
             />
             <label className="block text-xs text-ink-soft mb-1">補充說明（選填）</label>
             <textarea
               value={form.description}
               onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
-              className="w-full border border-line rounded-sm px-3 py-2 text-sm bg-white mb-3 min-h-[72px]"
+              className="w-full border border-line rounded-sm px-3 py-2 text-sm bg-white mb-3 min-h-[72px] disabled:opacity-60"
+              disabled={loading}
             />
             {tags.length > 0 && (
               <>
@@ -480,8 +510,9 @@ export function WordbookDetailClient({
                     <button
                       key={tag.id}
                       type="button"
+                      disabled={loading}
                       onClick={() => toggleFormTag(tag.id)}
-                      className={`font-mono text-[11.5px] px-2.5 py-1 rounded-full border ${
+                      className={`font-mono text-[11.5px] px-2.5 py-1 rounded-full border disabled:opacity-60 ${
                         form.tag_ids.includes(tag.id)
                           ? 'bg-ink text-cream border-ink'
                           : 'bg-white text-ink-soft border-line'
@@ -498,15 +529,22 @@ export function WordbookDetailClient({
               <button
                 type="button"
                 onClick={() => setWordModal(null)}
-                className="border border-line bg-white text-sm px-4 py-2 rounded-sm"
+                disabled={loading}
+                className="border border-line bg-white text-sm px-4 py-2 rounded-sm disabled:opacity-60"
               >
                 取消
               </button>
               <button
                 type="submit"
                 disabled={loading}
-                className="bg-ink text-cream text-sm font-medium px-4 py-2 rounded-sm disabled:opacity-60"
+                className="inline-flex items-center justify-center gap-2 bg-ink text-cream text-sm font-medium px-4 py-2 rounded-sm disabled:opacity-60"
               >
+                {loading && (
+                  <span
+                    className="inline-block w-3.5 h-3.5 border-2 border-cream/30 border-t-cream rounded-full animate-spin"
+                    aria-hidden
+                  />
+                )}
                 {loading ? '儲存中…' : '儲存'}
               </button>
             </div>
