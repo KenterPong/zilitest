@@ -41,13 +41,13 @@ export default function HomePage() {
         <div className="max-w-6xl mx-auto px-8 grid lg:grid-cols-2 gap-14 items-center relative">
           <div>
             <div className="inline-flex items-center gap-2 font-mono text-xs tracking-widest text-stamp-red-deep border border-stamp-red-deep px-3 py-1 rounded-sm mb-5">
-              ✓ 英文・日文檢定單字神器
+              ✓ 多益 TOEIC・JLPT 日檢單字神器
             </div>
             <h1 className="font-serif font-black text-4xl md:text-5xl leading-tight mb-5">
               把單字，練成<em className="not-italic text-stamp-red">你的字力</em>。
             </h1>
             <p className="text-ink-soft text-lg mb-8 max-w-md">
-              功能完整、價格合理，讓你更專注在背單字這件事。免下載 App，LINE 登入就能開始練。我們不會取得或儲存你的 LINE 密碼。
+              專為多益、JLPT 日檢設計的背單字工具，功能完整、價格合理。免下載 App，LINE 登入就能開始練。我們不會取得或儲存你的 LINE 密碼。
             </p>
             <div className="flex flex-wrap items-center gap-4 mb-4">
               <Link
@@ -87,7 +87,7 @@ export default function HomePage() {
             {
               label: '功能',
               title: '功能完整',
-              desc: '不只是陽春卡片，內建錯誤率分析，測驗會自動優先出你還沒背熟的字。',
+              desc: '不只是陽春卡片，內建錯誤率分析，不論準備多益還是日檢，測驗都會自動優先出你還沒背熟的字。',
             },
             {
               label: '價格',
@@ -112,7 +112,7 @@ export default function HomePage() {
       <section id="features" className="py-20 max-w-6xl mx-auto px-8">
         <div className="mb-12 max-w-xl">
           <div className="font-mono text-xs tracking-widest text-stamp-red-deep mb-3">功能特色</div>
-          <h2 className="font-serif font-black text-3xl">三種題型、一套熟練度邏輯</h2>
+          <h2 className="font-serif font-black text-3xl">多益、日檢都適用的三種題型與熟練度邏輯</h2>
         </div>
         <div className="grid md:grid-cols-2 gap-px bg-line border border-line">
           {[
