@@ -11,9 +11,19 @@ interface WordbookGridProps {
 export function WordbookGrid({ wordbooks, canMutate }: WordbookGridProps) {
   return (
     <>
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex items-center justify-between gap-3 mb-4 flex-wrap">
         <h1 className="font-serif font-bold text-xl">我的單字本</h1>
-        <CreateWordbookButton disabled={!canMutate} />
+        <div className="flex items-center gap-2">
+          {wordbooks.length > 1 && (
+            <Link
+              href="/app/quiz"
+              className="text-[12.5px] font-semibold px-3.5 py-2 rounded-sm border border-ink text-ink hover:bg-ink hover:text-cream transition-colors"
+            >
+              綜合測驗
+            </Link>
+          )}
+          <CreateWordbookButton disabled={!canMutate} />
+        </div>
       </div>
 
       {wordbooks.length === 0 ? (

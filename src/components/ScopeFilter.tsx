@@ -9,6 +9,8 @@ interface ScopeFilterProps {
   wordbooks: WordbookWithCount[]
   tags: DbTag[]
   initialWordbookIds?: string[]
+  /** 測驗頁強調「複選＝綜合測驗」 */
+  emphasizeCombined?: boolean
   onChange: (
     wordbookIds: string[],
     tagIds: string[],
@@ -21,6 +23,7 @@ export function ScopeFilter({
   wordbooks,
   tags,
   initialWordbookIds = [],
+  emphasizeCombined = false,
   onChange,
 }: ScopeFilterProps) {
   const [wordbookIds, setWordbookIds] = useState<string[]>(initialWordbookIds)
@@ -86,11 +89,37 @@ export function ScopeFilter({
     )
   }
 
+  const selectedNames = wordbooks
+    .filter((b) => wordbookIds.includes(b.id))
+    .map((b) => b.name)
+
   return (
     <div>
       <div className="mb-6">
-        <div className="font-mono text-[11.5px] tracking-wide text-ink-soft mb-2.5">
-          單字本（可複選）
+        <div className="flex items-center justify-between gap-3 mb-2.5">
+          <div className="font-mono text-[11.5px] tracking-wide text-ink-soft">
+            {emphasizeCombined
+              ? '單字本範圍（可複選，多本＝綜合測驗）'
+              : '單字本（可複選）'}
+          </div>
+          {wordbooks.length > 1 && (
+            <div className="flex gap-2 shrink-0">
+              <button
+                type="button"
+                onClick={() => setWordbookIds(wordbooks.map((b) => b.id))}
+                className="font-mono text-[11px] text-ink-soft underline hover:text-ink"
+              >
+                全選
+              </button>
+              <button
+                type="button"
+                onClick={() => setWordbookIds([])}
+                className="font-mono text-[11px] text-ink-soft underline hover:text-ink"
+              >
+                清除
+              </button>
+            </div>
+          )}
         </div>
         <div className="flex gap-2 flex-wrap">
           {wordbooks.map((b) => (
@@ -116,6 +145,12 @@ export function ScopeFilter({
             </p>
           )}
         </div>
+        {emphasizeCombined && selectedNames.length > 1 && (
+          <p className="mt-2.5 text-[12.5px] text-ink">
+            綜合測驗範圍：
+            <b className="font-medium">{selectedNames.join('、')}</b>
+          </p>
+        )}
       </div>
 
       <div className="mb-6">

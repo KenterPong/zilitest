@@ -55,6 +55,7 @@ export function QuizSetupClient({
   const [answers, setAnswers] = useState<AnswerDraft[]>([])
   const [idx, setIdx] = useState(0)
   const [inputVal, setInputVal] = useState('')
+  const [selectedChoice, setSelectedChoice] = useState<string | null>(null)
   const answerInputRef = useRef<HTMLInputElement>(null)
   const [result, setResult] = useState<{
     total: number
@@ -90,6 +91,10 @@ export function QuizSetupClient({
     })
     return () => window.cancelAnimationFrame(id)
   }, [phase, qtype, idx])
+
+  useEffect(() => {
+    setSelectedChoice(null)
+  }, [idx, phase])
 
   function parseCountInput(raw: string): number | null {
     const trimmed = raw.trim()
@@ -135,6 +140,7 @@ export function QuizSetupClient({
       setAnswers([])
       setIdx(0)
       setInputVal('')
+      setSelectedChoice(null)
       setPhase('play')
       if (data.truncated) {
         setError(`單字池僅 ${data.questions.length} 個，已全部入選`)
@@ -149,13 +155,18 @@ export function QuizSetupClient({
   async function pushAnswer(draft: AnswerDraft) {
     const nextAnswers = [...answers, draft]
     setAnswers(nextAnswers)
+    setSelectedChoice(null)
+    setInputVal('')
+    if (typeof document !== 'undefined') {
+      const active = document.activeElement
+      if (active instanceof HTMLElement) active.blur()
+    }
     if (idx + 1 >= questions.length) {
       setPhase('scoring')
       setError(null)
       await finish(nextAnswers)
     } else {
       setIdx(idx + 1)
-      setInputVal('')
     }
   }
 
@@ -373,23 +384,39 @@ export function QuizSetupClient({
           )}
 
           {qtype === '選擇題' && q.options && (
-            <div className="flex flex-col gap-2">
-              {q.options.map((opt, i) => (
-                <button
-                  key={i}
-                  type="button"
-                  disabled={loading}
-                  onClick={() =>
-                    pushAnswer({
-                      word_id: q.word_id,
-                      selected_answer: opt,
-                    })
-                  }
-                  className="block w-full text-left px-3.5 py-2.5 border border-line rounded-md text-sm bg-paper hover:border-stamp-red"
-                >
-                  {String.fromCharCode(65 + i)}. {opt}
-                </button>
-              ))}
+            <div key={q.word_id} className="flex flex-col gap-2">
+              {q.options.map((opt, i) => {
+                const selected = selectedChoice === opt
+                return (
+                  <button
+                    key={`${q.word_id}-${i}-${opt}`}
+                    type="button"
+                    disabled={loading}
+                    onClick={() => setSelectedChoice(opt)}
+                    className={`block w-full text-left px-3.5 py-2.5 border rounded-md text-sm transition-colors ${
+                      selected
+                        ? 'border-stamp-red bg-[#FBEAE3] text-ink'
+                        : 'border-line bg-paper hover:border-stamp-red'
+                    }`}
+                  >
+                    {String.fromCharCode(65 + i)}. {opt}
+                  </button>
+                )
+              })}
+              <button
+                type="button"
+                disabled={loading || !selectedChoice}
+                onClick={() => {
+                  if (!selectedChoice) return
+                  void pushAnswer({
+                    word_id: q.word_id,
+                    selected_answer: selectedChoice,
+                  })
+                }}
+                className="mt-2 w-full bg-ink text-cream font-bold py-2.5 rounded-md text-sm disabled:opacity-60"
+              >
+                確認答案
+              </button>
             </div>
           )}
 
@@ -473,13 +500,19 @@ export function QuizSetupClient({
         </Link>
         {' ／ 測驗設定'}
       </p>
-      <h1 className="font-serif font-black text-2xl mb-6">開始一場測驗</h1>
+      <h1 className="font-serif font-black text-2xl mb-2">
+        {wordbookIds.length > 1 ? '綜合測驗' : '開始一場測驗'}
+      </h1>
+      <p className="text-sm text-ink-soft mb-6">
+        可複選多本單字本做成綜合測驗；錯誤率越高的單字越常優先出現，方便交互複習。
+      </p>
 
       <ScopeFilter
         wordbooks={wordbooks}
         tags={tags}
         initialWordbookIds={initialWordbookId ? [initialWordbookId] : []}
         onChange={onFilterChange}
+        emphasizeCombined
       />
 
       <div className="mb-6">
@@ -555,7 +588,13 @@ export function QuizSetupClient({
         onClick={startQuiz}
         className="bg-stamp-red text-cream font-bold text-[15px] px-8 py-3.5 rounded-sm disabled:opacity-60"
       >
-        {loading ? '準備中…' : poolLoading ? '計算單字池…' : '開始測驗'}
+        {loading
+          ? '準備中…'
+          : poolLoading
+            ? '計算單字池…'
+            : wordbookIds.length > 1
+              ? '開始綜合測驗'
+              : '開始測驗'}
       </button>
       <button
         type="button"
