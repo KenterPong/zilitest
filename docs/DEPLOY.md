@@ -60,6 +60,7 @@
 2. Framework：Next.js
 3. 設定上述環境變數（Production）
 4. Deploy
+5. **函式地區須與 Supabase 相同**：[`vercel.json`](../vercel.json) 的 `regions` 目前為 `sin1`（對應 Supabase `ap-southeast-1` Singapore）。若 Supabase 換成其他地區，需一併修改（例如 Tokyo → `hnd1`、Seoul → `icn1`），否則每次資料庫查詢都要跨區來回，頁面會明顯變慢。可由回應標頭 `x-vercel-id`（格式 `邊緣節點::函式地區::…`）確認實際執行地區
 
 ## 6. Cloudflare DNS（zilitest.com）
 
