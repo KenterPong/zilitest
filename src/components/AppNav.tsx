@@ -12,15 +12,18 @@ interface AppNavProps {
 }
 
 const DESKTOP_LINKS = [
+  { href: '/app', label: '今日任務' },
+  { href: '/app/growth', label: '成長' },
+  { href: '/app/quiz', label: '自由練習' },
   { href: '/app/cards', label: '背誦' },
-  { href: '/app/quiz', label: '測驗' },
   { href: '/app/settings', label: '設定' },
 ] as const
 
 const MOBILE_LINKS = [
+  { href: '/app', label: '今日任務與單字本' },
+  { href: '/app/growth', label: '成長' },
+  { href: '/app/quiz', label: '自由練習' },
   { href: '/app/cards', label: '背誦' },
-  { href: '/app/quiz', label: '測驗' },
-  { href: '/app', label: '回單字本列表' },
   { href: '/app/settings', label: '帳號設定' },
 ] as const
 

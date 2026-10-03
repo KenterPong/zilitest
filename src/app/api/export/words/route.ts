@@ -2,7 +2,10 @@ import * as XLSX from 'xlsx'
 import { NextResponse } from 'next/server'
 
 import { requireUser } from '@/lib/api-auth'
+import { fetchAllRows } from '@/lib/db-paging'
 import { supabaseAdmin } from '@/lib/supabase-admin'
+import { taipeiToday } from '@/lib/taipei-date'
+import { LANGUAGE_LABELS, type Language } from '@/types/vocab'
 
 export const runtime = 'nodejs'
 
@@ -13,7 +16,7 @@ export async function GET() {
 
   const { data: books, error } = await supabaseAdmin
     .from('wordbooks')
-    .select('id, name')
+    .select('id, name, language')
     .eq('user_id', auth.user.id)
     .order('created_at', { ascending: true })
 
@@ -24,30 +27,40 @@ export async function GET() {
   const wb = XLSX.utils.book_new()
 
   if (!books?.length) {
-    const sheet = XLSX.utils.aoa_to_sheet([['單字', '答案', '描述', '單字本']])
+    const sheet = XLSX.utils.aoa_to_sheet([['單字', '答案', '描述', '單字本', '語言']])
     XLSX.utils.book_append_sheet(wb, sheet, '單字')
   } else {
     const bookIds = books.map((b) => b.id)
-    const nameById = new Map(books.map((b) => [b.id, b.name]))
+    const bookById = new Map(books.map((b) => [b.id, b]))
 
-    const { data: words, error: wordsError } = await supabaseAdmin
-      .from('words')
-      .select('term, answer, description, wordbook_id')
-      .in('wordbook_id', bookIds)
-      .order('created_at', { ascending: true })
-
-    if (wordsError) {
-      return NextResponse.json({ error: wordsError.message }, { status: 500 })
+    let words: { term: string; answer: string; description: string | null; wordbook_id: string }[]
+    try {
+      words = await fetchAllRows((from, to) =>
+        supabaseAdmin
+          .from('words')
+          .select('term, answer, description, wordbook_id')
+          .in('wordbook_id', bookIds)
+          .order('created_at', { ascending: true })
+          .order('id')
+          .range(from, to)
+      )
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : '讀取失敗'
+      return NextResponse.json({ error: msg }, { status: 500 })
     }
 
     const rows = [
-      ['單字', '答案', '描述', '單字本'],
-      ...(words ?? []).map((w) => [
-        w.term,
-        w.answer,
-        w.description ?? '',
-        nameById.get(w.wordbook_id) ?? '',
-      ]),
+      ['單字', '答案', '描述', '單字本', '語言'],
+      ...words.map((w) => {
+        const book = bookById.get(w.wordbook_id)
+        return [
+          w.term,
+          w.answer,
+          w.description ?? '',
+          book?.name ?? '',
+          book ? LANGUAGE_LABELS[book.language as Language] : '',
+        ]
+      }),
     ]
 
     const sheet = XLSX.utils.aoa_to_sheet(rows)
@@ -55,7 +68,7 @@ export async function GET() {
 
     // 每個單字本一張 sheet（名稱截斷）
     for (const book of books) {
-      const bookWords = (words ?? []).filter((w) => w.wordbook_id === book.id)
+      const bookWords = words.filter((w) => w.wordbook_id === book.id)
       const sheetRows = [
         ['單字', '答案', '描述'],
         ...bookWords.map((w) => [w.term, w.answer, w.description ?? '']),
@@ -67,7 +80,7 @@ export async function GET() {
   }
 
   const buffer = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' }) as Buffer
-  const filename = `zilitest-export-${new Date().toISOString().slice(0, 10)}.xlsx`
+  const filename = `zilitest-export-${taipeiToday()}.xlsx`
 
   return new NextResponse(new Uint8Array(buffer), {
     status: 200,

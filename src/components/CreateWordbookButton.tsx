@@ -3,6 +3,8 @@
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 
+import { LANGUAGE_LABELS, LANGUAGES, type Language } from '@/types/vocab'
+
 interface CreateWordbookButtonProps {
   disabled?: boolean
   variant?: 'primary' | 'dashed'
@@ -15,6 +17,7 @@ export function CreateWordbookButton({
   const router = useRouter()
   const [open, setOpen] = useState(false)
   const [name, setName] = useState('')
+  const [language, setLanguage] = useState<Language | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -26,7 +29,7 @@ export function CreateWordbookButton({
       const res = await fetch('/api/wordbooks', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name }),
+        body: JSON.stringify({ name, language }),
       })
       const data = await res.json()
       if (!res.ok) {
@@ -35,6 +38,7 @@ export function CreateWordbookButton({
       }
       setOpen(false)
       setName('')
+      setLanguage(null)
       router.push(`/app/wordbooks/${data.wordbook.id}`)
       router.refresh()
     } catch {
@@ -75,6 +79,33 @@ export function CreateWordbookButton({
               className="w-full border border-line rounded-sm px-3 py-2 text-sm bg-white mb-3 focus:outline-none focus:border-ink"
               maxLength={80}
             />
+            <fieldset className="mb-3">
+              <legend className="text-[12.5px] text-ink-soft mb-1.5">
+                語言（建立後無法更改）
+              </legend>
+              <div className="grid grid-cols-3 gap-2">
+                {LANGUAGES.map((lang) => (
+                  <label
+                    key={lang}
+                    className={`cursor-pointer text-center text-sm py-2 rounded-[5px] border-[1.5px] bg-white transition-colors ${
+                      language === lang
+                        ? 'border-stamp-red text-ink font-semibold'
+                        : 'border-line text-ink-soft hover:border-ink'
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="wordbook-language"
+                      value={lang}
+                      checked={language === lang}
+                      onChange={() => setLanguage(lang)}
+                      className="sr-only"
+                    />
+                    {LANGUAGE_LABELS[lang]}
+                  </label>
+                ))}
+              </div>
+            </fieldset>
             {error && <p className="text-sm text-stamp-red mb-3">{error}</p>}
             <div className="flex justify-end gap-2">
               <button
@@ -89,7 +120,7 @@ export function CreateWordbookButton({
               </button>
               <button
                 type="submit"
-                disabled={loading || !name.trim()}
+                disabled={loading || !name.trim() || !language}
                 className="bg-ink text-cream text-sm font-medium px-4 py-2 rounded-sm disabled:opacity-60"
               >
                 {loading ? '建立中…' : '建立'}

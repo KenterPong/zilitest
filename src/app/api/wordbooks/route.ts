@@ -2,7 +2,8 @@ import { NextResponse } from 'next/server'
 
 import { assertCanMutate, requireUser } from '@/lib/api-auth'
 import { supabaseAdmin } from '@/lib/supabase-admin'
-import type { WordbookWithCount } from '@/types/vocab'
+import { listWordbooksForUser } from '@/lib/vocab-queries'
+import { isLanguage, type DbWordbook, type WordbookWithCount } from '@/types/vocab'
 
 export const runtime = 'nodejs'
 
@@ -10,42 +11,13 @@ export async function GET() {
   const auth = await requireUser()
   if (auth.error) return auth.error
 
-  const { data: books, error } = await supabaseAdmin
-    .from('wordbooks')
-    .select('id, user_id, name, created_at')
-    .eq('user_id', auth.user.id)
-    .order('created_at', { ascending: false })
-
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 })
+  try {
+    const wordbooks = await listWordbooksForUser(auth.user.id)
+    return NextResponse.json({ wordbooks })
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : '讀取失敗'
+    return NextResponse.json({ error: msg }, { status: 500 })
   }
-
-  const list = books ?? []
-  if (list.length === 0) {
-    return NextResponse.json({ wordbooks: [] satisfies WordbookWithCount[] })
-  }
-
-  const ids = list.map((b) => b.id)
-  const { data: words, error: wordsError } = await supabaseAdmin
-    .from('words')
-    .select('wordbook_id')
-    .in('wordbook_id', ids)
-
-  if (wordsError) {
-    return NextResponse.json({ error: wordsError.message }, { status: 500 })
-  }
-
-  const countMap = new Map<string, number>()
-  for (const w of words ?? []) {
-    countMap.set(w.wordbook_id, (countMap.get(w.wordbook_id) ?? 0) + 1)
-  }
-
-  const wordbooks: WordbookWithCount[] = list.map((b) => ({
-    ...b,
-    word_count: countMap.get(b.id) ?? 0,
-  }))
-
-  return NextResponse.json({ wordbooks })
 }
 
 export async function POST(request: Request) {
@@ -55,7 +27,7 @@ export async function POST(request: Request) {
   const blocked = assertCanMutate(auth.user)
   if (blocked) return blocked
 
-  let body: { name?: string }
+  let body: { name?: string; language?: unknown }
   try {
     body = await request.json()
   } catch {
@@ -69,16 +41,29 @@ export async function POST(request: Request) {
   if (name.length > 80) {
     return NextResponse.json({ error: '名稱不可超過 80 字' }, { status: 400 })
   }
-
-  const { data, error } = await supabaseAdmin
-    .from('wordbooks')
-    .insert({ user_id: auth.user.id, name })
-    .select('id, user_id, name, created_at')
-    .single()
-
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 })
+  if (!isLanguage(body.language)) {
+    return NextResponse.json({ error: '請選擇單字本語言' }, { status: 400 })
   }
 
-  return NextResponse.json({ wordbook: { ...data, word_count: 0 } }, { status: 201 })
+  // 同一交易內建立單字本與該語言設定（首次建立該語言時）
+  const { data, error } = await supabaseAdmin.rpc('create_wordbook', {
+    p_user_id: auth.user.id,
+    p_name: name,
+    p_language: body.language,
+  })
+
+  if (error || !data) {
+    return NextResponse.json({ error: error?.message ?? '建立失敗' }, { status: 500 })
+  }
+
+  const book = data as DbWordbook
+  const wordbook: WordbookWithCount = {
+    id: book.id,
+    user_id: book.user_id,
+    name: book.name,
+    language: book.language,
+    created_at: book.created_at,
+    word_count: 0,
+  }
+  return NextResponse.json({ wordbook }, { status: 201 })
 }

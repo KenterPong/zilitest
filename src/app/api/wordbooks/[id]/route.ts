@@ -11,7 +11,7 @@ type Ctx = { params: Promise<{ id: string }> }
 async function getOwnedWordbook(userId: string, id: string) {
   const { data, error } = await supabaseAdmin
     .from('wordbooks')
-    .select('id, user_id, name, created_at')
+    .select('id, user_id, name, language, created_at')
     .eq('id', id)
     .eq('user_id', userId)
     .maybeSingle()
@@ -81,7 +81,7 @@ export async function PATCH(request: Request, context: Ctx) {
     .from('wordbooks')
     .update({ name })
     .eq('id', id)
-    .select('id, user_id, name, created_at')
+    .select('id, user_id, name, language, created_at')
     .single()
 
   if (error) {

@@ -47,6 +47,10 @@ export function buildTrialFields(options?: { earlyBird?: boolean }) {
     data_purge_scheduled_at: null,
     last_reminder_sent_at: null,
     cancelled_at: null,
+    current_streak: 0,
+    longest_streak: 0,
+    last_streak_date: null,
+    streak_frozen_at: null,
   }
 }
 

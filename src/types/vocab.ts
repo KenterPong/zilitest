@@ -1,7 +1,22 @@
+export const LANGUAGES = ['en', 'ja', 'ko'] as const
+export type Language = (typeof LANGUAGES)[number]
+
+export const LANGUAGE_LABELS: Record<Language, string> = {
+  en: '英文',
+  ja: '日文',
+  ko: '韓文',
+}
+
+export function isLanguage(value: unknown): value is Language {
+  return typeof value === 'string' && (LANGUAGES as readonly string[]).includes(value)
+}
+
 export interface DbWordbook {
   id: string
   user_id: string
   name: string
+  /** 建立後不可變更 */
+  language: Language
   created_at: string
 }
 

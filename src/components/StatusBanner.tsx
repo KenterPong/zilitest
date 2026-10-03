@@ -44,7 +44,7 @@ export function StatusBanner({ user }: StatusBannerProps) {
   if (user.status === 'payment_failed') {
     const days = daysRemaining(user.grace_period_end_at)
     return (
-      <div className="flex items-center justify-between gap-4 flex-wrap p-3.5 rounded-md border border-[#E9BCAE] bg-[#FBEAE3] text-stamp-red-deep text-sm mb-6">
+      <div className="flex items-center justify-between gap-4 flex-wrap p-3.5 rounded-md border border-warn-line bg-warn-bg text-stamp-red-deep text-sm mb-6">
         <div>本月扣款失敗，寬限期剩餘 {days ?? '—'} 天，請確認付款方式</div>
         <Link href="/app/settings" className="font-bold border-b border-current whitespace-nowrap">
           前往更新付款

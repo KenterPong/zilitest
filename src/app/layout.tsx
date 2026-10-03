@@ -1,9 +1,32 @@
 import type { Metadata } from 'next'
+import { IBM_Plex_Mono, Noto_Sans_TC, Noto_Serif_TC } from 'next/font/google'
 
 import { AppDialogProvider } from '@/components/AppDialog'
 import { SITE_URL } from '@/lib/site'
 
 import './globals.css'
+
+// CJK 字型檔案大，不預載；next/font 自行託管並避免版面跳動
+const notoSans = Noto_Sans_TC({
+  weight: ['400', '500', '700'],
+  subsets: ['latin'],
+  display: 'swap',
+  preload: false,
+  variable: '--font-sans',
+})
+const notoSerif = Noto_Serif_TC({
+  weight: ['500', '700', '900'],
+  subsets: ['latin'],
+  display: 'swap',
+  preload: false,
+  variable: '--font-serif',
+})
+const plexMono = IBM_Plex_Mono({
+  weight: ['500', '600'],
+  subsets: ['latin'],
+  display: 'swap',
+  variable: '--font-mono',
+})
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
@@ -39,7 +62,10 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="zh-Hant">
+    <html
+      lang="zh-Hant"
+      className={`${notoSans.variable} ${notoSerif.variable} ${plexMono.variable}`}
+    >
       <body>
         <AppDialogProvider>{children}</AppDialogProvider>
       </body>

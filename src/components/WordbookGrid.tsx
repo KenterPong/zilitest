@@ -1,6 +1,7 @@
 import Link from 'next/link'
 
 import { CreateWordbookButton } from '@/components/CreateWordbookButton'
+import { LanguageBadge } from '@/components/LanguageBadge'
 import type { WordbookWithCount } from '@/types/vocab'
 
 interface WordbookGridProps {
@@ -12,14 +13,14 @@ export function WordbookGrid({ wordbooks, canMutate }: WordbookGridProps) {
   return (
     <>
       <div className="flex items-center justify-between gap-3 mb-4 flex-wrap">
-        <h1 className="font-serif font-bold text-xl">我的單字本</h1>
+        <h2 className="font-serif font-bold text-xl">我的單字本</h2>
         <div className="flex items-center gap-2">
           {wordbooks.length > 1 && (
             <Link
               href="/app/quiz"
               className="text-[12.5px] font-semibold px-3.5 py-2 rounded-sm border border-ink text-ink hover:bg-ink hover:text-cream transition-colors"
             >
-              綜合測驗
+              自由練習
             </Link>
           )}
           <CreateWordbookButton disabled={!canMutate} />
@@ -45,7 +46,8 @@ export function WordbookGrid({ wordbooks, canMutate }: WordbookGridProps) {
                 管理
               </Link>
               <h3 className="font-serif text-[16.5px] mb-2.5 pr-10">{book.name}</h3>
-              <div className="flex gap-3.5 font-mono text-[11.5px] text-ink-soft mb-4">
+              <div className="flex items-center gap-3.5 font-mono text-[11.5px] text-ink-soft mb-4">
+                <LanguageBadge language={book.language} />
                 <span>
                   <b className="text-ink font-semibold">{book.word_count}</b> 字
                 </span>
@@ -59,9 +61,9 @@ export function WordbookGrid({ wordbooks, canMutate }: WordbookGridProps) {
                 </Link>
                 <Link
                   href={`/app/quiz?wordbook=${book.id}`}
-                  className="flex-1 text-center text-[12.5px] font-semibold py-2 rounded-sm bg-stamp-red text-cream hover:bg-stamp-red-deep"
+                  className="flex-1 text-center text-[12.5px] font-semibold py-2 rounded-sm bg-ink text-cream hover:bg-stamp-red-deep"
                 >
-                  測驗
+                  練習
                 </Link>
               </div>
             </div>

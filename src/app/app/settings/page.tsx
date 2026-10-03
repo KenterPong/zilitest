@@ -2,7 +2,9 @@ import Link from 'next/link'
 import { redirect } from 'next/navigation'
 
 import { ExportWordsButton } from '@/components/ExportWordsButton'
+import { LanguageSettingsForm } from '@/components/LanguageSettingsForm'
 import { daysRemaining, formatTrialEndDate, getSessionUser } from '@/lib/auth'
+import { getLanguageSettings } from '@/lib/growth-service'
 import { TRIAL_WORD_LIMIT } from '@/types/user'
 
 export const dynamic = 'force-dynamic'
@@ -14,11 +16,12 @@ export default async function SettingsPage() {
   }
 
   const trialDays = daysRemaining(user.trial_end_at)
+  const languageSettings = await getLanguageSettings(user.id)
 
   return (
     <main className="px-8 py-10 max-w-3xl mx-auto">
       <Link href="/app" className="text-sm text-ink-soft underline">
-        ← 返回首頁
+        ← 回今日任務
       </Link>
       <h1 className="font-serif font-black text-2xl mt-4 mb-6">帳號設定</h1>
 
@@ -68,6 +71,17 @@ export default async function SettingsPage() {
         >
           升級為付費版 NT$70/月（Phase 2）
         </button>
+      </div>
+
+      <div className="bg-cream border border-line rounded-lg p-6 mb-4">
+        <h2 className="font-serif font-bold mb-1">每日任務</h2>
+        <p className="text-sm text-ink-soft mb-2">
+          選擇要學習的語言與每日量，系統會依熟練度自動安排複習字與新字。修改自明天的任務起生效。
+        </p>
+        <LanguageSettingsForm
+          settings={languageSettings}
+          disabled={user.status === 'suspended'}
+        />
       </div>
 
       <div className="bg-cream border border-line rounded-lg p-6">

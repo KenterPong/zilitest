@@ -1,3 +1,4 @@
+import { fetchAllRows } from '@/lib/db-paging'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 
 export interface PoolWord {
@@ -31,13 +32,20 @@ export async function fetchWordPool(
   const ownedIds = (ownedBooks ?? []).map((b) => b.id)
   if (ownedIds.length === 0) return []
 
-  const { data: words, error } = await supabaseAdmin
-    .from('words')
-    .select('id, wordbook_id, term, answer, description')
-    .in('wordbook_id', ownedIds)
-
-  if (error) throw error
-  let list = words ?? []
+  let list = await fetchAllRows<{
+    id: string
+    wordbook_id: string
+    term: string
+    answer: string
+    description: string | null
+  }>((from, to) =>
+    supabaseAdmin
+      .from('words')
+      .select('id, wordbook_id, term, answer, description')
+      .in('wordbook_id', ownedIds)
+      .order('id')
+      .range(from, to)
+  )
   if (list.length === 0) return []
 
   if (tagIds.length > 0) {
@@ -50,15 +58,19 @@ export async function fetchWordPool(
     const validTagIds = (ownedTags ?? []).map((t) => t.id)
     if (validTagIds.length !== tagIds.length) return []
 
-    const wordIds = list.map((w) => w.id)
-    const { data: wordTags } = await supabaseAdmin
-      .from('word_tags')
-      .select('word_id, tag_id')
-      .in('word_id', wordIds)
-      .in('tag_id', validTagIds)
+    // 以標籤查（標籤數少），避免把大量 word_id 放進網址
+    const wordTags = await fetchAllRows<{ word_id: string; tag_id: string }>((from, to) =>
+      supabaseAdmin
+        .from('word_tags')
+        .select('word_id, tag_id')
+        .in('tag_id', validTagIds)
+        .order('word_id')
+        .order('tag_id')
+        .range(from, to)
+    )
 
     const tagSetByWord = new Map<string, Set<string>>()
-    for (const wt of wordTags ?? []) {
+    for (const wt of wordTags) {
       const set = tagSetByWord.get(wt.word_id) ?? new Set()
       set.add(wt.tag_id)
       tagSetByWord.set(wt.word_id, set)
@@ -73,22 +85,29 @@ export async function fetchWordPool(
 
   if (list.length === 0) return []
 
-  const ids = list.map((w) => w.id)
-  const [{ data: stats }, { data: fam }] = await Promise.all([
-    supabaseAdmin
-      .from('word_stats')
-      .select('word_id, attempt_count, correct_count')
-      .in('word_id', ids),
-    supabaseAdmin
-      .from('card_familiarity')
-      .select('word_id, familiarity')
-      .eq('user_id', userId)
-      .in('word_id', ids),
+  // 以 user_id 查（冗餘欄位），避免把大量 word_id 放進網址
+  const [stats, fam] = await Promise.all([
+    fetchAllRows<{ word_id: string; attempt_count: number; correct_count: number }>((from, to) =>
+      supabaseAdmin
+        .from('word_stats')
+        .select('word_id, attempt_count, correct_count')
+        .eq('user_id', userId)
+        .order('word_id')
+        .range(from, to)
+    ),
+    fetchAllRows<{ word_id: string; familiarity: string }>((from, to) =>
+      supabaseAdmin
+        .from('card_familiarity')
+        .select('word_id, familiarity')
+        .eq('user_id', userId)
+        .order('word_id')
+        .range(from, to)
+    ),
   ])
 
-  const statsMap = new Map((stats ?? []).map((s) => [s.word_id, s] as const))
+  const statsMap = new Map(stats.map((s) => [s.word_id, s] as const))
   const famMap = new Map(
-    (fam ?? []).map((f) => [f.word_id, f.familiarity as 'unknown' | 'known'] as const)
+    fam.map((f) => [f.word_id, f.familiarity as 'unknown' | 'known'] as const)
   )
 
   return list.map((w) => {

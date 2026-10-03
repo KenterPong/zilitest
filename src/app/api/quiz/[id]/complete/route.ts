@@ -2,7 +2,12 @@ import { NextResponse } from 'next/server'
 
 import { isExactAnswerMatch, buildAnswerDiff } from '@/lib/answer-match'
 import { assertCanMutate, requireUser } from '@/lib/api-auth'
+import { toProgressState } from '@/lib/daily-service'
+import { fetchByIds } from '@/lib/db-paging'
+import { refreshPeakMastered, unlockAchievements } from '@/lib/growth-service'
+import { applyAnswer, type ProgressState } from '@/lib/progress'
 import { supabaseAdmin } from '@/lib/supabase-admin'
+import { taipeiToday } from '@/lib/taipei-date'
 
 export const runtime = 'nodejs'
 
@@ -39,6 +44,9 @@ export async function POST(request: Request, context: Ctx) {
   if (!session) {
     return NextResponse.json({ error: '找不到測驗場次' }, { status: 404 })
   }
+  if (session.mode !== 'free_practice') {
+    return NextResponse.json({ error: '每日任務請逐題作答' }, { status: 400 })
+  }
   if (session.completed_at) {
     return NextResponse.json({ error: '此測驗已結束' }, { status: 400 })
   }
@@ -55,23 +63,33 @@ export async function POST(request: Request, context: Ctx) {
     return NextResponse.json({ error: '沒有作答紀錄' }, { status: 400 })
   }
 
-  const wordIds = answers.map((a) => a.word_id)
-  const { data: words } = await supabaseAdmin
-    .from('words')
-    .select('id, term, answer, wordbook_id')
-    .in('id', wordIds)
+  const wordIds = Array.from(new Set(answers.map((a) => a.word_id)))
+  let words: { id: string; term: string; answer: string; wordbook_id: string }[]
+  let progressRows: (ProgressState & { word_id: string })[]
+  try {
+    ;[words, progressRows] = await Promise.all([
+      fetchByIds(wordIds, (ids) =>
+        supabaseAdmin
+          .from('words')
+          .select('id, term, answer, wordbook_id, wordbooks!inner(user_id)')
+          .eq('wordbooks.user_id', auth.user.id)
+          .in('id', ids)
+      ),
+      fetchByIds(wordIds, (ids) =>
+        supabaseAdmin
+          .from('word_progress')
+          .select('*')
+          .eq('user_id', auth.user.id)
+          .in('word_id', ids)
+      ),
+    ])
+  } catch (e) {
+    return NextResponse.json({ error: e instanceof Error ? e.message : '讀取失敗' }, { status: 500 })
+  }
 
-  const wordMap = new Map((words ?? []).map((w) => [w.id, w] as const))
-
-  // 確認單字屬於使用者的單字本
-  const bookIds = Array.from(new Set((words ?? []).map((w) => w.wordbook_id)))
-  const { data: books } = await supabaseAdmin
-    .from('wordbooks')
-    .select('id')
-    .eq('user_id', auth.user.id)
-    .in('id', bookIds)
-
-  const ownedBooks = new Set((books ?? []).map((b) => b.id))
+  // 只查使用者自己單字本內的字，不在 map 內即視為無效
+  const wordMap = new Map(words.map((w) => [w.id, w] as const))
+  const progressMap = new Map(progressRows.map((p) => [p.word_id, toProgressState(p)] as const))
 
   const results: {
     word_id: string
@@ -86,12 +104,16 @@ export async function POST(request: Request, context: Ctx) {
     diff: ReturnType<typeof buildAnswerDiff>
   }[] = []
 
-  const answerRows: { session_id: string; word_id: string; is_correct: boolean }[] = []
+  const answerRows: { word_id: string; is_correct: boolean; progress: unknown }[] = []
+  const answeredInSession = new Set<string>()
+  const today = taipeiToday()
+  const nowIso = new Date().toISOString()
+  let becameMastered = false
   let correctCount = 0
 
   for (const ans of answers) {
     const word = wordMap.get(ans.word_id)
-    if (!word || !ownedBooks.has(word.wordbook_id)) {
+    if (!word) {
       return NextResponse.json({ error: '含有無效單字' }, { status: 400 })
     }
 
@@ -108,7 +130,24 @@ export async function POST(request: Request, context: Ctx) {
     }
 
     if (isCorrect) correctCount++
-    answerRows.push({ session_id: sessionId, word_id: word.id, is_correct: isCorrect })
+
+    // 自由練習：答錯降級；到期答對才升級；stage 0 的字不引入（同場次同字只算第一次）
+    if (!answeredInSession.has(word.id)) {
+      answeredInSession.add(word.id)
+      const outcome = applyAnswer(progressMap.get(word.id) ?? null, {
+        isCorrect,
+        isNewIntroduction: false,
+        today,
+        now: nowIso,
+      })
+      if (outcome.changed) progressMap.set(word.id, outcome.next)
+      if (outcome.becameMastered) becameMastered = true
+      answerRows.push({
+        word_id: word.id,
+        is_correct: isCorrect,
+        progress: outcome.changed ? outcome.next : null,
+      })
+    }
 
     results.push({
       word_id: word.id,
@@ -128,40 +167,27 @@ export async function POST(request: Request, context: Ctx) {
     })
   }
 
-  const { error: insertErr } = await supabaseAdmin.from('quiz_answers').insert(answerRows)
-  if (insertErr) {
-    return NextResponse.json({ error: insertErr.message }, { status: 500 })
+  // 作答紀錄、word_stats、熟練度於同一交易寫入
+  const { error: recErr } = await supabaseAdmin.rpc('record_answers', {
+    p_user_id: auth.user.id,
+    p_session_id: sessionId,
+    p_answers: answerRows,
+  })
+  if (recErr) {
+    return NextResponse.json({ error: recErr.message }, { status: 500 })
   }
 
-  // 更新 word_stats
-  const now = new Date().toISOString()
-  for (const row of answerRows) {
-    const { data: existing } = await supabaseAdmin
-      .from('word_stats')
-      .select('word_id, attempt_count, correct_count')
-      .eq('word_id', row.word_id)
-      .maybeSingle()
-
-    if (existing) {
-      await supabaseAdmin
-        .from('word_stats')
-        .update({
-          attempt_count: existing.attempt_count + 1,
-          correct_count: existing.correct_count + (row.is_correct ? 1 : 0),
-          last_tested_at: now,
-        })
-        .eq('word_id', row.word_id)
-    } else {
-      await supabaseAdmin.from('word_stats').insert({
-        word_id: row.word_id,
-        user_id: auth.user.id,
-        attempt_count: 1,
-        correct_count: row.is_correct ? 1 : 0,
-        last_tested_at: now,
-      })
+  let newAchievements: string[] = []
+  if (becameMastered) {
+    try {
+      await refreshPeakMastered(auth.user.id)
+      newAchievements = await unlockAchievements(auth.user.id, auth.user.current_streak)
+    } catch {
+      // 成就檢查失敗不影響測驗結果
     }
   }
 
+  const now = nowIso
   const score = answers.length > 0 ? correctCount / answers.length : 0
   await supabaseAdmin
     .from('quiz_sessions')
@@ -179,5 +205,6 @@ export async function POST(request: Request, context: Ctx) {
     wrong: answers.length - correctCount,
     score,
     results,
+    new_achievements: newAchievements,
   })
 }

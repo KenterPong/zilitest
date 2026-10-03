@@ -1,102 +1,36 @@
 -- =============================================
--- 字力測驗 zilitest - Supabase Schema（Route A）
--- 在 Supabase Dashboard > SQL Editor 執行此檔案
--- 路線 A：不使用 RLS，所有存取走 API + service role key
+-- v5 第一階段：單字本語言、每日任務、熟練度、成長系統
+-- 對應技術規格 v5 第三節 1.、第五節 2.、第八節、第九節
+-- 執行前請先備份，或先在測試專案驗證
+-- 只新增欄位與資料表，不刪除、不改寫既有資料
 -- =============================================
 
--- =============================================
--- 使用者（含訂閱狀態機）
--- =============================================
-CREATE TABLE users (
-  id                       UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  line_user_id             TEXT UNIQUE NOT NULL,
-  display_name             TEXT,
-  avatar_url               TEXT,
-  email                    TEXT,
-  status                   TEXT NOT NULL DEFAULT 'trial'
-                           CHECK (status IN ('trial', 'active', 'payment_failed', 'suspended', 'cancelled')),
-  auto_renew               BOOLEAN NOT NULL DEFAULT true,
-  is_early_bird            BOOLEAN NOT NULL DEFAULT false,
-  trial_start_at           TIMESTAMPTZ,
-  trial_end_at             TIMESTAMPTZ,
-  first_paid_at            TIMESTAMPTZ,
-  next_billing_at          TIMESTAMPTZ,
-  payment_failed_at        TIMESTAMPTZ,
-  grace_period_end_at      TIMESTAMPTZ,
-  word_count               INTEGER NOT NULL DEFAULT 0,
-  suspended_at             TIMESTAMPTZ,
-  data_purge_scheduled_at  TIMESTAMPTZ,
-  last_reminder_sent_at    TIMESTAMPTZ,
-  cancelled_at             TIMESTAMPTZ,
-  current_streak           INTEGER NOT NULL DEFAULT 0,
-  longest_streak           INTEGER NOT NULL DEFAULT 0,
-  last_streak_date         DATE,
-  streak_frozen_at         TIMESTAMPTZ,
-  created_at               TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  updated_at               TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
+BEGIN;
 
-CREATE INDEX users_line_user_id_idx ON users (line_user_id);
-CREATE INDEX users_status_idx ON users (status);
-CREATE INDEX users_early_bird_active_idx ON users (is_early_bird)
-  WHERE is_early_bird = true AND status <> 'cancelled';
+-- ---------------------------------------------
+-- 單字本語言（建立後不可變更，由 API 控制）
+-- 既有單字本若存在，SET NOT NULL 會失敗並整批回滾，不會寫入錯誤的語言
+-- ---------------------------------------------
+ALTER TABLE wordbooks ADD COLUMN IF NOT EXISTS language TEXT;
+ALTER TABLE wordbooks ALTER COLUMN language SET NOT NULL;
+ALTER TABLE wordbooks DROP CONSTRAINT IF EXISTS wordbooks_language_check;
+ALTER TABLE wordbooks ADD CONSTRAINT wordbooks_language_check
+  CHECK (language IN ('en', 'ja', 'ko'));
 
--- =============================================
--- 單字本
--- =============================================
-CREATE TABLE wordbooks (
-  id          UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  user_id     UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  name        TEXT NOT NULL,
-  language    TEXT NOT NULL CONSTRAINT wordbooks_language_check
-              CHECK (language IN ('en', 'ja', 'ko')),
-  created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
+CREATE INDEX IF NOT EXISTS wordbooks_user_language_idx ON wordbooks (user_id, language);
 
-CREATE INDEX wordbooks_user_id_idx ON wordbooks (user_id);
-CREATE INDEX wordbooks_user_language_idx ON wordbooks (user_id, language);
+-- ---------------------------------------------
+-- 使用者連續天數
+-- ---------------------------------------------
+ALTER TABLE users ADD COLUMN IF NOT EXISTS current_streak   INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS longest_streak   INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS last_streak_date DATE;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS streak_frozen_at TIMESTAMPTZ;
 
--- =============================================
--- 單字
--- =============================================
-CREATE TABLE words (
-  id           UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  wordbook_id  UUID NOT NULL REFERENCES wordbooks(id) ON DELETE CASCADE,
-  term         TEXT NOT NULL,
-  answer       TEXT NOT NULL,
-  description  TEXT,
-  created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-
-CREATE INDEX words_wordbook_id_idx ON words (wordbook_id);
-
--- =============================================
--- 標籤（跨單字本共用）
--- =============================================
-CREATE TABLE tags (
-  id          UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  user_id     UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  name        TEXT NOT NULL,
-  UNIQUE (user_id, name)
-);
-
-CREATE INDEX tags_user_id_idx ON tags (user_id);
-
--- =============================================
--- 單字-標籤 多對多
--- =============================================
-CREATE TABLE word_tags (
-  word_id  UUID NOT NULL REFERENCES words(id) ON DELETE CASCADE,
-  tag_id   UUID NOT NULL REFERENCES tags(id) ON DELETE CASCADE,
-  PRIMARY KEY (word_id, tag_id)
-);
-
-CREATE INDEX word_tags_tag_id_idx ON word_tags (tag_id);
-
--- =============================================
+-- ---------------------------------------------
 -- 使用者語言設定
--- =============================================
-CREATE TABLE user_language_settings (
+-- ---------------------------------------------
+CREATE TABLE IF NOT EXISTS user_language_settings (
   user_id              UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   language             TEXT NOT NULL CHECK (language IN ('en', 'ja', 'ko')),
   enabled              BOOLEAN NOT NULL DEFAULT true,
@@ -107,10 +41,14 @@ CREATE TABLE user_language_settings (
   PRIMARY KEY (user_id, language)
 );
 
--- =============================================
+DROP TRIGGER IF EXISTS user_language_settings_updated_at ON user_language_settings;
+CREATE TRIGGER user_language_settings_updated_at
+  BEFORE UPDATE ON user_language_settings FOR EACH ROW EXECUTE FUNCTION update_updated_at();
+
+-- ---------------------------------------------
 -- 熟練度與複習排程（無 row 視同 stage = 0）
--- =============================================
-CREATE TABLE word_progress (
+-- ---------------------------------------------
+CREATE TABLE IF NOT EXISTS word_progress (
   word_id             UUID PRIMARY KEY REFERENCES words(id) ON DELETE CASCADE,
   user_id             UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   stage               INTEGER NOT NULL DEFAULT 0 CHECK (stage BETWEEN 0 AND 7),
@@ -121,12 +59,12 @@ CREATE TABLE word_progress (
   mastered_at         TIMESTAMPTZ
 );
 
-CREATE INDEX word_progress_user_due_idx ON word_progress (user_id, due_date);
+CREATE INDEX IF NOT EXISTS word_progress_user_due_idx ON word_progress (user_id, due_date);
 
--- =============================================
+-- ---------------------------------------------
 -- 每日任務
--- =============================================
-CREATE TABLE daily_tasks (
+-- ---------------------------------------------
+CREATE TABLE IF NOT EXISTS daily_tasks (
   id               UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   user_id          UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   task_date        DATE NOT NULL,
@@ -138,122 +76,38 @@ CREATE TABLE daily_tasks (
   UNIQUE (user_id, task_date, language)
 );
 
--- =============================================
+-- ---------------------------------------------
 -- 成就（定義寫在程式碼常數；解鎖永不收回）
--- =============================================
-CREATE TABLE user_achievements (
+-- ---------------------------------------------
+CREATE TABLE IF NOT EXISTS user_achievements (
   user_id          UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   achievement_key  TEXT NOT NULL,
   unlocked_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   PRIMARY KEY (user_id, achievement_key)
 );
 
--- =============================================
--- 單字測驗統計（一對一 words）
--- =============================================
-CREATE TABLE word_stats (
-  word_id         UUID PRIMARY KEY REFERENCES words(id) ON DELETE CASCADE,
-  user_id         UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  attempt_count   INTEGER NOT NULL DEFAULT 0,
-  correct_count   INTEGER NOT NULL DEFAULT 0,
-  last_tested_at  TIMESTAMPTZ
-);
+-- ---------------------------------------------
+-- 測驗場次：模式與每日任務關聯
+-- ---------------------------------------------
+ALTER TABLE quiz_sessions
+  ADD COLUMN IF NOT EXISTS mode TEXT NOT NULL DEFAULT 'free_practice';
+ALTER TABLE quiz_sessions DROP CONSTRAINT IF EXISTS quiz_sessions_mode_check;
+ALTER TABLE quiz_sessions ADD CONSTRAINT quiz_sessions_mode_check
+  CHECK (mode IN ('daily_task', 'free_practice'));
 
-CREATE INDEX word_stats_user_id_idx ON word_stats (user_id);
-
--- =============================================
--- 測驗場次
--- =============================================
-CREATE TABLE quiz_sessions (
-  id                    UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  user_id               UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  filter_wordbook_ids   JSONB NOT NULL DEFAULT '[]'::jsonb,
-  filter_tag_ids        JSONB NOT NULL DEFAULT '[]'::jsonb,
-  question_type         TEXT NOT NULL CONSTRAINT quiz_sessions_question_type_check
-                        CHECK (question_type IN ('是非題', '選擇題', '輸入題', 'mixed')),
-  mode                  TEXT NOT NULL DEFAULT 'free_practice' CONSTRAINT quiz_sessions_mode_check
-                        CHECK (mode IN ('daily_task', 'free_practice')),
-  daily_task_id         UUID REFERENCES daily_tasks(id) ON DELETE SET NULL,
-  word_count_requested  INTEGER NOT NULL,
-  started_at            TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  completed_at          TIMESTAMPTZ,
-  score                 NUMERIC
-);
-
-CREATE INDEX quiz_sessions_user_id_idx ON quiz_sessions (user_id);
-CREATE UNIQUE INDEX quiz_sessions_daily_task_idx ON quiz_sessions (daily_task_id)
+ALTER TABLE quiz_sessions
+  ADD COLUMN IF NOT EXISTS daily_task_id UUID REFERENCES daily_tasks(id) ON DELETE SET NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS quiz_sessions_daily_task_idx ON quiz_sessions (daily_task_id)
   WHERE daily_task_id IS NOT NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS quiz_answers_session_word_idx ON quiz_answers (session_id, word_id);
 
--- =============================================
--- 測驗作答紀錄
--- =============================================
-CREATE TABLE quiz_answers (
-  id          UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  session_id  UUID NOT NULL REFERENCES quiz_sessions(id) ON DELETE CASCADE,
-  word_id     UUID NOT NULL REFERENCES words(id) ON DELETE CASCADE,
-  is_correct  BOOLEAN NOT NULL
-);
+ALTER TABLE quiz_sessions DROP CONSTRAINT IF EXISTS quiz_sessions_question_type_check;
+ALTER TABLE quiz_sessions ADD CONSTRAINT quiz_sessions_question_type_check
+  CHECK (question_type IN ('是非題', '選擇題', '輸入題', 'mixed'));
 
-CREATE INDEX quiz_answers_session_id_idx ON quiz_answers (session_id);
-CREATE UNIQUE INDEX quiz_answers_session_word_idx ON quiz_answers (session_id, word_id);
-
--- =============================================
--- 卡牌熟悉度自評（一對一 words）
--- =============================================
-CREATE TABLE card_familiarity (
-  word_id      UUID PRIMARY KEY REFERENCES words(id) ON DELETE CASCADE,
-  user_id      UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  familiarity  TEXT NOT NULL CHECK (familiarity IN ('unknown', 'known')),
-  updated_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-
-CREATE INDEX card_familiarity_user_id_idx ON card_familiarity (user_id);
-
--- =============================================
--- updated_at 自動更新
--- =============================================
-CREATE OR REPLACE FUNCTION update_updated_at()
-RETURNS TRIGGER AS $$
-BEGIN
-  NEW.updated_at = NOW();
-  RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
-
-CREATE TRIGGER users_updated_at
-  BEFORE UPDATE ON users FOR EACH ROW EXECUTE FUNCTION update_updated_at();
-
-CREATE TRIGGER user_language_settings_updated_at
-  BEFORE UPDATE ON user_language_settings FOR EACH ROW EXECUTE FUNCTION update_updated_at();
-
-CREATE OR REPLACE FUNCTION update_card_familiarity_updated_at()
-RETURNS TRIGGER AS $$
-BEGIN
-  NEW.updated_at = NOW();
-  RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
-
-CREATE TRIGGER card_familiarity_updated_at
-  BEFORE UPDATE ON card_familiarity FOR EACH ROW EXECUTE FUNCTION update_card_familiarity_updated_at();
-
--- =============================================
--- 使用者回饋
--- =============================================
-CREATE TABLE feedback (
-  id          UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  user_id     UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  content     TEXT NOT NULL,
-  created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  CONSTRAINT feedback_content_len CHECK (char_length(content) BETWEEN 1 AND 2000)
-);
-
-CREATE INDEX feedback_user_id_idx ON feedback (user_id);
-CREATE INDEX feedback_created_at_idx ON feedback (created_at DESC);
-
--- =============================================
--- LINE 註冊／登入（含早鳥名額原子判定）
--- =============================================
+-- ---------------------------------------------
+-- LINE 註冊／登入：cancelled 再登入時一併重置連續天數欄位
+-- ---------------------------------------------
 CREATE OR REPLACE FUNCTION register_line_user(
   p_line_user_id text,
   p_display_name text,
@@ -363,9 +217,9 @@ BEGIN
 END;
 $$;
 
--- =============================================
+-- ---------------------------------------------
 -- 建立單字本（同時建立該語言設定）
--- =============================================
+-- ---------------------------------------------
 CREATE OR REPLACE FUNCTION create_wordbook(
   p_user_id uuid,
   p_name text,
@@ -391,10 +245,10 @@ BEGIN
 END;
 $$;
 
--- =============================================
+-- ---------------------------------------------
 -- 某語言全部單字＋熟練度（每日任務產生、干擾項用）
 -- 回傳單一 json，不受 PostgREST max-rows 限制
--- =============================================
+-- ---------------------------------------------
 CREATE OR REPLACE FUNCTION get_language_words(p_user_id uuid, p_language text)
 RETURNS json
 LANGUAGE sql
@@ -425,9 +279,9 @@ AS $$
   ) t;
 $$;
 
--- =============================================
+-- ---------------------------------------------
 -- 各語言掌握統計（成長面板、成就檢查）
--- =============================================
+-- ---------------------------------------------
 CREATE OR REPLACE FUNCTION progress_summary(p_user_id uuid)
 RETURNS json
 LANGUAGE sql
@@ -451,9 +305,9 @@ AS $$
   ) t;
 $$;
 
--- =============================================
+-- ---------------------------------------------
 -- 歷史最高掌握數只升不降
--- =============================================
+-- ---------------------------------------------
 CREATE OR REPLACE FUNCTION refresh_peak_mastered(p_user_id uuid)
 RETURNS void
 LANGUAGE sql
@@ -475,9 +329,9 @@ AS $$
     AND c.mastered > s.peak_mastered_count;
 $$;
 
--- =============================================
+-- ---------------------------------------------
 -- 各單字本字數（{ wordbook_id: count }）
--- =============================================
+-- ---------------------------------------------
 CREATE OR REPLACE FUNCTION wordbook_word_counts(p_user_id uuid)
 RETURNS json
 LANGUAGE sql
@@ -495,12 +349,12 @@ AS $$
   ) c;
 $$;
 
--- =============================================
+-- ---------------------------------------------
 -- 寫入作答（每日任務逐題／自由練習整批共用）
 -- p_answers: [{ word_id, is_correct, progress: {stage, due_date, introduced_at,
 --              last_reviewed_date, lapse_count, mastered_at} | null }]
 -- 同一場次同一單字只記一次；回傳實際寫入的 word_id 陣列
--- =============================================
+-- ---------------------------------------------
 CREATE OR REPLACE FUNCTION record_answers(
   p_user_id uuid,
   p_session_id uuid,
@@ -581,44 +435,23 @@ BEGIN
 END;
 $$;
 
--- =============================================
--- 撤銷 anon / authenticated 直接存取權限
--- =============================================
-REVOKE ALL ON TABLE users            FROM anon, authenticated;
-REVOKE ALL ON TABLE wordbooks        FROM anon, authenticated;
-REVOKE ALL ON TABLE words            FROM anon, authenticated;
-REVOKE ALL ON TABLE tags             FROM anon, authenticated;
-REVOKE ALL ON TABLE word_tags        FROM anon, authenticated;
-REVOKE ALL ON TABLE word_stats       FROM anon, authenticated;
-REVOKE ALL ON TABLE quiz_sessions    FROM anon, authenticated;
-REVOKE ALL ON TABLE quiz_answers     FROM anon, authenticated;
-REVOKE ALL ON TABLE card_familiarity FROM anon, authenticated;
-REVOKE ALL ON TABLE feedback         FROM anon, authenticated;
+-- ---------------------------------------------
+-- 權限
+-- ---------------------------------------------
 REVOKE ALL ON TABLE user_language_settings FROM anon, authenticated;
 REVOKE ALL ON TABLE word_progress          FROM anon, authenticated;
 REVOKE ALL ON TABLE daily_tasks            FROM anon, authenticated;
 REVOKE ALL ON TABLE user_achievements      FROM anon, authenticated;
 
-GRANT ALL ON TABLE users            TO service_role;
-GRANT ALL ON TABLE wordbooks        TO service_role;
-GRANT ALL ON TABLE words            TO service_role;
-GRANT ALL ON TABLE tags             TO service_role;
-GRANT ALL ON TABLE word_tags        TO service_role;
-GRANT ALL ON TABLE word_stats       TO service_role;
-GRANT ALL ON TABLE quiz_sessions    TO service_role;
-GRANT ALL ON TABLE quiz_answers     TO service_role;
-GRANT ALL ON TABLE card_familiarity TO service_role;
-GRANT ALL ON TABLE feedback         TO service_role;
 GRANT ALL ON TABLE user_language_settings TO service_role;
 GRANT ALL ON TABLE word_progress          TO service_role;
 GRANT ALL ON TABLE daily_tasks            TO service_role;
 GRANT ALL ON TABLE user_achievements      TO service_role;
 
-GRANT EXECUTE ON FUNCTION register_line_user(text, text, text) TO service_role;
-
 REVOKE EXECUTE ON FUNCTION create_wordbook(uuid, text, text) FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION create_wordbook(uuid, text, text) TO service_role;
 
+-- 修正：register_line_user 原本未撤銷 anon 執行權限（anon key 公開於前端）
 REVOKE EXECUTE ON FUNCTION get_language_words(uuid, text)       FROM PUBLIC, anon, authenticated;
 REVOKE EXECUTE ON FUNCTION progress_summary(uuid)               FROM PUBLIC, anon, authenticated;
 REVOKE EXECUTE ON FUNCTION refresh_peak_mastered(uuid)          FROM PUBLIC, anon, authenticated;
@@ -631,3 +464,5 @@ GRANT EXECUTE ON FUNCTION refresh_peak_mastered(uuid)          TO service_role;
 GRANT EXECUTE ON FUNCTION wordbook_word_counts(uuid)           TO service_role;
 GRANT EXECUTE ON FUNCTION record_answers(uuid, uuid, jsonb)    TO service_role;
 
+
+COMMIT;

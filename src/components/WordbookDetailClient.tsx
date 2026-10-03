@@ -5,14 +5,16 @@ import { useRouter } from 'next/navigation'
 import { useMemo, useState } from 'react'
 
 import { ImportExcelButton } from '@/components/ImportExcelButton'
+import { LanguageBadge } from '@/components/LanguageBadge'
 import { useAppDialog } from '@/components/AppDialog'
-import type { DbTag, WordWithMeta } from '@/types/vocab'
+import type { DbTag, Language, WordWithMeta } from '@/types/vocab'
 import { TRIAL_WORD_LIMIT } from '@/types/user'
 
 
 interface WordbookDetailClientProps {
   wordbookId: string
   wordbookName: string
+  wordbookLanguage: Language
   words: WordWithMeta[]
   tags: DbTag[]
   accountWordCount: number
@@ -25,7 +27,7 @@ function accuracyLabel(accuracy: number | null) {
     return { text: '尚未測驗', className: 'text-ink-soft' }
   }
   const pct = Math.round(accuracy * 100)
-  if (pct >= 70) return { text: `${pct}%`, className: 'text-[#3E7A4F] font-semibold' }
+  if (pct >= 70) return { text: `${pct}%`, className: 'text-good font-semibold' }
   if (pct >= 45) return { text: `${pct}%`, className: 'text-gold font-semibold' }
   return { text: `${pct}%`, className: 'text-stamp-red font-semibold' }
 }
@@ -33,6 +35,7 @@ function accuracyLabel(accuracy: number | null) {
 export function WordbookDetailClient({
   wordbookId,
   wordbookName,
+  wordbookLanguage,
   words: initialWords,
   tags: initialTags,
   accountWordCount,
@@ -294,7 +297,10 @@ export function WordbookDetailClient({
       </p>
 
       <div className="flex items-end justify-between flex-wrap gap-2.5 mb-1.5">
-        <h1 className="font-serif font-black text-2xl">{displayName}</h1>
+        <h1 className="font-serif font-black text-2xl flex items-center gap-2.5">
+          {displayName}
+          <LanguageBadge language={wordbookLanguage} />
+        </h1>
         {userStatus === 'trial' && (
           <div className="font-mono text-[11.5px] text-ink-soft">
             {wordCount} / {TRIAL_WORD_LIMIT} 字（試用中）

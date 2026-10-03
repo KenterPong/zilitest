@@ -6,6 +6,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 
 import { ScopeFilter } from '@/components/ScopeFilter'
 import { useAppDialog } from '@/components/AppDialog'
+import { ACHIEVEMENT_BY_KEY } from '@/lib/growth'
 import type { QuestionType, QuizQuestion } from '@/types/quiz'
 import type { DbTag, WordbookWithCount } from '@/types/vocab'
 
@@ -63,6 +64,7 @@ export function QuizSetupClient({
     wrong: number
     score: number
     question_type: string
+    new_achievements?: string[]
     results: {
       word_id: string
       term: string
@@ -205,7 +207,7 @@ export function QuizSetupClient({
           <Link href="/app" className="border-b border-dotted border-ink-soft">
             我的單字本
           </Link>
-          {' ／ 測驗結果'}
+          {' ／ 自由練習結果'}
         </p>
 
         <div className="flex items-center gap-8 bg-cream border border-line rounded-lg p-6 mb-6 flex-wrap">
@@ -236,6 +238,15 @@ export function QuizSetupClient({
             </div>
           </div>
         </div>
+
+        {(result.new_achievements?.length ?? 0) > 0 && (
+          <div className="border border-gold bg-cream rounded-md px-5 py-3 mb-6 text-sm">
+            <span className="font-mono text-[11px] tracking-[0.12em] text-gold mr-2">解鎖成就</span>
+            {result.new_achievements!
+              .map((key) => ACHIEVEMENT_BY_KEY.get(key)?.name ?? key)
+              .join('、')}
+          </div>
+        )}
 
         {wrongs.length > 0 && (
           <>
@@ -304,7 +315,7 @@ export function QuizSetupClient({
             }}
             className="bg-stamp-red text-cream font-bold px-6 py-3 rounded-md text-sm"
           >
-            重新測驗（同樣範圍）
+            再練一次（同樣範圍）
           </button>
           <Link
             href="/app"
@@ -314,7 +325,7 @@ export function QuizSetupClient({
           </Link>
         </div>
         <p className="text-xs text-ink-soft mt-2.5">
-          答錯率越高的單字，下次測驗出現的機率越高。
+          答錯率越高的單字，下次練習出現的機率越高；答錯的字會回到每日任務重新複習。
         </p>
       </div>
     )
@@ -361,7 +372,7 @@ export function QuizSetupClient({
                       display_answer: q.display_answer,
                     })
                   }
-                  className="flex-1 py-2.5 rounded-sm font-bold text-sm border-[1.5px] border-[#3E7A4F] text-[#3E7A4F]"
+                  className="flex-1 py-2.5 rounded-sm font-bold text-sm border-[1.5px] border-good text-good"
                 >
                   正確
                 </button>
@@ -395,7 +406,7 @@ export function QuizSetupClient({
                     onClick={() => setSelectedChoice(opt)}
                     className={`block w-full text-left px-3.5 py-2.5 border rounded-md text-sm transition-colors ${
                       selected
-                        ? 'border-stamp-red bg-[#FBEAE3] text-ink'
+                        ? 'border-stamp-red bg-warn-bg text-ink'
                         : 'border-line bg-paper hover:border-stamp-red'
                     }`}
                   >
@@ -462,9 +473,9 @@ export function QuizSetupClient({
         <button
           type="button"
           onClick={async () => {
-            const ok = await confirm('確定結束測驗？目前進度將不會儲存。', {
-              title: '放棄測驗',
-              confirmLabel: '結束測驗',
+            const ok = await confirm('確定結束練習？目前進度將不會儲存。', {
+              title: '放棄練習',
+              confirmLabel: '結束練習',
               danger: true,
             })
             if (ok) {
@@ -475,7 +486,7 @@ export function QuizSetupClient({
           }}
           className="mt-4 text-sm text-ink-soft underline"
         >
-          放棄測驗
+          放棄練習
         </button>
         {error && <p className="text-sm text-stamp-red mt-2">{error}</p>}
       </div>
@@ -498,13 +509,13 @@ export function QuizSetupClient({
         <Link href="/app" className="border-b border-dotted border-ink-soft">
           我的單字本
         </Link>
-        {' ／ 測驗設定'}
+        {' ／ 自由練習'}
       </p>
       <h1 className="font-serif font-black text-2xl mb-2">
-        {wordbookIds.length > 1 ? '綜合測驗' : '開始一場測驗'}
+        自由練習
       </h1>
       <p className="text-sm text-ink-soft mb-6">
-        可複選多本單字本做成綜合測驗；錯誤率越高的單字越常優先出現，方便交互複習。
+        自選範圍與題型練習，可複選多本單字本；錯誤率越高的單字越常出現。連續天數只計每日任務。
       </p>
 
       <ScopeFilter
@@ -574,7 +585,7 @@ export function QuizSetupClient({
           </span>
         </div>
         {!poolLoading && poolSize > 0 && poolSize < minPool && (
-          <div className="text-[12.5px] text-stamp-red-deep bg-[#FBEAE3] border border-[#E9BCAE] px-3 py-2 rounded mt-2">
+          <div className="text-[12.5px] text-stamp-red-deep bg-warn-bg border border-warn-line px-3 py-2 rounded mt-2">
             {qtype}單字池需至少 {minPool} 個字，目前僅 {poolSize} 個，請擴大篩選或改題型。
           </div>
         )}
@@ -592,9 +603,7 @@ export function QuizSetupClient({
           ? '準備中…'
           : poolLoading
             ? '計算單字池…'
-            : wordbookIds.length > 1
-              ? '開始綜合測驗'
-              : '開始測驗'}
+            : '開始練習'}
       </button>
       <button
         type="button"

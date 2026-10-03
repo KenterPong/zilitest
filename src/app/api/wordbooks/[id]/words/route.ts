@@ -3,7 +3,8 @@ import { NextResponse } from 'next/server'
 import { assertCanMutate, canAddWords, requireUser } from '@/lib/api-auth'
 import { recalculateWordCount } from '@/lib/word-count'
 import { supabaseAdmin } from '@/lib/supabase-admin'
-import type { DbTag, WordWithMeta } from '@/types/vocab'
+import { listWordsForWordbook } from '@/lib/vocab-queries'
+import type { WordWithMeta } from '@/types/vocab'
 
 export const runtime = 'nodejs'
 
@@ -29,68 +30,13 @@ export async function GET(_request: Request, context: Ctx) {
     return NextResponse.json({ error: '找不到單字本' }, { status: 404 })
   }
 
-  const { data: words, error } = await supabaseAdmin
-    .from('words')
-    .select('id, wordbook_id, term, answer, description, created_at')
-    .eq('wordbook_id', wordbookId)
-    .order('created_at', { ascending: false })
-
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 500 })
+  try {
+    const words: WordWithMeta[] = await listWordsForWordbook(auth.user.id, wordbookId)
+    return NextResponse.json({ words })
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : '讀取失敗'
+    return NextResponse.json({ error: msg }, { status: 500 })
   }
-
-  const list = words ?? []
-  if (list.length === 0) {
-    return NextResponse.json({ words: [] satisfies WordWithMeta[] })
-  }
-
-  const wordIds = list.map((w) => w.id)
-
-  const [{ data: stats }, { data: wordTags }] = await Promise.all([
-    supabaseAdmin
-      .from('word_stats')
-      .select('word_id, attempt_count, correct_count')
-      .in('word_id', wordIds),
-    supabaseAdmin.from('word_tags').select('word_id, tag_id').in('word_id', wordIds),
-  ])
-
-  const tagIds = Array.from(new Set((wordTags ?? []).map((wt) => wt.tag_id)))
-  let tagsById = new Map<string, DbTag>()
-  if (tagIds.length > 0) {
-    const { data: tags } = await supabaseAdmin
-      .from('tags')
-      .select('id, user_id, name')
-      .in('id', tagIds)
-      .eq('user_id', auth.user.id)
-    tagsById = new Map((tags ?? []).map((t) => [t.id, t]))
-  }
-
-  const statsMap = new Map(
-    (stats ?? []).map((s) => [s.word_id, s] as const)
-  )
-  const tagsByWord = new Map<string, DbTag[]>()
-  for (const wt of wordTags ?? []) {
-    const tag = tagsById.get(wt.tag_id)
-    if (!tag) continue
-    const arr = tagsByWord.get(wt.word_id) ?? []
-    arr.push(tag)
-    tagsByWord.set(wt.word_id, arr)
-  }
-
-  const result: WordWithMeta[] = list.map((w) => {
-    const s = statsMap.get(w.id)
-    const attempt = s?.attempt_count ?? 0
-    const correct = s?.correct_count ?? 0
-    return {
-      ...w,
-      tags: tagsByWord.get(w.id) ?? [],
-      attempt_count: attempt,
-      correct_count: correct,
-      accuracy: attempt > 0 ? correct / attempt : null,
-    }
-  })
-
-  return NextResponse.json({ words: result })
 }
 
 export async function POST(request: Request, context: Ctx) {

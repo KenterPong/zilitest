@@ -27,6 +27,11 @@ export interface DbUser {
   data_purge_scheduled_at: string | null
   last_reminder_sent_at: string | null
   cancelled_at: string | null
+  current_streak: number
+  longest_streak: number
+  /** 台北日期 YYYY-MM-DD */
+  last_streak_date: string | null
+  streak_frozen_at: string | null
   created_at: string
   updated_at: string
 }

@@ -32,6 +32,7 @@ export default async function WordbookDetailPage({ params }: Props) {
       <WordbookDetailClient
         wordbookId={book.id}
         wordbookName={book.name}
+        wordbookLanguage={book.language}
         words={words}
         tags={tags}
         accountWordCount={user.word_count}
