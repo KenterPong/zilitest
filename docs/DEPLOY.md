@@ -5,9 +5,9 @@
 ## 1. Supabase
 
 1. 建立新 Supabase 專案
-2. Dashboard → **SQL Editor** → 貼上 [`supabase/schema.sql`](../supabase/schema.sql) → **Run**
-3. 確認 Table Editor 出現表：`users`、`wordbooks`、`words`、`tags`、`word_tags`、`word_stats`、`quiz_sessions`、`quiz_answers`、`card_familiarity`、`feedback`
-4. **既有專案升級**：若先前已跑過舊 schema，改執行 [`supabase/migration_early_bird_feedback.sql`](../supabase/migration_early_bird_feedback.sql)（會加 `is_early_bird`、`feedback`、`register_line_user`，並為現有帳號補發早鳥）
+2. **新專案**：Dashboard → **SQL Editor** → 貼上 [`supabase/schema.sql`](../supabase/schema.sql) → **Run**（`schema.sql` 永遠維持最新完整版本）
+3. **既有專案升級**：依檔名順序執行 `supabase/migrations/` 內**尚未執行過**的 migration 檔（檔名以日期開頭，例如 `20261005_v5_daily_tasks.sql`）
+4. 資料表與欄位定義**以技術規格文件為準**（第三節、第八節、第十節），本文件不另列資料表清單，避免兩邊不同步
 5. Settings → API 複製：
    - `Project URL` → `NEXT_PUBLIC_SUPABASE_URL`
    - `anon` key → `NEXT_PUBLIC_SUPABASE_ANON_KEY`
@@ -84,3 +84,4 @@
 
 - `vercel.json` cron：試用到期、扣款失敗、資料清除排程
 - LINE Pay Sandbox 金流
+- `ANTHROPIC_API_KEY`：AI 抽字（僅伺服器端，勿使用 `NEXT_PUBLIC_*` 前綴；見技術規格第十節）
