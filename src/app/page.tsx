@@ -2,6 +2,9 @@ import Image from 'next/image'
 import Link from 'next/link'
 
 import { SiteFooter } from '@/components/SiteChrome'
+import { EARLY_BIRD_END_DATE, EARLY_BIRD_LIMIT } from '@/types/user'
+
+const EARLY_BIRD_END_LABEL = EARLY_BIRD_END_DATE.replace(/-/g, '/')
 
 export default function HomePage() {
   return (
@@ -41,13 +44,13 @@ export default function HomePage() {
         <div className="max-w-6xl mx-auto px-8 grid lg:grid-cols-2 gap-14 items-center relative">
           <div>
             <div className="inline-flex items-center gap-2 font-mono text-xs tracking-widest text-stamp-red-deep border border-stamp-red-deep px-3 py-1 rounded-sm mb-5">
-              ✓ 多益 TOEIC・JLPT 日檢單字神器
+              ✓ 英・日・韓 多語自學
             </div>
             <h1 className="font-serif font-black text-4xl md:text-5xl leading-tight mb-5">
               把單字，練成<em className="not-italic text-stamp-red">你的字力</em>。
             </h1>
             <p className="text-ink-soft text-lg mb-8 max-w-md">
-              專為多益、JLPT 日檢設計的背單字工具，功能完整、價格合理。免下載 App，LINE 登入就能開始練。我們不會取得或儲存你的 LINE 密碼。
+              用你自己的單字，同時自學英文、日文、韓文。系統每天依熟練度安排複習任務，掌握字數、等級與連續天數，讓你看見自己的成長。免下載 App，LINE 登入就能開始，我們不會取得或儲存你的 LINE 密碼。
             </p>
             <div className="flex flex-wrap items-center gap-4 mb-4">
               <Link
@@ -65,14 +68,15 @@ export default function HomePage() {
 
           <div className="relative h-80 hidden sm:block">
             {[
-              { term: '試験', answer: 'n. 考試、測驗', className: 'top-[70px] left-0 -rotate-[9deg] opacity-85' },
-              { term: 'diligent', answer: 'adj. 勤勉的', className: 'top-[35px] left-8 rotate-[4deg] opacity-95' },
-              { term: '合格', answer: 'n. 及格、合格', className: 'top-0 left-16 -rotate-[2deg]' },
+              { lang: '韓文', term: '꾸준히', answer: 'adv. 持之以恆地', className: 'top-[70px] left-0 -rotate-[9deg] opacity-85' },
+              { lang: '日文', term: '続ける', answer: 'v. 繼續、持續', className: 'top-[35px] left-8 rotate-[4deg] opacity-95' },
+              { lang: '英文', term: 'journey', answer: 'n. 旅程', className: 'top-0 left-16 -rotate-[2deg]' },
             ].map((card) => (
               <div
                 key={card.term}
                 className={`absolute w-56 h-36 bg-cream border border-line rounded-md shadow-lg flex flex-col justify-center px-5 ${card.className}`}
               >
+                <div className="font-mono text-[11px] tracking-[0.08em] text-ink-soft mb-1">{card.lang}</div>
                 <div className="font-serif font-bold text-xl mb-1">{card.term}</div>
                 <div className="text-sm text-ink-soft">{card.answer}</div>
               </div>
@@ -85,19 +89,19 @@ export default function HomePage() {
         <div className="max-w-6xl mx-auto grid md:grid-cols-3">
           {[
             {
-              label: '功能',
-              title: '功能完整',
-              desc: '不只是陽春卡片，內建錯誤率分析，不論準備多益還是日檢，測驗都會自動優先出你還沒背熟的字。',
+              label: '你的單字',
+              title: '背你真正遇到的字',
+              desc: '不是固定課程。課本、影集、文章裡遇到的字，建成自己的單字本，系統幫你排進每天的複習。',
             },
             {
-              label: '價格',
-              title: '價格合理',
-              desc: '每月 NT$70，功能不分級，不用為了進階測驗另外加價。',
+              label: '看得見的成長',
+              title: '每天都知道自己往前走',
+              desc: '掌握字數、等級、連續天數與成就，不只是把字存起來，而是看見自己真的記住了多少。',
             },
             {
-              label: '專注',
-              title: '更專注',
-              desc: '只做單字背誦與測驗，題型與排序都是為了「背起來」這個目的設計。',
+              label: '多語累積',
+              title: '英・日・韓一起算',
+              desc: '每種語言各自排程、各自升級，再以跨語言的總掌握字數，作為你自學多種語言的成長指標。',
             },
           ].map((item) => (
             <div key={item.title} className="p-8 border-b md:border-b-0 md:border-r border-line last:border-r-0">
@@ -112,14 +116,16 @@ export default function HomePage() {
       <section id="features" className="py-20 max-w-6xl mx-auto px-8">
         <div className="mb-12 max-w-xl">
           <div className="font-mono text-xs tracking-widest text-stamp-red-deep mb-3">功能特色</div>
-          <h2 className="font-serif font-black text-3xl">多益、日檢都適用的三種題型與熟練度邏輯</h2>
+          <h2 className="font-serif font-black text-3xl">每天打開，就知道今天要背什麼</h2>
         </div>
         <div className="grid md:grid-cols-2 gap-px bg-line border border-line">
           {[
-            ['是非・選擇・填空', '填空題顯示中文、輸入外文；拼錯處會用紅字標出。'],
-            ['卡牌背誦模式', '標記「認得 / 不認得」，系統會讓不熟的字更常出現。'],
-            ['錯誤率分析', '每個單字都看得到正確率，測驗會優先考你還沒背熟的字。'],
-            ['Excel 匯入', '貼上單字、答案、說明三欄就能建單字本，不用一筆一筆手動輸入。'],
+            ['每日任務', '系統依熟練度安排今天要複習的字與新字。你只要決定學哪些語言、每天學多少，不用自己挑範圍。'],
+            ['間隔複習', '答對就拉長下次複習的間隔，答錯就回到隔天；在不同日期連續答對，才算真正「掌握」。'],
+            ['成長面板', '各語言的等級、掌握字數、連續天數與成就一目了然，解鎖的成就永遠不會收回。'],
+            ['英・日・韓分語言', '每本單字本設定一種語言，每日任務與成長統計都分語言進行，多種語言同時學也不混亂。'],
+            ['自由練習與卡牌', '想加強特定範圍時，自選單字本與標籤練習；是非、選擇、填空三種題型，填空題看中文拼外文。'],
+            ['Excel 匯入與匯出', '單字、答案、說明三欄就能建單字本；隨時可把單字匯出成 Excel 備份。'],
           ].map(([title, desc]) => (
             <div key={title} className="bg-paper p-9">
               <h3 className="font-serif font-bold text-lg mb-2">{title}</h3>
@@ -136,7 +142,7 @@ export default function HomePage() {
             先免費用 30 天，再決定要不要付費
           </h2>
           <p className="text-sm text-stamp-red-deep bg-amber-bg border border-amber-line rounded-md px-4 py-3 max-w-2xl">
-            前 100 名註冊會員，可以免費使用到今年（2026 年）的 12/31。
+            前 {EARLY_BIRD_LIMIT} 名註冊會員，可免費使用至 {EARLY_BIRD_END_LABEL}（台北時間）。
           </p>
         </div>
         <div className="grid md:grid-cols-2 gap-6">
@@ -145,9 +151,9 @@ export default function HomePage() {
             <div className="font-serif font-black text-4xl mb-2">NT$0</div>
             <p className="text-sm text-ink-soft mb-6">不用先綁信用卡，到期後由你決定要不要繼續</p>
             <ul className="text-sm space-y-2 mb-8 border-t border-dashed border-line pt-4">
-              <li>最多可存 500 個單字</li>
-              <li>三種題型、卡牌模式全部可用</li>
-              <li>測驗次數不限、無廣告</li>
+              <li>最多可存 500 個單字（英日韓合計）</li>
+              <li>每日任務、成長面板與成就全部可用</li>
+              <li>自由練習、卡牌模式不限次數、無廣告</li>
             </ul>
             <Link
               href="/auth/login"
@@ -167,8 +173,8 @@ export default function HomePage() {
             <p className="text-sm text-ink-soft mb-6">單字數量無上限，其餘功能與免費使用時相同</p>
             <ul className="text-sm space-y-2 mb-8 border-t border-dashed border-line pt-4">
               <li>單字數量無上限</li>
-              <li>三種題型、卡牌模式全部可用</li>
-              <li>測驗次數不限、無廣告</li>
+              <li>每日任務、成長面板與成就全部可用</li>
+              <li>自由練習、卡牌模式不限次數、無廣告</li>
             </ul>
             <Link
               href="/auth/login"

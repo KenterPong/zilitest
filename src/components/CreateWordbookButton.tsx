@@ -75,7 +75,7 @@ export function CreateWordbookButton({
               autoFocus
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="例如：TOEIC 核心 2000"
+              placeholder="例如：日劇常用單字"
               className="w-full border border-line rounded-sm px-3 py-2 text-sm bg-white mb-3 focus:outline-none focus:border-ink"
               maxLength={80}
             />

@@ -61,7 +61,7 @@ export function SiteFooter() {
             字力測驗
           </Link>
           <p className="text-sm text-ink-soft max-w-sm">
-            英文、日文檢定單字背誦與測驗工具，免下載 App，LINE 登入即可使用。
+            英文、日文、韓文自學者的單字成長系統，免下載 App，LINE 登入即可使用。
           </p>
           <div className="flex gap-4 mt-3 text-xs text-ink-soft">
             <Link href="/privacy" className="underline">

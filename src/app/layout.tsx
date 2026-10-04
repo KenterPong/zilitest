@@ -30,9 +30,9 @@ const plexMono = IBM_Plex_Mono({
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
-  title: '字力測驗｜多益 TOEIC・JLPT 日檢單字背誦與測驗App',
+  title: '字力測驗｜英日韓多語自學的單字成長系統',
   description:
-    '多益 TOEIC、JLPT 日檢背單字神器。內建錯誤率分析、卡牌背誦、Excel 匯入，功能完整、價格合理，LINE 登入即可開始背單字。',
+    '用自己的單字同時自學英文、日文、韓文。系統依熟練度每天安排複習任務，掌握字數、等級、連續天數與成就讓你看見成長。免下載 App，LINE 登入即可開始。',
   alternates: {
     canonical: '/',
   },
@@ -45,9 +45,9 @@ export const metadata: Metadata = {
     locale: 'zh_TW',
     url: SITE_URL,
     siteName: '字力測驗',
-    title: '字力測驗｜多益 TOEIC・JLPT 日檢單字背誦與測驗App',
+    title: '字力測驗｜英日韓多語自學的單字成長系統',
     description:
-      '多益 TOEIC、JLPT 日檢背單字神器。內建錯誤率分析、卡牌背誦、Excel 匯入，功能完整、價格合理，LINE 登入即可開始背單字。',
+      '用自己的單字同時自學英文、日文、韓文。系統依熟練度每天安排複習任務，掌握字數、等級、連續天數與成就讓你看見成長。免下載 App，LINE 登入即可開始。',
     images: [{ url: '/logo.png', width: 512, height: 512, alt: '字力測驗' }],
   },
   icons: {
