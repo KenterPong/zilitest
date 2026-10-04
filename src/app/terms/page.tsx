@@ -51,6 +51,16 @@ export default async function TermsPage() {
               <li>試用／早鳥到期或扣款寬限期滿未成功，帳號暫停；暫停期間僅可匯出資料。</li>
               <li>暫停後資料保留 3 個月，期滿清除後視同帳號取消。</li>
               <li>「取消訂閱」僅停止續扣，可用至本期結束；「刪除帳號」立即清空資料且不退款。</li>
+              <li>刪除帳號會立即清空單字本、單字、學習紀錄、熟練度、成就、連續天數、改善建議與 Email，無法復原。</li>
+            </ul>
+          </section>
+
+          <section>
+            <h2 className="font-serif font-bold text-ink text-lg mb-2">成長紀錄</h2>
+            <ul className="list-disc pl-5 space-y-1">
+              <li>成就、等級與連續天數屬於帳號資料，僅保存在本服務中，不在資料匯出範圍內。</li>
+              <li>帳號暫停期間，成長紀錄凍結而不歸零；付費恢復後接續原本的紀錄，複習排程依暫停天數順延。</li>
+              <li>暫停保留期滿清除資料或刪除帳號時，成長紀錄一併刪除且無法恢復。</li>
             </ul>
           </section>
         </div>

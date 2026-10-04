@@ -5,7 +5,7 @@ import { TodayPanel } from '@/components/TodayPanel'
 import { WordbookGrid } from '@/components/WordbookGrid'
 import { getSessionUser } from '@/lib/auth'
 import { ensureToday } from '@/lib/daily-service'
-import { getProgressSummary } from '@/lib/growth-service'
+import { getProgressSummary, getUnlockedAchievements } from '@/lib/growth-service'
 import { listWordbooksForUser } from '@/lib/vocab-queries'
 
 export const dynamic = 'force-dynamic'
@@ -16,17 +16,18 @@ export default async function AppHomePage() {
     redirect('/auth/login')
   }
 
-  const [overview, wordbooks, summary] = await Promise.all([
+  const canMutate = user.status !== 'suspended'
+  const [overview, wordbooks, summary, achievements] = await Promise.all([
     ensureToday(user),
     listWordbooksForUser(user.id),
     getProgressSummary(user.id),
+    canMutate ? Promise.resolve([]) : getUnlockedAchievements(user.id),
   ])
-  const canMutate = user.status !== 'suspended'
   const totalMastered = summary.reduce((sum, r) => sum + r.mastered, 0)
 
   return (
     <main className="px-5 sm:px-8 py-7 max-w-5xl mx-auto">
-      <StatusBanner user={user} />
+      <StatusBanner user={user} achievementCount={achievements.length} />
       <TodayPanel
         overview={overview}
         totalMastered={totalMastered}

@@ -6,9 +6,11 @@ import { daysRemaining, formatTrialEndDate } from '@/lib/auth'
 
 interface StatusBannerProps {
   user: DbUser
+  /** 暫停時顯示已凍結的成就數 */
+  achievementCount?: number
 }
 
-export function StatusBanner({ user }: StatusBannerProps) {
+export function StatusBanner({ user, achievementCount = 0 }: StatusBannerProps) {
   if (user.status === 'trial') {
     const days = daysRemaining(user.trial_end_at)
     const endLabel = formatTrialEndDate(user.trial_end_at)
@@ -61,9 +63,12 @@ export function StatusBanner({ user }: StatusBannerProps) {
       : '—'
     return (
       <div className="flex items-center justify-between gap-4 flex-wrap p-3.5 rounded-md border border-stamp-red bg-[#F3E1E0] text-stamp-red-deep text-sm mb-6 font-medium">
-        <div>帳號已暫停使用，資料將保留至 {keepUntil}</div>
+        <div>
+          帳號已暫停使用，資料將保留至 {keepUntil}。你的 {user.current_streak} 天連續紀錄與{' '}
+          {achievementCount} 個成就已凍結，付費後立即恢復。
+        </div>
         <Link href="/app/settings" className="font-bold border-b border-current whitespace-nowrap">
-          立即付費恢復 ・ 匯出資料
+          帳號設定・匯出資料
         </Link>
       </div>
     )

@@ -1,6 +1,7 @@
 import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
 
+import { buildSuspension, timedSuspension } from '@/lib/account-state'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import {
   EARLY_BIRD_END_DATE,
@@ -70,7 +71,42 @@ export async function getSessionUser(): Promise<DbUser | null> {
     .maybeSingle()
 
   if (error || !data) return null
-  return data as DbUser
+  return applyTimedTransition(data as DbUser)
+}
+
+/**
+ * 時間到期的狀態轉換（試用到期、寬限期滿、取消訂閱到期 → suspended），
+ * 於讀取 session 時 lazy 執行，不需 cron。
+ * 以「狀態仍是讀到的值」為條件更新，併發請求只有一個會寫入。
+ */
+async function applyTimedTransition(user: DbUser): Promise<DbUser> {
+  const now = new Date()
+  if (timedSuspension(user, now) === null) return user
+
+  const update = buildSuspension(
+    {
+      current_streak: user.current_streak,
+      longest_streak: user.longest_streak,
+      last_streak_date: user.last_streak_date,
+    },
+    now
+  )
+  const { data } = await supabaseAdmin
+    .from('users')
+    .update(update)
+    .eq('id', user.id)
+    .eq('status', user.status)
+    .select('*')
+    .maybeSingle()
+  if (data) return data as DbUser
+
+  // 其他請求已先轉換：重新讀取最新狀態
+  const { data: latest } = await supabaseAdmin
+    .from('users')
+    .select('*')
+    .eq('id', user.id)
+    .maybeSingle()
+  return (latest as DbUser | null) ?? user
 }
 
 export function clearUserSessionCookie(response: NextResponse) {
