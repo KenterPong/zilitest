@@ -5,6 +5,17 @@
 -- =============================================
 
 -- =============================================
+-- 預設權限：之後在 public 建立的函式與資料表預設不開放 anon / authenticated
+-- （Postgres 預設任何人都可執行新函式）
+-- =============================================
+ALTER DEFAULT PRIVILEGES IN SCHEMA public REVOKE EXECUTE ON FUNCTIONS FROM PUBLIC, anon, authenticated;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public REVOKE ALL ON TABLES FROM anon, authenticated;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public REVOKE ALL ON SEQUENCES FROM anon, authenticated;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT EXECUTE ON FUNCTIONS TO service_role;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO service_role;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO service_role;
+
+-- =============================================
 -- 使用者（含訂閱狀態機）
 -- =============================================
 CREATE TABLE users (
@@ -723,4 +734,10 @@ GRANT EXECUTE ON FUNCTION delete_account(uuid)            TO service_role;
 GRANT EXECUTE ON FUNCTION purge_expired_accounts()        TO service_role;
 GRANT EXECUTE ON FUNCTION unfreeze_growth(uuid, integer)  TO service_role;
 
-
+-- 全面再撤銷一次（保險：涵蓋上方未逐一列出的函式，例如觸發器函式）
+REVOKE EXECUTE ON ALL FUNCTIONS IN SCHEMA public FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON ALL TABLES IN SCHEMA public FROM anon, authenticated;
+REVOKE ALL ON ALL SEQUENCES IN SCHEMA public FROM anon, authenticated;
+GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA public TO service_role;
+GRANT ALL ON ALL TABLES IN SCHEMA public TO service_role;
+GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO service_role;
