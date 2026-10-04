@@ -6,7 +6,7 @@
 
 1. 建立新 Supabase 專案
 2. **新專案**：Dashboard → **SQL Editor** → 貼上 [`supabase/schema.sql`](../supabase/schema.sql) → **Run**（`schema.sql` 永遠維持最新完整版本）
-3. **既有專案升級**：依檔名順序執行 `supabase/migrations/` 內**尚未執行過**的 migration 檔（檔名以日期開頭，例如 `20261005_v5_daily_tasks.sql`）
+3. **既有專案升級**：依檔名順序執行 `supabase/migrations/` 內**尚未執行過**的 migration 檔（檔名以日期開頭，例如 `20261003_v5_daily_tasks.sql`）
 4. 資料表與欄位定義**以技術規格文件為準**（第三節、第八節、第十節），本文件不另列資料表清單，避免兩邊不同步
 5. Settings → API 複製：
    - `Project URL` → `NEXT_PUBLIC_SUPABASE_URL`
