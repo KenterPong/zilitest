@@ -5,8 +5,8 @@ import { getSessionUser } from '@/lib/auth'
 
 export const dynamic = 'force-dynamic'
 
-// TODO(發布前)：填入實際聯絡信箱；工作室登記完成後，營運者名稱改為登記名稱
-const CONTACT_EMAIL = '[聯絡信箱]'
+// TODO：工作室登記完成後，營運者名稱改為登記名稱
+const CONTACT_EMAIL = 'myainovelcom@gmail.com'
 const EFFECTIVE_DATE = '2026/10/04'
 
 const COLLECTED: [string, string, string][] = [
@@ -201,7 +201,9 @@ export default async function PrivacyPage() {
               AI 抽字或線上付款功能前，會先更新本政策。
             </p>
             <p>
-              對本政策有任何問題，或要行使第七節的權利，請來信：<span className="text-ink">{CONTACT_EMAIL}</span>。
+              對本政策有任何問題，或要行使第七節的權利，請來信：<a href={`mailto:${CONTACT_EMAIL}`} className="text-ink underline">
+                {CONTACT_EMAIL}
+              </a>。
             </p>
           </Section>
         </div>
