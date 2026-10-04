@@ -56,7 +56,8 @@ export function DailyTaskClient({ payload, currentStreak }: DailyTaskClientProps
   const [streak, setStreak] = useState(currentStreak)
   const [achievements, setAchievements] = useState<string[]>([])
   const [masteredCount, setMasteredCount] = useState(0)
-  const [correctCount, setCorrectCount] = useState(0)
+  /** 整個任務的答對數（含續作前已答的題目） */
+  const [taskCorrect, setTaskCorrect] = useState(payload.correct)
   const [finished, setFinished] = useState(questions.length === 0)
   const inputRef = useRef<HTMLInputElement>(null)
 
@@ -94,7 +95,7 @@ export function DailyTaskClient({ payload, currentStreak }: DailyTaskClientProps
       setFeedback(result)
       setAnswered(result.answered)
       setStreak(result.current_streak)
-      if (result.is_correct) setCorrectCount((n) => n + 1)
+      setTaskCorrect(result.task_correct)
       if (result.became_mastered) setMasteredCount((n) => n + 1)
       if (result.new_achievements.length > 0) {
         setAchievements((prev) => [...prev, ...result.new_achievements])
@@ -120,6 +121,17 @@ export function DailyTaskClient({ payload, currentStreak }: DailyTaskClientProps
     setStep(questions[nextIdx].kind === 'new' ? 'card' : 'answer')
   }
 
+  if (finished && payload.total === 0) {
+    return (
+      <div className="max-w-md mx-auto text-center py-10">
+        <p className="text-ink-soft mb-4">今日{label}任務的單字已全部刪除，明天會依新的單字重新安排。</p>
+        <Link href="/app" className="border-b border-current text-sm">
+          回今日任務
+        </Link>
+      </div>
+    )
+  }
+
   if (finished) {
     const doneAll = answered >= payload.total
     return (
@@ -142,15 +154,13 @@ export function DailyTaskClient({ payload, currentStreak }: DailyTaskClientProps
               <div className="font-mono text-[11px] tracking-[0.06em] text-ink-soft">連續天數</div>
               <div className="font-serif font-black text-2xl">{streak}</div>
             </div>
-            {questions.length > 0 && (
-              <div>
-                <div className="font-mono text-[11px] tracking-[0.06em] text-ink-soft">本次答對</div>
-                <div className="font-serif font-black text-2xl">
-                  {correctCount}
-                  <span className="text-sm text-ink-soft font-medium"> / {questions.length}</span>
-                </div>
+            <div>
+              <div className="font-mono text-[11px] tracking-[0.06em] text-ink-soft">任務答對</div>
+              <div className="font-serif font-black text-2xl">
+                {taskCorrect}
+                <span className="text-sm text-ink-soft font-medium"> / {payload.total}</span>
               </div>
-            )}
+            </div>
             {masteredCount > 0 && (
               <div>
                 <div className="font-mono text-[11px] tracking-[0.06em] text-ink-soft">新掌握</div>

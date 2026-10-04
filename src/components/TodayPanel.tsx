@@ -31,6 +31,17 @@ function TaskRow({ task, primary }: { task: TaskSummary; primary: boolean }) {
     )
   }
 
+  if (task.status === 'words_deleted') {
+    return (
+      <li className="flex items-center justify-between gap-4 py-3.5 border-b border-dashed border-line last:border-0">
+        <span className="font-serif font-bold">{label}</span>
+        <span className="text-[12.5px] text-ink-soft text-right">
+          今日任務的單字已全部刪除，明天會依新的單字重新安排
+        </span>
+      </li>
+    )
+  }
+
   if (task.status === 'nothing_to_do') {
     return (
       <li className="flex items-center justify-between gap-4 py-3.5 border-b border-dashed border-line last:border-0">

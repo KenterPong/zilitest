@@ -103,3 +103,14 @@ export function pickDistractors(
   }
   return unique.slice(0, n)
 }
+
+/**
+ * 任務完成狀態（第八節 6.）：只計仍存在的單字。
+ * empty：任務中的字已全部刪除，不算完成，視同當日該語言沒有任務
+ */
+export type TaskCompletion = 'empty' | 'done' | 'pending'
+
+export function taskCompletion(remainingWords: number, answeredRemaining: number): TaskCompletion {
+  if (remainingWords === 0) return 'empty'
+  return answeredRemaining >= remainingWords ? 'done' : 'pending'
+}

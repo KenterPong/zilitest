@@ -14,7 +14,8 @@ export interface DbLanguageSettings {
   updated_at: string
 }
 
-export type TaskSummaryStatus = 'ok' | 'too_few_words' | 'nothing_to_do'
+/** words_deleted：今日任務的字已全部刪除，視同當日該語言沒有任務 */
+export type TaskSummaryStatus = 'ok' | 'too_few_words' | 'nothing_to_do' | 'words_deleted'
 
 export interface TaskSummary {
   language: Language
@@ -44,6 +45,8 @@ export interface DailyTaskPayload {
   language: Language
   total: number
   answered: number
+  /** 整個任務已答對的題數（含續作前已答的題目） */
+  correct: number
   completed: boolean
   questions: DailyQuestion[]
 }
@@ -57,6 +60,8 @@ export interface DailyAnswerResult {
   task_completed: boolean
   answered: number
   total: number
+  /** 整個任務目前答對的題數 */
+  task_correct: number
   current_streak: number
   new_achievements: string[]
 }

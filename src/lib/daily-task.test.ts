@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest'
 
-import { pickDistractors, planDailyTask, questionKindFor, type TaskCandidateWord } from '@/lib/daily-task'
+import {
+  pickDistractors,
+  planDailyTask,
+  questionKindFor,
+  taskCompletion,
+  type TaskCandidateWord,
+} from '@/lib/daily-task'
 
 const today = '2026-10-10'
 const limits = { daily_review_limit: 3, daily_new_limit: 2 }
@@ -101,5 +107,21 @@ describe('pickDistractors', () => {
 
   it('候選不足時回傳全部可用者', () => {
     expect(pickDistractors('a', ['a', 'b'])).toEqual(['b'])
+  })
+})
+
+describe('taskCompletion', () => {
+  it('剩餘單字全部作答完即完成', () => {
+    expect(taskCompletion(3, 3)).toBe('done')
+    expect(taskCompletion(3, 2)).toBe('pending')
+  })
+
+  it('未答的字被刪除後，剩下的都答完即完成', () => {
+    // 原本 5 字，答了 3 字後刪除未答的 2 字 → 剩 3 字皆已答
+    expect(taskCompletion(3, 3)).toBe('done')
+  })
+
+  it('全部刪除不算完成', () => {
+    expect(taskCompletion(0, 0)).toBe('empty')
   })
 })

@@ -1,7 +1,13 @@
 import 'server-only'
 
 import { buildAnswerDiff, isExactAnswerMatch } from '@/lib/answer-match'
-import { pickDistractors, planDailyTask, questionKindFor, type DailyTaskPlan } from '@/lib/daily-task'
+import {
+  pickDistractors,
+  planDailyTask,
+  questionKindFor,
+  taskCompletion,
+  type DailyTaskPlan,
+} from '@/lib/daily-task'
 import { fetchByIds } from '@/lib/db-paging'
 import { getLanguageSettings, refreshPeakMastered, unlockAchievements } from '@/lib/growth-service'
 import { applyAnswer, type ProgressState } from '@/lib/progress'
@@ -155,13 +161,14 @@ async function ensureTaskSession(userId: string, task: DbDailyTask): Promise<str
   throw new Error(error?.message ?? '建立任務場次失敗')
 }
 
-async function answeredWordIds(sessionId: string): Promise<Set<string>> {
+/** 本任務已作答的字 → 是否答對 */
+async function answeredWords(sessionId: string): Promise<Map<string, boolean>> {
   const { data, error } = await supabaseAdmin
     .from('quiz_answers')
-    .select('word_id')
+    .select('word_id, is_correct')
     .eq('session_id', sessionId)
   if (error) throw new Error(error.message)
-  return new Set((data ?? []).map((r) => r.word_id))
+  return new Map((data ?? []).map((r) => [r.word_id, r.is_correct as boolean]))
 }
 
 /** 任務中仍存在的單字（建立任務後使用者可能刪字） */
@@ -172,13 +179,52 @@ async function existingTaskWordIds(task: DbDailyTask): Promise<Set<string>> {
   return new Set(rows.map((r) => r.id))
 }
 
+/** 只計仍存在的單字（第八節 6.） */
 async function taskProgress(task: DbDailyTask, sessionId: string) {
   const [existing, answered] = await Promise.all([
     existingTaskWordIds(task),
-    answeredWordIds(sessionId),
+    answeredWords(sessionId),
   ])
-  const answeredCount = Array.from(existing).filter((id) => answered.has(id)).length
-  return { existing, answered, total: existing.size, answeredCount }
+  let answeredCount = 0
+  let correctCount = 0
+  existing.forEach((id) => {
+    if (!answered.has(id)) return
+    answeredCount += 1
+    if (answered.get(id)) correctCount += 1
+  })
+  return { existing, answered, total: existing.size, answeredCount, correctCount }
+}
+
+/**
+ * 剩餘單字都已作答 → 寫入 completed_at 並更新連續天數。
+ * 呼叫端只能傳入 task_date = 今天的任務，不可回溯補完過去日期的任務。
+ * 只有第一個把 completed_at 從 NULL 改掉的請求會更新連續天數。
+ */
+async function completeTaskIfDone(
+  userId: string,
+  task: DbDailyTask,
+  progress: { total: number; answeredCount: number },
+  today: TaipeiDate,
+  streak: StreakState
+): Promise<{ completedNow: boolean; streak: StreakState }> {
+  if (task.task_date !== today) return { completedNow: false, streak }
+  if (task.completed_at !== null) return { completedNow: false, streak }
+  if (taskCompletion(progress.total, progress.answeredCount) !== 'done') {
+    return { completedNow: false, streak }
+  }
+
+  const { data: done, error } = await supabaseAdmin
+    .from('daily_tasks')
+    .update({ completed_at: new Date().toISOString() })
+    .eq('id', task.id)
+    .is('completed_at', null)
+    .select('id')
+  if (error) throw new Error(error.message)
+  if (!done || done.length === 0) return { completedNow: false, streak }
+
+  const next = applyTaskCompleted(streak, today)
+  if (next !== streak) await saveStreak(userId, next)
+  return { completedNow: true, streak: next }
 }
 
 export interface TodayOverview {
@@ -217,6 +263,7 @@ export async function ensureToday(user: DbUser): Promise<TodayOverview> {
   )
 
   const tasks: TaskSummary[] = []
+  let completedNow = false
   for (const s of settings) {
     let task = taskByLanguage.get(s.language)
     if (!task) {
@@ -238,16 +285,39 @@ export async function ensureToday(user: DbUser): Promise<TodayOverview> {
     }
 
     const sessionId = await ensureTaskSession(user.id, task)
-    const { total, answeredCount } = await taskProgress(task, sessionId)
+    const progress = await taskProgress(task, sessionId)
+
+    // 任務中的字已全部刪除：不算完成、不重新產生，視同當日該語言沒有任務
+    if (taskCompletion(progress.total, progress.answeredCount) === 'empty') {
+      tasks.push({
+        language: s.language,
+        status: 'words_deleted',
+        task_id: task.id,
+        total: 0,
+        answered: 0,
+        completed: false,
+      })
+      continue
+    }
+
+    // 未答的字被刪光時，作答 API 不會再被呼叫，於進入 App 時補做完成判定（僅限今天）
+    const result = await completeTaskIfDone(user.id, task, progress, today, streak)
+    if (result.completedNow) {
+      streak = result.streak
+      completedNow = true
+    }
+
     tasks.push({
       language: s.language,
       status: 'ok',
       task_id: task.id,
-      total,
-      answered: answeredCount,
-      completed: task.completed_at !== null,
+      total: progress.total,
+      answered: progress.answeredCount,
+      completed: task.completed_at !== null || result.completedNow,
     })
   }
+
+  if (completedNow) await unlockAchievements(user.id, streak.current_streak)
 
   // 所有啟用語言都沒有任務可做：視為保持，不中斷
   if (settings.length > 0 && tasks.every((t) => t.status !== 'ok')) {
@@ -283,7 +353,7 @@ export async function getDailyTaskPayload(
 
   const sessionId = await ensureTaskSession(user.id, task)
   const [answered, words] = await Promise.all([
-    answeredWordIds(sessionId),
+    answeredWords(sessionId),
     getLanguageWords(user.id, language),
   ])
   const wordById = new Map(words.map((w) => [w.id, w]))
@@ -311,6 +381,7 @@ export async function getDailyTaskPayload(
     language,
     total: ids.length,
     answered: ids.length - questions.length,
+    correct: ids.filter((id) => answered.get(id) === true).length,
     completed: task.completed_at !== null,
     questions: shuffle(questions),
   }
@@ -380,27 +451,11 @@ export async function submitDailyAnswer(
   })
   if (recErr) throw new Error(recErr.message)
 
-  const { total, answeredCount } = await taskProgress(task, sessionId)
-
-  let streak = streakOf(user)
-  let taskCompleted = false
-  if (total > 0 && answeredCount >= total) {
-    // 只有第一個把 completed_at 從 NULL 改掉的請求會更新連續天數
-    const { data: done } = await supabaseAdmin
-      .from('daily_tasks')
-      .update({ completed_at: now })
-      .eq('id', task.id)
-      .is('completed_at', null)
-      .select('id')
-    if (done && done.length > 0) {
-      taskCompleted = true
-      const next = applyTaskCompleted(streak, today)
-      if (next !== streak) {
-        await saveStreak(user.id, next)
-        streak = next
-      }
-    }
-  }
+  const progress = await taskProgress(task, sessionId)
+  const { total, answeredCount, correctCount } = progress
+  const completion = await completeTaskIfDone(user.id, task, progress, today, streakOf(user))
+  const streak = completion.streak
+  const taskCompleted = completion.completedNow
 
   if (outcome.becameMastered) await refreshPeakMastered(user.id)
   const newAchievements =
@@ -416,6 +471,7 @@ export async function submitDailyAnswer(
     task_completed: taskCompleted,
     answered: answeredCount,
     total,
+    task_correct: correctCount,
     current_streak: streak.current_streak,
     new_achievements: newAchievements,
   }
