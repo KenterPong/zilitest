@@ -1,6 +1,11 @@
 import 'server-only'
 
-import { buildAnswerDiff, isExactAnswerMatch } from '@/lib/answer-match'
+import {
+  buildAnswerDiff,
+  fillDiffTarget,
+  formatTermWithReading,
+  isFillAnswerCorrect,
+} from '@/lib/answer-match'
 import {
   pickDistractors,
   planDailyTask,
@@ -28,6 +33,7 @@ import type { Language } from '@/types/vocab'
 export interface LanguageWord {
   id: string
   term: string
+  reading: string | null
   answer: string
   description: string | null
   created_at: string
@@ -371,7 +377,15 @@ export async function getDailyTaskPayload(
       }
       const options = shuffle([w.answer, ...pickDistractors(w.answer, allAnswers)])
       if (kind === 'new') {
-        return { word_id: id, kind, term: w.term, answer: w.answer, description: w.description, options }
+        return {
+          word_id: id,
+          kind,
+          term: w.term,
+          reading: w.reading,
+          answer: w.answer,
+          description: w.description,
+          options,
+        }
       }
       return { word_id: id, kind, term: w.term, options }
     })
@@ -421,7 +435,7 @@ export async function submitDailyAnswer(
   const [{ data: word }, { data: progressRow }] = await Promise.all([
     supabaseAdmin
       .from('words')
-      .select('id, term, answer, wordbooks!inner(user_id)')
+      .select('id, term, reading, answer, wordbooks!inner(user_id)')
       .eq('id', input.word_id)
       .eq('wordbooks.user_id', user.id)
       .maybeSingle(),
@@ -431,7 +445,7 @@ export async function submitDailyAnswer(
 
   const isFill = input.kind === 'fill'
   const isCorrect = isFill
-    ? isExactAnswerMatch(input.user_input ?? '', word.term)
+    ? isFillAnswerCorrect(input.user_input ?? '', word.term, word.reading)
     : (input.selected_answer ?? '').trim() === word.answer.trim()
 
   const outcome = applyAnswer(progressRow ? toProgressState(progressRow) : null, {
@@ -465,8 +479,14 @@ export async function submitDailyAnswer(
 
   return {
     is_correct: isCorrect,
-    correct_answer: isFill ? word.term : word.answer,
-    diff: isFill && !isCorrect ? buildAnswerDiff(input.user_input ?? '', word.term) : null,
+    correct_answer: isFill ? formatTermWithReading(word.term, word.reading) : word.answer,
+    diff:
+      isFill && !isCorrect
+        ? buildAnswerDiff(
+            input.user_input ?? '',
+            fillDiffTarget(input.user_input ?? '', word.term, word.reading)
+          )
+        : null,
     became_mastered: outcome.becameMastered,
     task_completed: taskCompleted,
     answered: answeredCount,

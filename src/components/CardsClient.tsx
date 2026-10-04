@@ -9,6 +9,7 @@ import type { DbTag, WordbookWithCount } from '@/types/vocab'
 interface CardItem {
   word_id: string
   term: string
+  reading: string | null
   answer: string
   description: string | null
   familiarity: 'unknown' | 'known' | null
@@ -162,7 +163,9 @@ export function CardsClient({
           onClick={() => setFlipped((f) => !f)}
           className="w-[420px] max-w-[90%] min-h-[230px] bg-cream border border-line rounded-[10px] shadow-lg flex flex-col items-center justify-center text-center p-8"
         >
-          <div className="font-serif font-black text-[34px] mb-3.5">{card.term}</div>
+          <div className="font-serif font-black text-[34px] mb-1">{card.term}</div>
+          {card.reading && <div className="text-sm text-ink-soft mb-2.5">{card.reading}</div>}
+          {!card.reading && <div className="mb-2.5" />}
           {flipped ? (
             <>
               <div className="text-[15.5px] text-ink-soft mb-2">{card.answer}</div>

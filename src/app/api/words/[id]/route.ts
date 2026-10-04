@@ -11,7 +11,7 @@ type Ctx = { params: Promise<{ id: string }> }
 async function getOwnedWord(userId: string, wordId: string) {
   const { data: word } = await supabaseAdmin
     .from('words')
-    .select('id, wordbook_id, term, answer, description, created_at')
+    .select('id, wordbook_id, term, reading, answer, description, created_at')
     .eq('id', wordId)
     .maybeSingle()
 
@@ -43,6 +43,7 @@ export async function PATCH(request: Request, context: Ctx) {
 
   let body: {
     term?: string
+    reading?: string | null
     answer?: string
     description?: string | null
     tag_ids?: string[]
@@ -55,6 +56,7 @@ export async function PATCH(request: Request, context: Ctx) {
 
   const updates: {
     term?: string
+    reading?: string | null
     answer?: string
     description?: string | null
   } = {}
@@ -75,6 +77,9 @@ export async function PATCH(request: Request, context: Ctx) {
   }
   if (body.description !== undefined) {
     updates.description = body.description?.trim() || null
+  }
+  if (body.reading !== undefined) {
+    updates.reading = body.reading?.trim() || null
   }
 
   if (Object.keys(updates).length > 0) {

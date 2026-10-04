@@ -57,6 +57,7 @@ export function WordbookDetailClient({
 
   const [form, setForm] = useState({
     term: '',
+    reading: '',
     answer: '',
     description: '',
     tag_ids: [] as string[],
@@ -76,7 +77,7 @@ export function WordbookDetailClient({
       : 0
 
   function openCreate() {
-    setForm({ term: '', answer: '', description: '', tag_ids: [] })
+    setForm({ term: '', reading: '', answer: '', description: '', tag_ids: [] })
     setError(null)
     setWordModal('create')
   }
@@ -84,6 +85,7 @@ export function WordbookDetailClient({
   function openEdit(word: WordWithMeta) {
     setForm({
       term: word.term,
+      reading: word.reading ?? '',
       answer: word.answer,
       description: word.description ?? '',
       tag_ids: word.tags.map((t) => t.id),
@@ -103,6 +105,7 @@ export function WordbookDetailClient({
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             term: form.term,
+            reading: form.reading || null,
             answer: form.answer,
             description: form.description || null,
             tag_ids: form.tag_ids,
@@ -120,6 +123,7 @@ export function WordbookDetailClient({
             id: data.word.id,
             wordbook_id: data.word.wordbook_id,
             term: data.word.term,
+            reading: data.word.reading ?? null,
             answer: data.word.answer,
             description: data.word.description ?? null,
             created_at: data.word.created_at,
@@ -137,6 +141,7 @@ export function WordbookDetailClient({
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             term: form.term,
+            reading: form.reading || null,
             answer: form.answer,
             description: form.description || null,
             tag_ids: form.tag_ids,
@@ -154,6 +159,7 @@ export function WordbookDetailClient({
               ? {
                   ...w,
                   term: form.term.trim(),
+                  reading: form.reading.trim() || null,
                   answer: form.answer.trim(),
                   description: form.description.trim() || null,
                   tags: selectedTags,
@@ -432,6 +438,11 @@ export function WordbookDetailClient({
                   <tr key={word.id} className="border-t border-line">
                     <td className="px-4 py-3 font-serif font-bold text-[15.5px]">
                       {word.term}
+                      {word.reading && (
+                        <span className="block font-sans font-normal text-xs text-ink-soft">
+                          {word.reading}
+                        </span>
+                      )}
                     </td>
                     <td className="px-4 py-3">{word.answer}</td>
                     <td className={`px-4 py-3 ${acc.className}`}>{acc.text}</td>
@@ -493,6 +504,20 @@ export function WordbookDetailClient({
               required
               disabled={loading}
             />
+            {wordbookLanguage === 'ja' && (
+              <>
+                <label className="block text-xs text-ink-soft mb-1">
+                  讀音（選填，漢字單字可填假名；填空題輸入讀音也算對）
+                </label>
+                <input
+                  value={form.reading}
+                  lang="ja"
+                  onChange={(e) => setForm((f) => ({ ...f, reading: e.target.value }))}
+                  className="w-full border border-line rounded-sm px-3 py-2 text-sm bg-white mb-3 disabled:opacity-60"
+                  disabled={loading}
+                />
+              </>
+            )}
             <label className="block text-xs text-ink-soft mb-1">答案（中文）</label>
             <input
               value={form.answer}

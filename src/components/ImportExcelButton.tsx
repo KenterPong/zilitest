@@ -17,6 +17,7 @@ interface PreviewRow {
   term: string
   answer: string
   description: string | null
+  reading: string | null
 }
 
 export function ImportExcelButton({
@@ -55,6 +56,7 @@ export function ImportExcelButton({
           const c0 = String(row[0] ?? '').trim()
           const c1 = String(row[1] ?? '').trim()
           const c2 = String(row[2] ?? '').trim()
+          const c3 = String(row[3] ?? '').trim()
           // 略過表頭
           if (i === 0 && (c0 === '單字' || c0.toLowerCase() === 'term')) continue
           if (!c0 || !c1) continue
@@ -62,6 +64,7 @@ export function ImportExcelButton({
             term: c0,
             answer: c1,
             description: c2 || null,
+            reading: c3 || null,
           })
         }
         if (parsed.length === 0) {
@@ -154,6 +157,7 @@ export function ImportExcelButton({
                     <th className="text-left px-3 py-2">單字</th>
                     <th className="text-left px-3 py-2">答案</th>
                     <th className="text-left px-3 py-2">描述</th>
+                    <th className="text-left px-3 py-2">讀音</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -164,6 +168,7 @@ export function ImportExcelButton({
                       <td className="px-3 py-2 text-ink-soft text-xs">
                         {r.description ?? ''}
                       </td>
+                      <td className="px-3 py-2 text-ink-soft text-xs">{r.reading ?? ''}</td>
                     </tr>
                   ))}
                 </tbody>

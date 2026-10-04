@@ -74,6 +74,7 @@ CREATE TABLE words (
   id           UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   wordbook_id  UUID NOT NULL REFERENCES wordbooks(id) ON DELETE CASCADE,
   term         TEXT NOT NULL,
+  reading      TEXT,
   answer       TEXT NOT NULL,
   description  TEXT,
   created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -418,6 +419,7 @@ AS $$
     SELECT
       w.id,
       w.term,
+      w.reading,
       w.answer,
       w.description,
       w.created_at,

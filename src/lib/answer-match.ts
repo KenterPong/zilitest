@@ -1,14 +1,49 @@
 /**
- * 嚴格完全一致判定（忽略大小寫、頭尾空白）
+ * 填空題判定（技術規格 v5 第五節 8.）：看中文、拼外文。
+ * 比對前統一：NFKC（全形／半形）、頭尾空白、英文大小寫、片假名 → 平假名。
+ * 日文單字可另填「讀音」，輸入與單字寫法或讀音任一個一致即正確。
  * Levenshtein 對齊用於結果頁紅字標記
  */
 
+/** 片假名（ァ–ヶ）轉平假名；長音符等其他字元不變 */
+function katakanaToHiragana(s: string): string {
+  return s.replace(/[ァ-ヶ]/g, (ch) => String.fromCharCode(ch.charCodeAt(0) - 0x60))
+}
+
 export function normalizeAnswer(s: string): string {
-  return s.trim().toLowerCase()
+  return katakanaToHiragana(s.normalize('NFKC').trim().toLowerCase())
 }
 
 export function isExactAnswerMatch(userInput: string, correct: string): boolean {
   return normalizeAnswer(userInput) === normalizeAnswer(correct)
+}
+
+/** 填空題：與單字寫法或讀音（選填）任一個一致即正確 */
+export function isFillAnswerCorrect(
+  userInput: string,
+  term: string,
+  reading: string | null | undefined
+): boolean {
+  if (!normalizeAnswer(userInput)) return false
+  if (isExactAnswerMatch(userInput, term)) return true
+  return Boolean(reading && reading.trim()) && isExactAnswerMatch(userInput, reading!)
+}
+
+/** 編輯距離 */
+export function levenshtein(a: string, b: string): number {
+  return levenshteinOps(a, b).filter((op) => op !== 'eq').length
+}
+
+/** 紅字標記的比對對象：單字寫法與讀音中，和輸入較接近的那個 */
+export function fillDiffTarget(
+  userInput: string,
+  term: string,
+  reading: string | null | undefined
+): string {
+  const r = reading?.trim()
+  if (!r) return term
+  const u = userInput.trim()
+  return levenshtein(u, r) < levenshtein(u, term.trim()) ? r : term
 }
 
 export type DiffPart =
@@ -92,4 +127,10 @@ export function buildAnswerDiff(userInput: string, correct: string): DiffPart[] 
     }
   }
   return parts
+}
+
+/** 正確答案顯示：有讀音時附在後面，例如「受ける（うける）」 */
+export function formatTermWithReading(term: string, reading: string | null | undefined): string {
+  const r = reading?.trim()
+  return r && r !== term.trim() ? `${term}（${r}）` : term
 }

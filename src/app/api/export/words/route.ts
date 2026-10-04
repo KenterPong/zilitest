@@ -27,18 +27,24 @@ export async function GET() {
   const wb = XLSX.utils.book_new()
 
   if (!books?.length) {
-    const sheet = XLSX.utils.aoa_to_sheet([['單字', '答案', '描述', '單字本', '語言']])
+    const sheet = XLSX.utils.aoa_to_sheet([['單字', '答案', '描述', '讀音', '單字本', '語言']])
     XLSX.utils.book_append_sheet(wb, sheet, '單字')
   } else {
     const bookIds = books.map((b) => b.id)
     const bookById = new Map(books.map((b) => [b.id, b]))
 
-    let words: { term: string; answer: string; description: string | null; wordbook_id: string }[]
+    let words: {
+      term: string
+      reading: string | null
+      answer: string
+      description: string | null
+      wordbook_id: string
+    }[]
     try {
       words = await fetchAllRows((from, to) =>
         supabaseAdmin
           .from('words')
-          .select('term, answer, description, wordbook_id')
+          .select('term, reading, answer, description, wordbook_id')
           .in('wordbook_id', bookIds)
           .order('created_at', { ascending: true })
           .order('id')
@@ -50,13 +56,14 @@ export async function GET() {
     }
 
     const rows = [
-      ['單字', '答案', '描述', '單字本', '語言'],
+      ['單字', '答案', '描述', '讀音', '單字本', '語言'],
       ...words.map((w) => {
         const book = bookById.get(w.wordbook_id)
         return [
           w.term,
           w.answer,
           w.description ?? '',
+          w.reading ?? '',
           book?.name ?? '',
           book ? LANGUAGE_LABELS[book.language as Language] : '',
         ]
@@ -70,8 +77,8 @@ export async function GET() {
     for (const book of books) {
       const bookWords = words.filter((w) => w.wordbook_id === book.id)
       const sheetRows = [
-        ['單字', '答案', '描述'],
-        ...bookWords.map((w) => [w.term, w.answer, w.description ?? '']),
+        ['單字', '答案', '描述', '讀音'],
+        ...bookWords.map((w) => [w.term, w.answer, w.description ?? '', w.reading ?? '']),
       ]
       const s = XLSX.utils.aoa_to_sheet(sheetRows)
       const safeName = book.name.replace(/[\\/?*[\]]/g, '_').slice(0, 28) || '單字本'

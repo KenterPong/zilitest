@@ -16,7 +16,12 @@ export async function POST(request: Request) {
 
   let body: {
     wordbook_id?: string
-    words?: { term: string; answer: string; description?: string | null }[]
+    words?: {
+      term: string
+      answer: string
+      description?: string | null
+      reading?: string | null
+    }[]
     truncate_to_limit?: boolean
   }
   try {
@@ -47,6 +52,7 @@ export async function POST(request: Request) {
       term: String(w.term ?? '').trim(),
       answer: String(w.answer ?? '').trim(),
       description: w.description?.toString().trim() || null,
+      reading: w.reading?.toString().trim() || null,
     }))
     .filter((w) => w.term && w.answer)
 
@@ -78,6 +84,7 @@ export async function POST(request: Request) {
     term: w.term,
     answer: w.answer,
     description: w.description,
+    reading: w.reading,
   }))
 
   const { data: inserted, error } = await supabaseAdmin

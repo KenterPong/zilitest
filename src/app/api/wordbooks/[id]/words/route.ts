@@ -58,6 +58,7 @@ export async function POST(request: Request, context: Ctx) {
   let body: {
     term?: string
     answer?: string
+    reading?: string | null
     description?: string | null
     tag_ids?: string[]
   }
@@ -74,6 +75,7 @@ export async function POST(request: Request, context: Ctx) {
   }
 
   const description = body.description?.trim() || null
+  const reading = body.reading?.trim() || null
   const tagIds = Array.isArray(body.tag_ids) ? body.tag_ids : []
 
   if (tagIds.length > 0) {
@@ -92,10 +94,11 @@ export async function POST(request: Request, context: Ctx) {
     .insert({
       wordbook_id: wordbookId,
       term,
+      reading,
       answer,
       description,
     })
-    .select('id, wordbook_id, term, answer, description, created_at')
+    .select('id, wordbook_id, term, reading, answer, description, created_at')
     .single()
 
   if (error || !word) {

@@ -1,6 +1,11 @@
 import { NextResponse } from 'next/server'
 
-import { isExactAnswerMatch, buildAnswerDiff } from '@/lib/answer-match'
+import {
+  buildAnswerDiff,
+  fillDiffTarget,
+  formatTermWithReading,
+  isFillAnswerCorrect,
+} from '@/lib/answer-match'
 import { assertCanMutate, requireUser } from '@/lib/api-auth'
 import { toProgressState } from '@/lib/daily-service'
 import { fetchByIds } from '@/lib/db-paging'
@@ -64,14 +69,20 @@ export async function POST(request: Request, context: Ctx) {
   }
 
   const wordIds = Array.from(new Set(answers.map((a) => a.word_id)))
-  let words: { id: string; term: string; answer: string; wordbook_id: string }[]
+  let words: {
+    id: string
+    term: string
+    reading: string | null
+    answer: string
+    wordbook_id: string
+  }[]
   let progressRows: (ProgressState & { word_id: string })[]
   try {
     ;[words, progressRows] = await Promise.all([
       fetchByIds(wordIds, (ids) =>
         supabaseAdmin
           .from('words')
-          .select('id, term, answer, wordbook_id, wordbooks!inner(user_id)')
+          .select('id, term, reading, answer, wordbook_id, wordbooks!inner(user_id)')
           .eq('wordbooks.user_id', auth.user.id)
           .in('id', ids)
       ),
@@ -126,7 +137,7 @@ export async function POST(request: Request, context: Ctx) {
       isCorrect = (ans.selected_answer ?? '').trim() === word.answer
     } else {
       // 填空：顯示中文，輸入外文 → 比對 term
-      isCorrect = isExactAnswerMatch(ans.user_input ?? '', word.term)
+      isCorrect = isFillAnswerCorrect(ans.user_input ?? '', word.term, word.reading)
     }
 
     if (isCorrect) correctCount++
@@ -154,7 +165,9 @@ export async function POST(request: Request, context: Ctx) {
       term: word.term,
       prompt: word.answer,
       correct_answer:
-        session.question_type === '輸入題' ? word.term : word.answer,
+        session.question_type === '輸入題'
+          ? formatTermWithReading(word.term, word.reading)
+          : word.answer,
       is_correct: isCorrect,
       user_input: ans.user_input,
       display_answer: ans.display_answer,
@@ -162,7 +175,10 @@ export async function POST(request: Request, context: Ctx) {
       user_says_true: ans.user_says_true,
       diff:
         session.question_type === '輸入題' && !isCorrect
-          ? buildAnswerDiff(ans.user_input ?? '', word.term)
+          ? buildAnswerDiff(
+              ans.user_input ?? '',
+              fillDiffTarget(ans.user_input ?? '', word.term, word.reading)
+            )
           : null,
     })
   }

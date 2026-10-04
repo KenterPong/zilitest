@@ -235,8 +235,9 @@ export function DailyTaskClient({ payload, currentStreak }: DailyTaskClientProps
         {step === 'card' && (
           <div className="text-center">
             <div className="font-mono text-[11px] tracking-[0.12em] text-stamp-red mb-3">新字</div>
-            <div className="font-serif font-bold text-3xl mb-3 break-words">{q.term}</div>
-            <div className="text-lg text-ink-soft mb-2">{q.answer}</div>
+            <div className="font-serif font-bold text-3xl mb-1 break-words">{q.term}</div>
+            {q.reading && <div className="text-sm text-ink-soft mb-2">{q.reading}</div>}
+            <div className="text-lg text-ink-soft mb-2 mt-2">{q.answer}</div>
             {q.description && (
               <p className="text-[13px] text-ink-soft bg-paper-deep rounded-[5px] px-3 py-2 mb-2 whitespace-pre-wrap">
                 {q.description}

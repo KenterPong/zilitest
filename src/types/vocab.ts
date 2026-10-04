@@ -24,6 +24,8 @@ export interface DbWord {
   id: string
   wordbook_id: string
   term: string
+  /** 讀音（選填）：日文漢字的假名讀音，填空題輸入讀音也算正確 */
+  reading: string | null
   answer: string
   description: string | null
   created_at: string
@@ -56,6 +58,7 @@ export interface WordWithMeta extends DbWord {
 
 export interface WordInput {
   term: string
+  reading?: string | null
   answer: string
   description?: string | null
   tag_ids?: string[]
