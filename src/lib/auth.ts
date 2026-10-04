@@ -13,9 +13,9 @@ export function trialEndFromNow(): Date {
   return new Date(Date.now() + TRIAL_DAYS * 24 * 60 * 60 * 1000)
 }
 
-/** 早鳥到期：2026-12-31 23:59:59 Asia/Taipei → ISO UTC */
+/** 早鳥到期：2027-12-31 23:59:59 Asia/Taipei → ISO UTC */
 export function earlyBirdTrialEndAt(): Date {
-  // 台北 UTC+8：2026-12-31 23:59:59 = 2026-12-31 15:59:59Z
+  // 台北 UTC+8：2027-12-31 23:59:59 = 2027-12-31 15:59:59Z
   return new Date(`${EARLY_BIRD_END_DATE}T15:59:59.000Z`)
 }
 

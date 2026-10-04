@@ -320,7 +320,7 @@ BEGIN
   PERFORM pg_advisory_xact_lock(87001100);
 
   v_taipei_today := (timezone('Asia/Taipei', v_now))::date;
-  IF v_taipei_today <= DATE '2026-12-31' THEN
+  IF v_taipei_today <= DATE '2027-12-31' THEN
     SELECT COUNT(*)::int INTO v_cnt
     FROM users
     WHERE is_early_bird = true
@@ -331,7 +331,7 @@ BEGIN
   END IF;
 
   IF v_is_early THEN
-    v_trial_end := timezone('Asia/Taipei', timestamp '2026-12-31 23:59:59');
+    v_trial_end := timezone('Asia/Taipei', timestamp '2027-12-31 23:59:59');
   ELSE
     v_trial_end := v_now + interval '30 days';
   END IF;

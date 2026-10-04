@@ -76,7 +76,7 @@
 ## 7. 驗收
 
 - [x] 首頁 `https://www.zilitest.com` 可開啟
-- [x] LINE 登入成功，Supabase `users` 出現 `status=trial`（早鳥為 `is_early_bird=true`、`trial_end_at` 至 2026/12/31）
+- [x] LINE 登入成功，Supabase `users` 出現 `status=trial`（早鳥為 `is_early_bird=true`、`trial_end_at` 至 2027/12/31）
 - [x] `/app` 顯示試用／早鳥 banner 與使用者名稱
 - [x] Footer「改善建議」→ `/app/feedback` 可送出，Supabase `feedback` 表有資料
 - [x] Footer 隱私權／服務條款；已登入時 header 顯示「返回 App」

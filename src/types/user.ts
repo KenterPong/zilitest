@@ -40,5 +40,5 @@ export const TRIAL_WORD_LIMIT = 500
 export const TRIAL_DAYS = 30
 export const EARLY_BIRD_LIMIT = 100
 /** 早鳥免費截止（台北時間當日結束） */
-export const EARLY_BIRD_END_DATE = '2026-12-31'
+export const EARLY_BIRD_END_DATE = '2027-12-31'
 export const FEEDBACK_MAX_LENGTH = 2000

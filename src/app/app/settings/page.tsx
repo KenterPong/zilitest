@@ -61,7 +61,7 @@ export default async function SettingsPage() {
         </dl>
         {user.is_early_bird && user.status === 'trial' && (
           <p className="text-xs text-ink-soft mt-3">
-            你是前 100 名早鳥會員，可免費使用至 2026/12/31（台北時間）。期滿後若未付費，帳號將暫停並保留資料 3 個月。
+            你是前 100 名早鳥會員，可免費使用至 2027/12/31（台北時間）。期滿後若未付費，帳號將暫停並保留資料 3 個月。
           </p>
         )}
         <button
