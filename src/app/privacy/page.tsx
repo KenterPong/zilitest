@@ -7,13 +7,15 @@ export const dynamic = 'force-dynamic'
 
 // TODO：工作室登記完成後，營運者名稱改為登記名稱
 const CONTACT_EMAIL = 'myainovelcom@gmail.com'
-const EFFECTIVE_DATE = '2026/10/04'
+const EFFECTIVE_DATE = '2026/10/11'
 
 const COLLECTED: [string, string, string][] = [
   ['LINE 帳號資料', 'LINE 使用者識別碼、顯示名稱、大頭貼網址', '你同意 LINE 登入授權後由 LINE 提供（授權範圍僅 profile、openid，不含 Email）'],
   ['聯絡 Email', '用於寄送到期與扣款提醒', '若你於帳號設定自行填寫（非必填）'],
   ['學習資料', '單字本與其語言、單字、答案、描述、標籤、測驗與作答紀錄、正確率、熟練度與複習排程、每日任務、連續天數、成就、語言設定', '你使用本服務時產生或匯入的 Excel'],
   ['改善建議', '你送出的文字內容', '你於「改善建議」頁面填寫'],
+  ['AI 抽字原文', '你貼上要抽字的文字（每次最多 3,000 字元）', '你使用「AI 抽字」時貼上；只傳送給 AI 服務分析，處理完即捨棄，不儲存'],
+  ['AI 抽字紀錄', '使用時間、語言、等級、原文字數、抽出字數（不含原文與結果）', '系統自動產生，用於計算每月次數'],
   ['帳號狀態', '註冊時間、試用與早鳥期限、帳號狀態、暫停與刪除時間', '系統自動產生'],
   ['技術紀錄', 'IP 位址、瀏覽器類型、存取時間等伺服器日誌', '主機與資料庫服務自動產生'],
 ]
@@ -23,6 +25,7 @@ const PROVIDERS: [string, string, string, string][] = [
   ['Supabase', '資料庫', '第二節所有資料', '新加坡'],
   ['Vercel', '網站主機與伺服器運算', '技術紀錄；處理請求時經手的資料', '新加坡（運算）、全球節點（傳輸）'],
   ['Cloudflare', '網域名稱解析（DNS）', '網域查詢紀錄', '全球節點'],
+  ['OpenAI', 'AI 抽字的文字分析', '你貼上的原文、所選語言與等級', '美國'],
 ]
 
 const RETENTION: [string, string][] = [
@@ -126,6 +129,9 @@ export default async function PrivacyPage() {
                 <b className="text-ink">通知</b>：登入時顯示到期提醒；若你填寫 Email，寄送到期與扣款提醒
               </li>
               <li>
+                <b className="text-ink">AI 抽字</b>：把你貼上的文字送給 AI 服務，依你設定的等級抽出單字與中文意思，供你預覽後匯入；原文不寫入資料庫，也不記錄在伺服器日誌
+              </li>
+              <li>
                 <b className="text-ink">改善服務</b>：閱讀改善建議，以及利用伺服器日誌排除故障、維護資安
               </li>
             </ul>
@@ -138,6 +144,9 @@ export default async function PrivacyPage() {
               你的個人資料。為提供服務，資料會由下列服務提供者代為處理，其中部分位於台灣以外。
             </p>
             <Table head={['服務提供者', '用途', '處理的資料', '資料所在地']} rows={PROVIDERS} />
+            <p>
+              使用 AI 抽字時，原文會經由 OpenAI API 傳送至美國處理。依 OpenAI 的 API 資料政策，傳送的內容預設不會用於訓練其模型，但可能為防範濫用而短期保存；詳細規則以 OpenAI 公告為準。不使用 AI 抽字，就不會有任何資料傳給 OpenAI。
+            </p>
             <p>除上述情形，只有在法律要求、司法或主管機關依法調取時，才會提供你的資料。</p>
           </Section>
 
@@ -159,7 +168,7 @@ export default async function PrivacyPage() {
             <Table head={['帳號情況', '資料處理']} rows={RETENTION} />
             <p>
               <b className="text-ink">清除的資料</b>
-              ：單字本、單字、標籤、學習與作答紀錄、熟練度、每日任務、成就、連續天數、語言設定、改善建議與 Email。
+              ：單字本、單字、標籤、學習與作答紀錄、熟練度、每日任務、成就、連續天數、語言設定、AI 抽字紀錄、改善建議與 Email。
             </p>
             <p>
               <b className="text-ink">清除後仍保留的資料</b>
@@ -197,8 +206,7 @@ export default async function PrivacyPage() {
 
           <Section title="十、政策修訂與聯絡方式">
             <p>
-              本政策修訂後會公告於本頁並更新生效日期；涉及蒐集項目、目的或第三方服務的重大變更，會於登入時另行通知。例如未來推出
-              AI 抽字或線上付款功能前，會先更新本政策。
+              本政策修訂後會公告於本頁並更新生效日期；涉及蒐集項目、目的或第三方服務的重大變更，會於登入時另行通知。例如未來推出線上付款功能前，會先更新本政策。
             </p>
             <p>
               對本政策有任何問題，或要行使第七節的權利，請來信：<a href={`mailto:${CONTACT_EMAIL}`} className="text-ink underline">

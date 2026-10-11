@@ -11,6 +11,8 @@ export interface DbLanguageSettings {
   daily_review_limit: number
   daily_new_limit: number
   peak_mastered_count: number
+  /** AI 抽字等級（英 CEFR / 日 JLPT / 韓 TOPIK）；未設定為 null */
+  extract_level: string | null
   updated_at: string
 }
 

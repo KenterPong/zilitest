@@ -16,7 +16,7 @@
 
 - **日期**:每日任務、熟練度、連續天數、早鳥截止等所有「日期」一律以 **Asia/Taipei** 計算,統一使用共用的台北日期工具函式,不要直接用 `new Date()` 取日期或依伺服器時區。
 - **資料存取**:不使用 Supabase Auth、不使用 RLS。所有讀寫走 Next.js API route + service role,並在 API 層驗證 `cookie.user_id` 與資料列的 `user_id` 相符。
-- `SUPABASE_SERVICE_ROLE_KEY`、`ANTHROPIC_API_KEY` 僅限伺服器端,不可使用 `NEXT_PUBLIC_*` 前綴。
+- `SUPABASE_SERVICE_ROLE_KEY`、`OPENAI_API_KEY` 僅限伺服器端,不可使用 `NEXT_PUBLIC_*` 前綴。
 - 新資料表一律 `REVOKE ALL ... FROM anon, authenticated`。
 - `users.status = 'cancelled'` 的 session:API 回 401 並清除 cookie。
 - 500 字上限一律以 `users.word_count`(帳號全站加總)判斷,不可用單一單字本字數。

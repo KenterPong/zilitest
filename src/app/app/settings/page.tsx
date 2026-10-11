@@ -5,6 +5,7 @@ import { DeleteAccountSection } from '@/components/DeleteAccountSection'
 import { ExportWordsButton } from '@/components/ExportWordsButton'
 import { LanguageSettingsForm } from '@/components/LanguageSettingsForm'
 import { daysRemaining, formatTrialEndDate, getSessionUser } from '@/lib/auth'
+import { getExtractionQuota } from '@/lib/ai-extract'
 import { getLanguageSettings } from '@/lib/growth-service'
 import {
   EARLY_BIRD_END_DATE,
@@ -37,7 +38,10 @@ export default async function SettingsPage() {
   }
 
   const trialDays = daysRemaining(user.trial_end_at)
-  const languageSettings = await getLanguageSettings(user.id)
+  const [languageSettings, aiQuota] = await Promise.all([
+    getLanguageSettings(user.id),
+    getExtractionQuota(user),
+  ])
 
   return (
     <main className="px-8 py-10 max-w-3xl mx-auto">
@@ -110,7 +114,7 @@ export default async function SettingsPage() {
       <div className="bg-cream border border-line rounded-lg p-6 mb-4">
         <h2 className="font-serif font-bold mb-1">每日任務</h2>
         <p className="text-sm text-ink-soft mb-2">
-          選擇要學習的語言與每日量，系統會依熟練度自動安排複習字與新字。修改自明天的任務起生效。
+          選擇要學習的語言與每日量，系統會依熟練度自動安排複習字與新字。修改自明天的任務起生效。AI 抽字只會抽出所設定等級的單字，本月剩 {aiQuota.remaining} / {aiQuota.limit} 次（每月 1 日重置）。
         </p>
         <LanguageSettingsForm
           settings={languageSettings}

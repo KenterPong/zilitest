@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 
+import { EXTRACT_LEVELS, LEVEL_SYSTEM_NAME, levelLabel } from '@/lib/extraction'
 import type { DbLanguageSettings } from '@/types/daily'
 import { LANGUAGE_LABELS } from '@/types/vocab'
 
@@ -14,6 +15,7 @@ function LanguageRow({ initial, disabled }: { initial: DbLanguageSettings; disab
   const [enabled, setEnabled] = useState(initial.enabled)
   const [review, setReview] = useState(String(initial.daily_review_limit))
   const [fresh, setFresh] = useState(String(initial.daily_new_limit))
+  const [level, setLevel] = useState(initial.extract_level ?? '')
   const [saved, setSaved] = useState(initial)
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null)
@@ -21,7 +23,8 @@ function LanguageRow({ initial, disabled }: { initial: DbLanguageSettings; disab
   const dirty =
     enabled !== saved.enabled ||
     review !== String(saved.daily_review_limit) ||
-    fresh !== String(saved.daily_new_limit)
+    fresh !== String(saved.daily_new_limit) ||
+    level !== (saved.extract_level ?? '')
 
   async function save() {
     setSaving(true)
@@ -35,6 +38,7 @@ function LanguageRow({ initial, disabled }: { initial: DbLanguageSettings; disab
           enabled,
           daily_review_limit: Number(review),
           daily_new_limit: Number(fresh),
+          ...(level ? { extract_level: level } : {}),
         }),
       })
       const data = await res.json()
@@ -81,6 +85,25 @@ function LanguageRow({ initial, disabled }: { initial: DbLanguageSettings; disab
               onChange={(e) => setReview(e.target.value)}
               className={numberInput}
             />
+          </label>
+          <label className="flex items-center gap-2">
+            AI 抽字等級
+            <select
+              value={level}
+              disabled={disabled}
+              onChange={(e) => setLevel(e.target.value)}
+              className="font-mono border border-line rounded-[5px] px-2 py-1.5 bg-white text-sm focus:outline-none focus:border-ink disabled:opacity-60"
+              aria-label={`${LANGUAGE_LABELS[initial.language]} ${LEVEL_SYSTEM_NAME[initial.language]} 等級`}
+            >
+              <option value="" disabled>
+                未設定
+              </option>
+              {EXTRACT_LEVELS[initial.language].map((lv) => (
+                <option key={lv} value={lv}>
+                  {levelLabel(initial.language, lv)}
+                </option>
+              ))}
+            </select>
           </label>
           <label className="flex items-center gap-2">
             每日新字

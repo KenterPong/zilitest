@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useMemo, useState } from 'react'
 
+import { AiExtractButton } from '@/components/AiExtractButton'
 import { ImportExcelButton } from '@/components/ImportExcelButton'
 import { LanguageBadge } from '@/components/LanguageBadge'
 import { useAppDialog } from '@/components/AppDialog'
@@ -15,6 +16,8 @@ interface WordbookDetailClientProps {
   wordbookId: string
   wordbookName: string
   wordbookLanguage: Language
+  /** AI 抽字：該語言等級與本月剩餘次數 */
+  aiExtract: { level: string | null; remaining: number; limit: number }
   words: WordWithMeta[]
   tags: DbTag[]
   accountWordCount: number
@@ -36,6 +39,7 @@ export function WordbookDetailClient({
   wordbookId,
   wordbookName,
   wordbookLanguage,
+  aiExtract,
   words: initialWords,
   tags: initialTags,
   accountWordCount,
@@ -75,6 +79,16 @@ export function WordbookDetailClient({
     userStatus === 'trial'
       ? Math.min(100, Math.round((wordCount / TRIAL_WORD_LIMIT) * 100))
       : 0
+
+  /** 匯入後重新讀取單字與帳號字數 */
+  async function reloadWords() {
+    const listRes = await fetch(`/api/wordbooks/${wordbookId}/words`)
+    const listData = await listRes.json()
+    if (listRes.ok) setWords(listData.words)
+    const me = await fetch('/api/users/me')
+    const meData = await me.json()
+    if (me.ok && meData.user) setWordCount(meData.user.word_count)
+  }
 
   function openCreate() {
     setForm({ term: '', reading: '', answer: '', description: '', tag_ids: [] })
@@ -338,14 +352,21 @@ export function WordbookDetailClient({
                 ? Math.max(0, TRIAL_WORD_LIMIT - wordCount)
                 : null
             }
-            onImported={async () => {
-              const listRes = await fetch(`/api/wordbooks/${wordbookId}/words`)
-              const listData = await listRes.json()
-              if (listRes.ok) setWords(listData.words)
-              const me = await fetch('/api/users/me')
-              const meData = await me.json()
-              if (me.ok && meData.user) setWordCount(meData.user.word_count)
-            }}
+            onImported={reloadWords}
+          />
+          <AiExtractButton
+            wordbookId={wordbookId}
+            language={wordbookLanguage}
+            initialLevel={aiExtract.level}
+            remaining={aiExtract.remaining}
+            limit={aiExtract.limit}
+            canMutate={canMutate}
+            remainingSlots={
+              userStatus === 'trial'
+                ? Math.max(0, TRIAL_WORD_LIMIT - wordCount)
+                : null
+            }
+            onImported={reloadWords}
           />
           <button
             type="button"

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 
 import { assertCanMutate, requireUser } from '@/lib/api-auth'
+import { isValidLevel } from '@/lib/extraction'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { isLanguage } from '@/types/vocab'
 
@@ -28,6 +29,7 @@ export async function PATCH(request: Request) {
     enabled?: unknown
     daily_review_limit?: unknown
     daily_new_limit?: unknown
+    extract_level?: unknown
   }
   try {
     body = await request.json()
@@ -39,7 +41,7 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ error: '無效的語言' }, { status: 400 })
   }
 
-  const update: Record<string, boolean | number> = {}
+  const update: Record<string, boolean | number | string> = {}
   if (body.enabled !== undefined) {
     if (typeof body.enabled !== 'boolean') {
       return NextResponse.json({ error: '無效的啟用設定' }, { status: 400 })
@@ -55,6 +57,12 @@ export async function PATCH(request: Request) {
       )
     }
     if (n !== undefined) update[key] = n
+  }
+  if (body.extract_level !== undefined) {
+    if (!isValidLevel(body.language, body.extract_level)) {
+      return NextResponse.json({ error: '無效的抽字等級' }, { status: 400 })
+    }
+    update.extract_level = body.extract_level
   }
   if (Object.keys(update).length === 0) {
     return NextResponse.json({ error: '沒有要更新的設定' }, { status: 400 })

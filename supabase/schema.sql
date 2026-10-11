@@ -115,9 +115,26 @@ CREATE TABLE user_language_settings (
   daily_review_limit   INTEGER NOT NULL DEFAULT 30 CHECK (daily_review_limit >= 0),
   daily_new_limit      INTEGER NOT NULL DEFAULT 5 CHECK (daily_new_limit >= 0),
   peak_mastered_count  INTEGER NOT NULL DEFAULT 0,
+  extract_level        TEXT,
   updated_at           TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   PRIMARY KEY (user_id, language)
 );
+
+-- =============================================
+-- AI 抽字紀錄（只存統計，不存原文與抽取結果）
+-- =============================================
+CREATE TABLE ai_extractions (
+  id            UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id       UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  wordbook_id   UUID REFERENCES wordbooks(id) ON DELETE SET NULL,
+  language      TEXT NOT NULL CHECK (language IN ('en', 'ja', 'ko')),
+  level         TEXT NOT NULL,
+  input_length  INTEGER NOT NULL,
+  result_count  INTEGER NOT NULL,
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX ai_extractions_user_created_idx ON ai_extractions (user_id, created_at);
 
 -- =============================================
 -- 熟練度與複習排程（無 row 視同 stage = 0）
@@ -616,6 +633,7 @@ BEGIN
   DELETE FROM word_stats WHERE user_id = p_user_id;
   DELETE FROM card_familiarity WHERE user_id = p_user_id;
   DELETE FROM feedback WHERE user_id = p_user_id;
+  DELETE FROM ai_extractions WHERE user_id = p_user_id;
 
   UPDATE users SET
     status = 'cancelled',
@@ -696,6 +714,7 @@ REVOKE ALL ON TABLE user_language_settings FROM anon, authenticated;
 REVOKE ALL ON TABLE word_progress          FROM anon, authenticated;
 REVOKE ALL ON TABLE daily_tasks            FROM anon, authenticated;
 REVOKE ALL ON TABLE user_achievements      FROM anon, authenticated;
+REVOKE ALL ON TABLE ai_extractions         FROM anon, authenticated;
 
 GRANT ALL ON TABLE users            TO service_role;
 GRANT ALL ON TABLE wordbooks        TO service_role;
@@ -711,6 +730,7 @@ GRANT ALL ON TABLE user_language_settings TO service_role;
 GRANT ALL ON TABLE word_progress          TO service_role;
 GRANT ALL ON TABLE daily_tasks            TO service_role;
 GRANT ALL ON TABLE user_achievements      TO service_role;
+GRANT ALL ON TABLE ai_extractions         TO service_role;
 
 GRANT EXECUTE ON FUNCTION register_line_user(text, text, text) TO service_role;
 

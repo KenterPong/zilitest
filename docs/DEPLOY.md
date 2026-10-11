@@ -85,4 +85,4 @@
 
 - `vercel.json` cron：試用到期、扣款失敗、資料清除排程
 - LINE Pay Sandbox 金流
-- `ANTHROPIC_API_KEY`：AI 抽字（僅伺服器端，勿使用 `NEXT_PUBLIC_*` 前綴；見技術規格第十節）
+- `OPENAI_API_KEY`、`OPENAI_MODEL`：AI 抽字（僅伺服器端，勿使用 `NEXT_PUBLIC_*` 前綴；任一未設定時功能顯示「尚未開放」；見技術規格第十節）
