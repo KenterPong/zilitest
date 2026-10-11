@@ -7,6 +7,7 @@ import { useMemo, useState } from 'react'
 import { AiExtractButton } from '@/components/AiExtractButton'
 import { ImportExcelButton } from '@/components/ImportExcelButton'
 import { LanguageBadge } from '@/components/LanguageBadge'
+import { SpeakButton } from '@/components/SpeakButton'
 import { useAppDialog } from '@/components/AppDialog'
 import type { DbTag, Language, WordWithMeta } from '@/types/vocab'
 import { TRIAL_WORD_LIMIT } from '@/types/user'
@@ -458,7 +459,10 @@ export function WordbookDetailClient({
                 return (
                   <tr key={word.id} className="border-t border-line">
                     <td className="px-4 py-3 font-serif font-bold text-[15.5px]">
-                      {word.term}
+                      <span className="inline-flex items-center gap-2">
+                        {word.term}
+                        <SpeakButton term={word.term} reading={word.reading} language={wordbookLanguage} size="sm" />
+                      </span>
                       {word.reading && (
                         <span className="block font-sans font-normal text-xs text-ink-soft">
                           {word.reading}

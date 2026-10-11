@@ -58,7 +58,7 @@ export default async function CollectionPage({ searchParams }: Props) {
               ))}
             </nav>
           )}
-          <CollectionClient key={lang} collection={collection} />
+          <CollectionClient key={lang} collection={collection} language={lang} />
         </>
       )}
     </main>

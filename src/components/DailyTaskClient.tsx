@@ -3,9 +3,12 @@
 import Link from 'next/link'
 import { useCallback, useEffect, useRef, useState } from 'react'
 
+import { SpeakButton } from '@/components/SpeakButton'
 import { StagePips } from '@/components/StagePips'
 import { Stamp } from '@/components/Stamp'
 import { ACHIEVEMENT_BY_KEY } from '@/lib/growth'
+import { speechText } from '@/lib/speech'
+import { useAutoSpeak, useSpeaker } from '@/lib/use-speech'
 import type { DailyAnswerResult, DailyQuestion, DailyTaskPayload } from '@/types/daily'
 import { LANGUAGE_LABELS } from '@/types/vocab'
 
@@ -86,8 +89,37 @@ export function DailyTaskClient({ payload, currentStreak }: DailyTaskClientProps
   const [taskCorrect, setTaskCorrect] = useState(payload.correct)
   const [finished, setFinished] = useState(questions.length === 0)
   const inputRef = useRef<HTMLInputElement>(null)
+  const speaker = useSpeaker(payload.language)
+  const [autoSpeak] = useAutoSpeak()
+  const spokenRef = useRef<string | null>(null)
 
   const q = questions[idx]
+  /** 填空題翻開答案前不能發音（等於直接唸出答案） */
+  const canSpeak = q ? q.kind !== 'fill' || (step === 'feedback' && feedback !== null) : false
+  const speakTerm = q?.kind === 'fill' ? feedback?.term : q?.term
+  const speakReading = q?.kind === 'fill' ? feedback?.reading : q?.reading
+
+  // 自動播放：每張卡在可發音時唸一次（設定頁開關，預設關閉）
+  useEffect(() => {
+    if (!autoSpeak || !speaker || !q || !canSpeak || !speakTerm) return
+    const key = `${q.word_id}:${q.kind === 'fill' ? 'back' : 'front'}`
+    if (spokenRef.current === key) return
+    spokenRef.current = key
+    speaker(speechText(speakTerm, speakReading, payload.language))
+  }, [autoSpeak, speaker, q, canSpeak, speakTerm, speakReading, payload.language])
+
+  // 鍵盤 S：播放目前單字的發音
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.key !== 's' && e.key !== 'S') return
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return
+      if (!speaker || !canSpeak || !speakTerm) return
+      e.preventDefault()
+      speaker(speechText(speakTerm, speakReading, payload.language))
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [speaker, canSpeak, speakTerm, speakReading, payload.language])
 
   useEffect(() => {
     if (step !== 'answer' || q?.kind !== 'fill') return
@@ -310,7 +342,10 @@ export function DailyTaskClient({ payload, currentStreak }: DailyTaskClientProps
                 </>
               ) : (
                 <>
-                  <div className="font-serif font-bold text-[34px] leading-tight break-words">{q.term}</div>
+                  <div className="flex items-center gap-2.5">
+                    <div className="font-serif font-bold text-[34px] leading-tight break-words">{q.term}</div>
+                    {q.term && <SpeakButton term={q.term} reading={q.reading} language={payload.language} />}
+                  </div>
                   {q.reading && <div className="text-sm text-ink-soft mt-1">{q.reading}</div>}
                   {step === 'card' ? (
                     <>
@@ -337,14 +372,20 @@ export function DailyTaskClient({ payload, currentStreak }: DailyTaskClientProps
                 <div className="h-full flex flex-col items-center justify-center px-6 pt-6 text-center">
                   {q.kind === 'fill' ? (
                     <>
-                      <div className="font-serif font-bold text-[30px] leading-tight break-words">
-                        {feedback.correct_answer}
+                      <div className="flex items-center gap-2.5">
+                        <div className="font-serif font-bold text-[30px] leading-tight break-words">
+                          {feedback.correct_answer}
+                        </div>
+                        <SpeakButton term={feedback.term} reading={feedback.reading} language={payload.language} />
                       </div>
                       <div className="text-base text-ink-soft mt-1">{q.answer}</div>
                     </>
                   ) : (
                     <>
-                      <div className="font-serif font-bold text-[30px] leading-tight break-words">{q.term}</div>
+                      <div className="flex items-center gap-2.5">
+                        <div className="font-serif font-bold text-[30px] leading-tight break-words">{q.term}</div>
+                        {q.term && <SpeakButton term={q.term} reading={q.reading} language={payload.language} />}
+                      </div>
                       {q.reading && <div className="text-sm text-ink-soft">{q.reading}</div>}
                       <div className="text-lg mt-2">{feedback.correct_answer}</div>
                     </>
@@ -457,7 +498,7 @@ export function DailyTaskClient({ payload, currentStreak }: DailyTaskClientProps
       {error && <p className="text-sm text-stamp-red mt-3">{error}</p>}
       <p className="text-xs text-ink-soft mt-4">
         每題作答後立即儲存，中途離開可在今天內回來繼續。
-        <span className="hidden sm:inline"> 鍵盤：1–4 選答案、Enter 確認。</span>
+        <span className="hidden sm:inline"> 鍵盤：1–4 選答案、Enter 確認、S 播放發音。</span>
       </p>
     </div>
   )

@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 
 import { useAppDialog } from '@/components/AppDialog'
+import { SpeakButton } from '@/components/SpeakButton'
 import {
   EXTRACT_LEVELS,
   LEVEL_SYSTEM_NAME,
@@ -335,7 +336,10 @@ export function AiExtractButton({
                                 />
                               </td>
                               <td className="px-3 py-2">
-                                <span className="font-serif font-bold">{w.term}</span>
+                                <span className="inline-flex items-center gap-2">
+                                  <span className="font-serif font-bold">{w.term}</span>
+                                  <SpeakButton term={w.term} reading={w.reading} language={language} size="sm" />
+                                </span>
                                 {w.reading && <span className="block text-xs text-ink-soft">{w.reading}</span>}
                               </td>
                               <td className="px-3 py-2">{w.answer}</td>

@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 
+import { AutoSpeakToggle } from '@/components/AutoSpeakToggle'
 import { DeleteAccountSection } from '@/components/DeleteAccountSection'
 import { ExportWordsButton } from '@/components/ExportWordsButton'
 import { LanguageSettingsForm } from '@/components/LanguageSettingsForm'
@@ -120,6 +121,14 @@ export default async function SettingsPage() {
           settings={languageSettings}
           disabled={user.status === 'suspended'}
         />
+      </div>
+
+      <div className="bg-cream border border-line rounded-lg p-6 mb-4">
+        <h2 className="font-serif font-bold mb-1">發音</h2>
+        <p className="text-sm text-ink-soft mb-3">
+          單字旁的 🔊 按鈕使用這台裝置內建的語音播放，不需網路費用。若沒有看到按鈕，代表裝置沒有該語言的語音，可在系統設定中加裝。
+        </p>
+        <AutoSpeakToggle />
       </div>
 
       <div className="bg-cream border border-line rounded-lg p-6 mb-4">

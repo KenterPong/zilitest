@@ -481,6 +481,8 @@ export async function submitDailyAnswer(
   return {
     is_correct: isCorrect,
     correct_answer: isFill ? formatTermWithReading(word.term, word.reading) : word.answer,
+    term: word.term,
+    reading: word.reading,
     diff:
       isFill && !isCorrect
         ? buildAnswerDiff(

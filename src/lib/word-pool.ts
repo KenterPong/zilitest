@@ -1,4 +1,5 @@
 import { fetchAllRows } from '@/lib/db-paging'
+import type { Language } from '@/types/vocab'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 
 export interface PoolWord {
@@ -8,6 +9,7 @@ export interface PoolWord {
   reading: string | null
   answer: string
   description: string | null
+  language: Language
   attempt_count: number
   correct_count: number
   familiarity: 'unknown' | 'known' | null
@@ -26,11 +28,12 @@ export async function fetchWordPool(
 
   const { data: ownedBooks } = await supabaseAdmin
     .from('wordbooks')
-    .select('id')
+    .select('id, language')
     .eq('user_id', userId)
     .in('id', wordbookIds)
 
   const ownedIds = (ownedBooks ?? []).map((b) => b.id)
+  const languageByBook = new Map((ownedBooks ?? []).map((b) => [b.id, b.language as Language]))
   if (ownedIds.length === 0) return []
 
   let list = await fetchAllRows<{
@@ -116,6 +119,7 @@ export async function fetchWordPool(
     const s = statsMap.get(w.id)
     return {
       ...w,
+      language: languageByBook.get(w.wordbook_id) ?? 'en',
       attempt_count: s?.attempt_count ?? 0,
       correct_count: s?.correct_count ?? 0,
       familiarity: famMap.get(w.id) ?? null,

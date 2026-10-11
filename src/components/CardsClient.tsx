@@ -5,7 +5,9 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 
 import { ScopeFilter } from '@/components/ScopeFilter'
 import { SwipeCard, type SwipeCardHandle } from '@/components/SwipeCard'
-import type { DbTag, WordbookWithCount } from '@/types/vocab'
+import { speechText } from '@/lib/speech'
+import { useAutoSpeak, useSpeaker } from '@/lib/use-speech'
+import type { DbTag, Language, WordbookWithCount } from '@/types/vocab'
 
 interface CardItem {
   word_id: string
@@ -13,6 +15,7 @@ interface CardItem {
   reading: string | null
   answer: string
   description: string | null
+  language: Language
   familiarity: 'unknown' | 'known' | null
 }
 
@@ -92,7 +95,25 @@ export function CardsClient({
     setIdx((i) => Math.min(i + 1, cards.length))
   }
 
-  // 鍵盤：← 不認得、→ 認得、空白鍵翻面
+  const card = cards[idx]
+  // 背誦範圍可能跨語言，每張卡依自己的語言發音；hook 依語言各取一次
+  const speakEn = useSpeaker('en')
+  const speakJa = useSpeaker('ja')
+  const speakKo = useSpeaker('ko')
+  const [autoSpeak] = useAutoSpeak()
+  const speakCard = useCallback(() => {
+    if (!card) return
+    const speak = card.language === 'ja' ? speakJa : card.language === 'ko' ? speakKo : speakEn
+    speak?.(speechText(card.term, card.reading, card.language))
+  }, [card, speakEn, speakJa, speakKo])
+
+  // 自動播放：每張新卡出現時唸一次（設定頁開關，預設關閉）
+  useEffect(() => {
+    if (phase === 'play' && autoSpeak && card) speakCard()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase, autoSpeak, card?.word_id])
+
+  // 鍵盤：← 不認得、→ 認得、空白鍵翻面、S 發音
   useEffect(() => {
     if (phase !== 'play') return
     function onKey(e: KeyboardEvent) {
@@ -100,15 +121,15 @@ export function CardsClient({
       if (e.key === 'ArrowRight') swipeRef.current?.fly('known')
       else if (e.key === 'ArrowLeft') swipeRef.current?.fly('unknown')
       else if (e.key === ' ') swipeRef.current?.flip()
+      else if (e.key === 's' || e.key === 'S') speakCard()
       else return
       e.preventDefault()
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [phase])
+  }, [phase, speakCard])
 
   const done = phase === 'play' && idx >= cards.length
-  const card = cards[idx]
 
   if (phase === 'play') {
     const quizHref =
@@ -183,12 +204,13 @@ export function CardsClient({
             reading={card.reading}
             answer={card.answer}
             description={card.description}
+            language={card.language}
             onDecide={(choice) => void mark(choice)}
           />
         </div>
         <p className="text-[12px] text-ink-soft mt-4">
           <span className="sm:hidden">左滑不認得、右滑認得，點卡片翻面</span>
-          <span className="hidden sm:inline">拖曳或鍵盤 ← 不認得、→ 認得，空白鍵翻面</span>
+          <span className="hidden sm:inline">拖曳或鍵盤 ← 不認得、→ 認得，空白鍵翻面、S 發音</span>
         </p>
 
         <div className="flex gap-3.5 mt-4">

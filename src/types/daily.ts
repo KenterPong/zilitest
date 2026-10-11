@@ -61,6 +61,9 @@ export interface DailyAnswerResult {
   is_correct: boolean
   /** fill：term；new / mcq：answer */
   correct_answer: string
+  /** 發音用：單字本身與讀音 */
+  term: string
+  reading: string | null
   diff: DiffPart[] | null
   became_mastered: boolean
   /** 作答後的熟練階段 */

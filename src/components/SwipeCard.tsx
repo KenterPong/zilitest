@@ -2,7 +2,9 @@
 
 import { forwardRef, useImperativeHandle, useRef, useState } from 'react'
 
+import { SpeakButton } from '@/components/SpeakButton'
 import { isTap, swipeDecision, swipeHintOpacity, type SwipeChoice } from '@/lib/swipe'
+import type { Language } from '@/types/vocab'
 
 export interface SwipeCardHandle {
   fly: (choice: SwipeChoice) => void
@@ -14,6 +16,7 @@ interface SwipeCardProps {
   reading: string | null
   answer: string
   description: string | null
+  language: Language
   onDecide: (choice: SwipeChoice) => void
 }
 
@@ -26,7 +29,7 @@ function prefersReducedMotion(): boolean {
 
 /** 卡牌背誦的單字卡：點擊翻面，右滑認得、左滑不認得 */
 export const SwipeCard = forwardRef<SwipeCardHandle, SwipeCardProps>(function SwipeCard(
-  { term, reading, answer, description, onDecide },
+  { term, reading, answer, description, language, onDecide },
   ref
 ) {
   const wrapRef = useRef<HTMLDivElement>(null)
@@ -116,12 +119,18 @@ export const SwipeCard = forwardRef<SwipeCardHandle, SwipeCardProps>(function Sw
     >
       <div className={`card-inner ${flipped ? 'is-flipped' : ''}`}>
         <div className="card-face card-ruled rounded-lg border border-line shadow-[0_10px_28px_rgba(30,42,64,0.10)] flex flex-col items-center justify-center text-center px-6">
-          <div className="font-serif font-black text-[34px] leading-tight break-words">{term}</div>
+          <div className="flex items-center gap-2.5">
+            <div className="font-serif font-black text-[34px] leading-tight break-words">{term}</div>
+            <SpeakButton term={term} reading={reading} language={language} />
+          </div>
           {reading && <div className="text-sm text-ink-soft mt-1">{reading}</div>}
           <div className="font-mono text-[11px] text-ink-soft mt-4">點卡片翻面</div>
         </div>
         <div className="card-face card-back card-ruled rounded-lg border border-line shadow-[0_10px_28px_rgba(30,42,64,0.10)] flex flex-col items-center justify-center text-center px-6">
-          <div className="font-serif font-bold text-[26px] leading-tight break-words">{term}</div>
+          <div className="flex items-center gap-2.5">
+            <div className="font-serif font-bold text-[26px] leading-tight break-words">{term}</div>
+            <SpeakButton term={term} reading={reading} language={language} />
+          </div>
           {reading && <div className="text-sm text-ink-soft">{reading}</div>}
           <div className="text-lg mt-2">{answer}</div>
           {description && (

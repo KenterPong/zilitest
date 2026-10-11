@@ -2,9 +2,11 @@
 
 import { useState } from 'react'
 
+import { SpeakButton } from '@/components/SpeakButton'
 import { StagePips } from '@/components/StagePips'
 import { COLLECTION_TIERS, tierFor, type Collection, type CollectionWord } from '@/lib/collection'
 import { MASTERED_STAGE } from '@/lib/progress'
+import type { Language } from '@/types/vocab'
 
 const PAGE_SIZE = 24
 
@@ -16,19 +18,27 @@ const TIER_FRAME: Record<number, string> = {
   7: 'border-2 border-gold [--card-bg:var(--amber-bg)] ring-1 ring-gold ring-offset-2 ring-offset-paper',
 }
 
-function WordCard({ word }: { word: CollectionWord }) {
+function WordCard({ word, language }: { word: CollectionWord; language: Language }) {
   const [flipped, setFlipped] = useState(false)
   const tier = tierFor(word.stage)
   const frame = tier ? TIER_FRAME[tier.stage] : 'border border-line'
   const toGo = MASTERED_STAGE - word.stage
 
   return (
-    <button
-      type="button"
+    // 用 div 而非 button：卡片內還有發音按鈕，button 不可巢狀
+    <div
+      role="button"
+      tabIndex={0}
       onClick={() => setFlipped((f) => !f)}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault()
+          setFlipped((f) => !f)
+        }
+      }}
       aria-pressed={flipped}
       aria-label={`${word.term}，${flipped ? '顯示單字' : '翻面看中文'}`}
-      className="card-3d h-[136px] text-left"
+      className="card-3d h-[136px] text-left cursor-pointer"
     >
       <div className={`card-inner ${flipped ? 'is-flipped' : ''}`}>
         <div className={`card-face card-ruled rounded-lg ${frame} p-3 flex flex-col`}>
@@ -36,7 +46,10 @@ function WordCard({ word }: { word: CollectionWord }) {
             <span className={`font-mono text-[10.5px] tracking-[0.08em] ${tier ? 'text-gold font-semibold' : 'text-ink-soft'}`}>
               {tier ? tier.name : `再 ${toGo} 階掌握`}
             </span>
-            <StagePips stage={word.stage} />
+            <div className="flex items-center gap-1.5">
+              <SpeakButton term={word.term} reading={word.reading} language={language} size="sm" />
+              <StagePips stage={word.stage} />
+            </div>
           </div>
           <div className="flex-1 flex flex-col items-center justify-center text-center min-h-0">
             <div className="font-serif font-bold text-[19px] leading-tight break-words line-clamp-2">
@@ -49,17 +62,17 @@ function WordCard({ word }: { word: CollectionWord }) {
           <div className="text-[14px] leading-snug line-clamp-4">{word.answer}</div>
         </div>
       </div>
-    </button>
+    </div>
   )
 }
 
-function CardGrid({ words }: { words: CollectionWord[] }) {
+function CardGrid({ words, language }: { words: CollectionWord[]; language: Language }) {
   const [shown, setShown] = useState(PAGE_SIZE)
   return (
     <>
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
         {words.slice(0, shown).map((w) => (
-          <WordCard key={w.id} word={w} />
+          <WordCard key={w.id} word={w} language={language} />
         ))}
       </div>
       {words.length > shown && (
@@ -75,7 +88,7 @@ function CardGrid({ words }: { words: CollectionWord[] }) {
   )
 }
 
-export function CollectionClient({ collection }: { collection: Collection }) {
+export function CollectionClient({ collection, language }: { collection: Collection; language: Language }) {
   const { mastered, learning, unlearnedCount, total, tierCounts } = collection
 
   if (total === 0) {
@@ -123,7 +136,7 @@ export function CollectionClient({ collection }: { collection: Collection }) {
         {mastered.length === 0 ? (
           <p className="text-sm text-ink-soft">還沒有收藏卡。每日任務持續答對，最快約 11 天會收進第一張。</p>
         ) : (
-          <CardGrid words={mastered} />
+          <CardGrid words={mastered} language={language} />
         )}
       </section>
 
@@ -132,7 +145,7 @@ export function CollectionClient({ collection }: { collection: Collection }) {
           <h2 className="font-serif font-bold text-xl mb-3">
             學習中 <span className="font-mono text-sm text-ink-soft font-normal">{learning.length}</span>
           </h2>
-          <CardGrid words={learning} />
+          <CardGrid words={learning} language={language} />
         </section>
       )}
 
