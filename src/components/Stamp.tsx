@@ -3,10 +3,12 @@ interface StampProps {
   /** 進場動畫（prefers-reduced-motion 時由 CSS 關閉） */
   animate?: boolean
   size?: 'sm' | 'lg'
+  /** 進場動畫延遲（例如等卡片翻面後再蓋章） */
+  delayMs?: number
 }
 
 /** 朱紅圓形印章，用於成長回饋時刻（附錄 A 5.） */
-export function Stamp({ label, animate = false, size = 'sm' }: StampProps) {
+export function Stamp({ label, animate = false, size = 'sm', delayMs = 0 }: StampProps) {
   const dims =
     size === 'lg'
       ? 'w-[96px] h-[96px] text-[20px] border-[4px]'
@@ -14,6 +16,7 @@ export function Stamp({ label, animate = false, size = 'sm' }: StampProps) {
   return (
     <span
       className={`stamp ${animate ? 'stamp-enter' : ''} inline-flex items-center justify-center rounded-full border-stamp-red text-stamp-red font-serif font-black tracking-[0.08em] select-none shrink-0 ${dims}`}
+      style={animate && delayMs ? { animationDelay: `${delayMs}ms` } : undefined}
       aria-label={label}
     >
       {label}

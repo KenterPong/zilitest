@@ -31,6 +31,8 @@ export interface TaskSummary {
 export interface DailyQuestion {
   word_id: string
   kind: TaskQuestionKind
+  /** 作答前的熟練階段（卡片上的熟練度點數） */
+  stage: number
   /** new / mcq：外文單字；fill 不回傳（避免洩漏答案） */
   term?: string
   /** new：卡片上的中文意思；fill：題目提示（中文） */
@@ -59,6 +61,8 @@ export interface DailyAnswerResult {
   correct_answer: string
   diff: DiffPart[] | null
   became_mastered: boolean
+  /** 作答後的熟練階段 */
+  stage_after: number
   task_completed: boolean
   answered: number
   total: number

@@ -1,10 +1,11 @@
 'use client'
 
 import Link from 'next/link'
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 
 import { Stamp } from '@/components/Stamp'
 import { ACHIEVEMENT_BY_KEY } from '@/lib/growth'
+import { MASTERED_STAGE, MAX_STAGE } from '@/lib/progress'
 import type { DailyAnswerResult, DailyQuestion, DailyTaskPayload } from '@/types/daily'
 import { LANGUAGE_LABELS } from '@/types/vocab'
 
@@ -15,10 +16,19 @@ interface DailyTaskClientProps {
 
 type Step = 'card' | 'answer' | 'feedback'
 
-const KIND_LABEL: Record<DailyQuestion['kind'], string> = {
-  new: '新字',
-  mcq: '選擇題',
-  fill: '填空題',
+const KIND_TAG: Record<DailyQuestion['kind'], string> = {
+  new: 'NEW',
+  mcq: '選擇',
+  fill: '填空',
+}
+
+/** 卡片翻面時間（與 globals.css .card-inner 一致） */
+const FLIP_MS = 450
+/** 卡片離場時間 */
+const LEAVE_MS = 260
+
+function prefersReducedMotion(): boolean {
+  return typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
 }
 
 function DiffView({ diff }: { diff: NonNullable<DailyAnswerResult['diff']> }) {
@@ -42,6 +52,45 @@ function DiffView({ diff }: { diff: NonNullable<DailyAnswerResult['diff']> }) {
   )
 }
 
+/** 熟練度點數：7 格，已掌握（stage ≥ 4）以金色顯示 */
+function StagePips({ stage }: { stage: number }) {
+  const mastered = stage >= MASTERED_STAGE
+  return (
+    <div className="flex items-center gap-[3px]" aria-label={`熟練度 ${stage} / ${MAX_STAGE}`}>
+      {Array.from({ length: MAX_STAGE }, (_, i) => {
+        const on = i < stage
+        return (
+          <span
+            key={i}
+            className={`w-[7px] h-[7px] rounded-full border ${
+              on
+                ? mastered
+                  ? 'bg-gold border-gold'
+                  : 'bg-ink border-ink'
+                : 'border-line bg-cream'
+            }`}
+          />
+        )
+      })}
+    </div>
+  )
+}
+
+function CardHeader({ kind, stage, lang }: { kind: DailyQuestion['kind']; stage: number; lang: string }) {
+  return (
+    <div className="absolute top-3 left-4 right-4 flex items-center justify-between">
+      <span
+        className={`font-mono text-[11px] tracking-[0.12em] ${
+          kind === 'new' ? 'text-stamp-red font-semibold' : 'text-ink-soft'
+        }`}
+      >
+        {KIND_TAG[kind]} ・ {lang}
+      </span>
+      <StagePips stage={stage} />
+    </div>
+  )
+}
+
 export function DailyTaskClient({ payload, currentStreak }: DailyTaskClientProps) {
   const label = LANGUAGE_LABELS[payload.language]
   const [questions] = useState(payload.questions)
@@ -51,6 +100,7 @@ export function DailyTaskClient({ payload, currentStreak }: DailyTaskClientProps
   const [selected, setSelected] = useState<string | null>(null)
   const [input, setInput] = useState('')
   const [submitting, setSubmitting] = useState(false)
+  const [leaving, setLeaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [feedback, setFeedback] = useState<DailyAnswerResult | null>(null)
   const [streak, setStreak] = useState(currentStreak)
@@ -69,7 +119,7 @@ export function DailyTaskClient({ payload, currentStreak }: DailyTaskClientProps
     return () => window.cancelAnimationFrame(id)
   }, [step, q])
 
-  async function submit() {
+  const submit = useCallback(async () => {
     if (!q || submitting) return
     if (q.kind === 'fill' ? !input.trim() : !selected) return
     setSubmitting(true)
@@ -106,20 +156,49 @@ export function DailyTaskClient({ payload, currentStreak }: DailyTaskClientProps
     } finally {
       setSubmitting(false)
     }
-  }
+  }, [q, submitting, input, selected, payload.task_id])
 
-  function next() {
-    const nextIdx = idx + 1
-    setFeedback(null)
-    setSelected(null)
-    setInput('')
-    if (nextIdx >= questions.length) {
-      setFinished(true)
+  const next = useCallback(() => {
+    if (leaving) return
+    const advance = () => {
+      const nextIdx = idx + 1
+      setLeaving(false)
+      setFeedback(null)
+      setSelected(null)
+      setInput('')
+      if (nextIdx >= questions.length) {
+        setFinished(true)
+        return
+      }
+      setIdx(nextIdx)
+      setStep(questions[nextIdx].kind === 'new' ? 'card' : 'answer')
+    }
+    if (prefersReducedMotion()) {
+      advance()
       return
     }
-    setIdx(nextIdx)
-    setStep(questions[nextIdx].kind === 'new' ? 'card' : 'answer')
-  }
+    setLeaving(true)
+    window.setTimeout(advance, LEAVE_MS)
+  }, [leaving, idx, questions])
+
+  // 鍵盤：1–4 選答案、Enter 確認（填空題輸入框自行處理 Enter；下一題按鈕已取得焦點）
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (!q || step !== 'answer' || q.kind === 'fill') return
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return
+      const n = Number(e.key)
+      const opts = q.options ?? []
+      if (Number.isInteger(n) && n >= 1 && n <= opts.length) {
+        setSelected(opts[n - 1])
+        e.preventDefault()
+      } else if (e.key === 'Enter' && selected) {
+        e.preventDefault()
+        void submit()
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [q, step, selected, submit])
 
   if (finished && payload.total === 0) {
     return (
@@ -210,159 +289,199 @@ export function DailyTaskClient({ payload, currentStreak }: DailyTaskClientProps
 
   if (!q) return null
 
-  const progressPct = payload.total > 0 ? Math.round((answered / payload.total) * 100) : 0
+  const remaining = questions.length - idx
+  const behind = Math.min(remaining - 1, 2)
+  const flipped = step === 'feedback' && feedback !== null
+  const stampLabel = feedback?.became_mastered ? '掌握' : feedback?.is_correct ? '正確' : '再來'
 
   return (
     <div className="max-w-md mx-auto">
-      <p className="text-[12.5px] text-ink-soft mb-3">
-        <Link href="/app" className="border-b border-dotted border-ink-soft">
-          今日任務
-        </Link>
-        {` ／ ${label}`}
-      </p>
-
-      <div className="flex items-center justify-between font-mono text-[11px] text-ink-soft mb-1.5">
-        <span>{KIND_LABEL[q.kind]}</span>
+      <div className="flex items-center justify-between text-[12.5px] text-ink-soft mb-4">
         <span>
-          {answered} / {payload.total}
+          <Link href="/app" className="border-b border-dotted border-ink-soft">
+            今日任務
+          </Link>
+          {` ／ ${label}`}
+        </span>
+        <span className="font-mono text-[11px]">
+          已答 {answered} / {payload.total} ・ 剩 {remaining} 張
         </span>
       </div>
-      <div className="h-1.5 rounded-full bg-paper-deep overflow-hidden mb-4">
-        <div className="h-full bg-ink transition-[width]" style={{ width: `${progressPct}%` }} />
-      </div>
 
-      <div className="bg-cream border border-line rounded-lg p-6 shadow-[0_10px_28px_rgba(30,42,64,0.10)]">
-        {step === 'card' && (
-          <div className="text-center">
-            <div className="font-mono text-[11px] tracking-[0.12em] text-stamp-red mb-3">新字</div>
-            <div className="font-serif font-bold text-3xl mb-1 break-words">{q.term}</div>
-            {q.reading && <div className="text-sm text-ink-soft mb-2">{q.reading}</div>}
-            <div className="text-lg text-ink-soft mb-2 mt-2">{q.answer}</div>
-            {q.description && (
-              <p className="text-[13px] text-ink-soft bg-paper-deep rounded-[5px] px-3 py-2 mb-2 whitespace-pre-wrap">
-                {q.description}
-              </p>
-            )}
-            <button
-              type="button"
-              onClick={() => setStep('answer')}
-              className="mt-4 w-full bg-stamp-red text-cream font-bold py-3 rounded-[5px] text-sm hover:bg-stamp-red-deep"
-            >
-              記住了，開始作答
-            </button>
-          </div>
-        )}
-
-        {step !== 'card' && (q.kind === 'new' || q.kind === 'mcq') && (
-          <div>
-            <div className="font-serif font-bold text-3xl text-center mb-5 break-words">{q.term}</div>
-            <div className="flex flex-col gap-2">
-              {(q.options ?? []).map((opt, i) => {
-                const isSelected = selected === opt
-                let cls = 'border-line bg-paper hover:border-stamp-red'
-                if (step === 'feedback' && feedback) {
-                  if (opt.trim() === feedback.correct_answer.trim()) cls = 'border-good bg-good-bg'
-                  else if (isSelected) cls = 'border-stamp-red bg-warn-bg'
-                  else cls = 'border-line bg-paper opacity-70'
-                } else if (isSelected) {
-                  cls = 'border-stamp-red bg-warn-bg'
-                }
-                return (
-                  <button
-                    key={`${q.word_id}-${i}`}
-                    type="button"
-                    disabled={step === 'feedback' || submitting}
-                    onClick={() => setSelected(opt)}
-                    className={`block w-full text-left px-3.5 py-2.5 border-[1.5px] rounded-[5px] text-sm transition-colors ${cls}`}
-                  >
-                    <span className="font-mono text-[12px] text-ink-soft mr-2">
-                      {String.fromCharCode(65 + i)}
-                    </span>
-                    {opt}
-                  </button>
-                )
-              })}
-            </div>
-          </div>
-        )}
-
-        {step !== 'card' && q.kind === 'fill' && (
-          <div className="text-center">
-            <div className="font-serif font-bold text-2xl mb-2 break-words">{q.answer}</div>
-            <p className="text-xs text-ink-soft mb-4">請輸入對應的{label}單字</p>
-            <input
-              ref={inputRef}
-              lang={payload.language}
-              value={input}
-              disabled={step === 'feedback' || submitting}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={(e) => {
-                // 避免輸入法選字時的 Enter 被當成送出
-                if (e.key === 'Enter' && !e.nativeEvent.isComposing && step === 'answer') {
-                  void submit()
-                }
-              }}
-              placeholder={`輸入${label}單字…`}
-              className="w-full border-[1.5px] border-line rounded-[5px] px-3.5 py-3 text-[15px] text-center font-mono bg-white focus:outline-none focus:border-ink"
-              autoCapitalize="off"
-              autoCorrect="off"
-              autoComplete="off"
-              spellCheck={false}
-            />
-          </div>
-        )}
-
-        {step === 'feedback' && feedback && (
+      {/* 牌堆：後方疊著尚未翻開的卡 */}
+      <div className="relative h-[270px] mb-6 card-3d">
+        {Array.from({ length: behind }, (_, i) => (
           <div
-            className={`mt-4 rounded-[5px] px-4 py-3 text-sm ${
-              feedback.is_correct ? 'bg-good-bg text-good' : 'bg-warn-bg text-stamp-red-deep'
-            }`}
-            role="status"
-          >
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <div className="font-bold mb-0.5">{feedback.is_correct ? '答對了' : '答錯了'}</div>
-                {!feedback.is_correct && q.kind === 'fill' && (
-                  <div className="text-ink">
-                    {feedback.diff && (
-                      <div className="mb-0.5">
-                        你的輸入：<DiffView diff={feedback.diff} />
-                      </div>
-                    )}
-                    正確答案：<span className="font-mono font-semibold">{feedback.correct_answer}</span>
-                  </div>
-                )}
-              </div>
-              {feedback.became_mastered && <Stamp label="掌握" animate />}
+            key={i}
+            className="absolute inset-0 rounded-lg border border-line bg-cream"
+            style={{ transform: `translate(${(i + 1) * 5}px, ${(i + 1) * 5}px) rotate(${(i + 1) * 1.3}deg)` }}
+            aria-hidden
+          />
+        ))}
+
+        <div
+          key={q.word_id}
+          className={`card-inner ${flipped ? 'is-flipped' : ''} ${leaving ? 'is-leaving' : ''}`}
+        >
+          {/* 正面：題目 */}
+          <div className="card-face card-ruled rounded-lg border border-line shadow-[0_10px_28px_rgba(30,42,64,0.10)]">
+            <CardHeader kind={q.kind} stage={q.stage} lang={label} />
+            <div className="h-full flex flex-col items-center justify-center px-6 pt-6 text-center">
+              {q.kind === 'fill' ? (
+                <>
+                  <div className="font-serif font-bold text-[26px] break-words">{q.answer}</div>
+                  <p className="text-xs text-ink-soft mt-2">拼出對應的{label}單字</p>
+                </>
+              ) : (
+                <>
+                  <div className="font-serif font-bold text-[34px] leading-tight break-words">{q.term}</div>
+                  {q.reading && <div className="text-sm text-ink-soft mt-1">{q.reading}</div>}
+                  {step === 'card' ? (
+                    <>
+                      <div className="text-lg mt-3">{q.answer}</div>
+                      {q.description && (
+                        <p className="text-[12.5px] text-ink-soft mt-2 line-clamp-3 whitespace-pre-wrap">
+                          {q.description}
+                        </p>
+                      )}
+                    </>
+                  ) : (
+                    <p className="text-xs text-ink-soft mt-3">選出中文意思</p>
+                  )}
+                </>
+              )}
             </div>
           </div>
-        )}
 
-        {step === 'answer' && (
-          <button
-            type="button"
-            disabled={submitting || (q.kind === 'fill' ? !input.trim() : !selected)}
-            onClick={() => void submit()}
-            className="mt-4 w-full bg-stamp-red text-cream font-bold py-3 rounded-[5px] text-sm hover:bg-stamp-red-deep disabled:opacity-60"
-          >
-            {submitting ? '送出中…' : '確認答案'}
-          </button>
-        )}
-        {step === 'feedback' && (
-          <button
-            type="button"
-            onClick={next}
-            autoFocus
-            className="mt-4 w-full bg-stamp-red text-cream font-bold py-3 rounded-[5px] text-sm hover:bg-stamp-red-deep"
-          >
-            {idx + 1 >= questions.length ? '完成' : '下一題'}
-          </button>
-        )}
+          {/* 背面：答案與結果 */}
+          <div className="card-face card-back card-ruled rounded-lg border border-line shadow-[0_10px_28px_rgba(30,42,64,0.10)]">
+            {feedback && (
+              <>
+                <CardHeader kind={q.kind} stage={feedback.stage_after} lang={label} />
+                <div className="h-full flex flex-col items-center justify-center px-6 pt-6 text-center">
+                  {q.kind === 'fill' ? (
+                    <>
+                      <div className="font-serif font-bold text-[30px] leading-tight break-words">
+                        {feedback.correct_answer}
+                      </div>
+                      <div className="text-base text-ink-soft mt-1">{q.answer}</div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="font-serif font-bold text-[30px] leading-tight break-words">{q.term}</div>
+                      {q.reading && <div className="text-sm text-ink-soft">{q.reading}</div>}
+                      <div className="text-lg mt-2">{feedback.correct_answer}</div>
+                    </>
+                  )}
+                  <div
+                    className={`mt-3 text-sm font-bold ${feedback.is_correct ? 'text-good' : 'text-stamp-red-deep'}`}
+                    role="status"
+                  >
+                    {feedback.is_correct ? '答對了' : '答錯了，明天再複習'}
+                  </div>
+                  {!feedback.is_correct && q.kind === 'fill' && feedback.diff && (
+                    <div className="text-[13px] mt-1">
+                      你的輸入：<DiffView diff={feedback.diff} />
+                    </div>
+                  )}
+                </div>
+                <div className="absolute bottom-4 right-5">
+                  <Stamp label={stampLabel} animate delayMs={prefersReducedMotion() ? 0 : FLIP_MS - 100} />
+                </div>
+              </>
+            )}
+          </div>
+        </div>
       </div>
+
+      {/* 作答區 */}
+      {step === 'card' && (
+        <button
+          type="button"
+          autoFocus
+          onClick={() => setStep('answer')}
+          className="w-full bg-stamp-red text-cream font-bold py-3 rounded-[5px] text-sm hover:bg-stamp-red-deep"
+        >
+          記住了，開始作答
+        </button>
+      )}
+
+      {step !== 'card' && q.kind !== 'fill' && (
+        <div className="grid grid-cols-2 gap-2">
+          {(q.options ?? []).map((opt, i) => {
+            const isSelected = selected === opt
+            let cls = 'border-line bg-cream hover:border-stamp-red'
+            if (step === 'feedback' && feedback) {
+              if (opt.trim() === feedback.correct_answer.trim()) cls = 'border-good bg-good-bg'
+              else if (isSelected) cls = 'border-stamp-red bg-warn-bg'
+              else cls = 'border-line bg-cream opacity-60'
+            } else if (isSelected) {
+              cls = 'border-stamp-red bg-warn-bg'
+            }
+            return (
+              <button
+                key={`${q.word_id}-${i}`}
+                type="button"
+                disabled={step === 'feedback' || submitting}
+                onClick={() => setSelected(opt)}
+                className={`text-left px-3 py-2.5 border-[1.5px] rounded-[5px] text-sm transition-colors ${cls}`}
+              >
+                <span className="font-mono text-[11px] text-ink-soft mr-1.5">{i + 1}</span>
+                {opt}
+              </button>
+            )
+          })}
+        </div>
+      )}
+
+      {step !== 'card' && q.kind === 'fill' && (
+        <input
+          ref={inputRef}
+          lang={payload.language}
+          value={input}
+          disabled={step === 'feedback' || submitting}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyDown={(e) => {
+            // 避免輸入法選字時的 Enter 被當成送出
+            if (e.key === 'Enter' && !e.nativeEvent.isComposing && step === 'answer') {
+              void submit()
+            }
+          }}
+          placeholder={`輸入${label}單字…`}
+          className="w-full border-[1.5px] border-line rounded-[5px] px-3.5 py-3 text-[15px] text-center font-mono bg-white focus:outline-none focus:border-ink"
+          autoCapitalize="off"
+          autoCorrect="off"
+          autoComplete="off"
+          spellCheck={false}
+        />
+      )}
+
+      {step === 'answer' && (
+        <button
+          type="button"
+          disabled={submitting || (q.kind === 'fill' ? !input.trim() : !selected)}
+          onClick={() => void submit()}
+          className="mt-3 w-full bg-stamp-red text-cream font-bold py-3 rounded-[5px] text-sm hover:bg-stamp-red-deep disabled:opacity-60"
+        >
+          {submitting ? '送出中…' : '翻開答案'}
+        </button>
+      )}
+      {step === 'feedback' && (
+        <button
+          type="button"
+          onClick={next}
+          autoFocus
+          disabled={leaving}
+          className="mt-3 w-full bg-stamp-red text-cream font-bold py-3 rounded-[5px] text-sm hover:bg-stamp-red-deep"
+        >
+          {idx + 1 >= questions.length ? '完成' : '下一張'}
+        </button>
+      )}
 
       {error && <p className="text-sm text-stamp-red mt-3">{error}</p>}
       <p className="text-xs text-ink-soft mt-4">
         每題作答後立即儲存，中途離開可在今天內回來繼續。
+        <span className="hidden sm:inline"> 鍵盤：1–4 選答案、Enter 確認。</span>
       </p>
     </div>
   )

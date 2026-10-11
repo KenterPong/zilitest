@@ -373,13 +373,14 @@ export async function getDailyTaskPayload(
       const w = wordById.get(id)!
       const kind = questionKindFor(w.stage, newIds.has(id))
       if (kind === 'fill') {
-        return { word_id: id, kind, answer: w.answer }
+        return { word_id: id, kind, stage: w.stage, answer: w.answer }
       }
       const options = shuffle([w.answer, ...pickDistractors(w.answer, allAnswers)])
       if (kind === 'new') {
         return {
           word_id: id,
           kind,
+          stage: w.stage,
           term: w.term,
           reading: w.reading,
           answer: w.answer,
@@ -387,7 +388,7 @@ export async function getDailyTaskPayload(
           options,
         }
       }
-      return { word_id: id, kind, term: w.term, options }
+      return { word_id: id, kind, stage: w.stage, term: w.term, options }
     })
 
   return {
@@ -488,6 +489,7 @@ export async function submitDailyAnswer(
           )
         : null,
     became_mastered: outcome.becameMastered,
+    stage_after: outcome.next.stage,
     task_completed: taskCompleted,
     answered: answeredCount,
     total,
