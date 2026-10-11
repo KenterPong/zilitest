@@ -16,6 +16,7 @@ const DESKTOP_LINKS = [
   { href: '/app/growth', label: '成長' },
   { href: '/app/quiz', label: '自由練習' },
   { href: '/app/cards', label: '背誦' },
+  { href: '/app/games', label: '遊戲' },
   { href: '/app/settings', label: '設定' },
 ] as const
 
@@ -24,6 +25,7 @@ const MOBILE_LINKS = [
   { href: '/app/growth', label: '成長' },
   { href: '/app/quiz', label: '自由練習' },
   { href: '/app/cards', label: '背誦' },
+  { href: '/app/games', label: '遊戲' },
   { href: '/app/settings', label: '帳號設定' },
 ] as const
 

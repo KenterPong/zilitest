@@ -137,6 +137,22 @@ CREATE TABLE ai_extractions (
 CREATE INDEX ai_extractions_user_created_idx ON ai_extractions (user_id, created_at);
 
 -- =============================================
+-- 小遊戲成績（第十二節；不影響熟練度與連續天數）
+-- =============================================
+CREATE TABLE game_scores (
+  id          UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id     UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  game        TEXT NOT NULL CHECK (game IN ('match', 'listen', 'spell')),
+  language    TEXT NOT NULL CHECK (language IN ('en', 'ja', 'ko')),
+  word_count  INTEGER NOT NULL CHECK (word_count > 0),
+  score       INTEGER NOT NULL CHECK (score >= 0),
+  mistakes    INTEGER NOT NULL DEFAULT 0 CHECK (mistakes >= 0),
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX game_scores_user_game_idx ON game_scores (user_id, game, language);
+
+-- =============================================
 -- 熟練度與複習排程（無 row 視同 stage = 0）
 -- =============================================
 CREATE TABLE word_progress (
@@ -634,6 +650,7 @@ BEGIN
   DELETE FROM card_familiarity WHERE user_id = p_user_id;
   DELETE FROM feedback WHERE user_id = p_user_id;
   DELETE FROM ai_extractions WHERE user_id = p_user_id;
+  DELETE FROM game_scores WHERE user_id = p_user_id;
 
   UPDATE users SET
     status = 'cancelled',
@@ -715,6 +732,7 @@ REVOKE ALL ON TABLE word_progress          FROM anon, authenticated;
 REVOKE ALL ON TABLE daily_tasks            FROM anon, authenticated;
 REVOKE ALL ON TABLE user_achievements      FROM anon, authenticated;
 REVOKE ALL ON TABLE ai_extractions         FROM anon, authenticated;
+REVOKE ALL ON TABLE game_scores            FROM anon, authenticated;
 
 GRANT ALL ON TABLE users            TO service_role;
 GRANT ALL ON TABLE wordbooks        TO service_role;
@@ -731,6 +749,7 @@ GRANT ALL ON TABLE word_progress          TO service_role;
 GRANT ALL ON TABLE daily_tasks            TO service_role;
 GRANT ALL ON TABLE user_achievements      TO service_role;
 GRANT ALL ON TABLE ai_extractions         TO service_role;
+GRANT ALL ON TABLE game_scores            TO service_role;
 
 GRANT EXECUTE ON FUNCTION register_line_user(text, text, text) TO service_role;
 

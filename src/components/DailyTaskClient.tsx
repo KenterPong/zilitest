@@ -289,6 +289,14 @@ export function DailyTaskClient({ payload, currentStreak }: DailyTaskClientProps
             >
               查看成長
             </Link>
+            {doneAll && (
+              <Link
+                href={`/app/games/match?lang=${payload.language}`}
+                className="bg-cream border border-line text-ink font-semibold text-sm px-6 py-3 rounded-[5px] hover:border-ink"
+              >
+                玩一局配對
+              </Link>
+            )}
           </div>
         </div>
       </div>
