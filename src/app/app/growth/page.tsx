@@ -70,7 +70,14 @@ export default async function GrowthPage() {
         ))}
       </section>
 
-      <h2 className="font-serif font-bold text-xl mb-4">各語言</h2>
+      <div className="flex items-baseline justify-between gap-3 mb-4">
+        <h2 className="font-serif font-bold text-xl">各語言</h2>
+        {languages.length > 0 && (
+          <Link href="/app/collection" className="text-sm font-semibold border-b border-current">
+            打開單字卡冊 →
+          </Link>
+        )}
+      </div>
       {languages.length === 0 ? (
         <p className="text-sm text-ink-soft mb-8">建立單字本後，這裡會顯示各語言的掌握進度與等級。</p>
       ) : (
@@ -115,6 +122,12 @@ export default async function GrowthPage() {
                     </div>
                   ))}
                 </dl>
+                <Link
+                  href={`/app/collection?lang=${lang}`}
+                  className="block mt-3 text-[12.5px] text-ink-soft hover:text-ink text-right"
+                >
+                  看{LANGUAGE_LABELS[lang]}卡冊 →
+                </Link>
               </div>
             )
           })}

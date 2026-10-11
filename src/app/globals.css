@@ -81,7 +81,7 @@ body {
 }
 
 .card-ruled {
-  background-color: var(--white);
+  background-color: var(--card-bg, var(--white));
   background-image: repeating-linear-gradient(
     to bottom,
     transparent 0,
