@@ -29,6 +29,18 @@
 | `NEXT_PUBLIC_APP_URL` | 主站 URL |
 | `NEXT_PUBLIC_ROOT_DOMAIN` | `zilitest.com` |
 | `CRON_SECRET` | Phase 2 cron 用（可先填隨機字串） |
+| `OPENAI_API_KEY` | AI 抽字用 OpenAI API key（僅伺服器端） |
+| `OPENAI_MODEL` | AI 抽字用模型 ID，目前為 `gpt-6-luna`（僅伺服器端） |
+
+### OpenAI（AI 抽字）
+
+- 兩個變數都**不可**加 `NEXT_PUBLIC_*` 前綴；任一未設定時，AI 抽字顯示「尚未開放」，其他功能不受影響
+- Vercel 只在部署開始時讀取環境變數：新增或修改後，到 Deployments 對最新部署按 **Redeploy** 才會生效
+- OpenAI 後台另建專案 `zilitest`，API key 名稱 `zilitest-production`（不與其他專案共用）
+- 專案 Settings → Limits：
+  - **Allowed models** 只允許 `gpt-6-luna`；改用其他模型時，要同時在這裡開放該模型並更新 `OPENAI_MODEL`，否則請求會被擋下
+  - **每月支出上限 US$5，已啟用 hard limit**：達上限後請求失敗（429），App 顯示「AI 服務忙碌中」且不扣使用者次數
+- 模型須支援 Structured Outputs（JSON Schema），程式以此固定回傳格式
 
 ### 本機開發（LINE callback）
 
@@ -80,9 +92,9 @@
 - [x] `/app` 顯示試用／早鳥 banner 與使用者名稱
 - [x] Footer「改善建議」→ `/app/feedback` 可送出，Supabase `feedback` 表有資料
 - [x] Footer 隱私權／服務條款；已登入時 header 顯示「返回 App」
+- [x] 單字本「AI 抽字」可抽出所設等級的單字並匯入；成功後本月剩餘次數減 1，錯誤時不扣次數
 
 ## Phase 2 預留
 
 - `vercel.json` cron：試用到期、扣款失敗、資料清除排程
 - LINE Pay Sandbox 金流
-- `OPENAI_API_KEY`、`OPENAI_MODEL`：AI 抽字（僅伺服器端，勿使用 `NEXT_PUBLIC_*` 前綴；任一未設定時功能顯示「尚未開放」；見技術規格第十節）
