@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 
 import { useAppDialog } from '@/components/AppDialog'
 import {
@@ -25,6 +25,61 @@ interface AiExtractButtonProps {
 }
 
 type Phase = 'level' | 'input' | 'preview'
+
+/** 三張卡的展開方向：左、中（往上跳）、右 */
+const FAN = [
+  { x: '-34px', y: '4px', rot: '-12deg', delay: '0s' },
+  { x: '0px', y: '-10px', rot: '0deg', delay: '0.12s' },
+  { x: '34px', y: '4px', rot: '12deg', delay: '0.24s' },
+]
+
+/** AI 抽字等待中：洗牌動畫 + 依時間更換的進度說明 + 已等待秒數 */
+function ExtractingIndicator({ levelText }: { levelText: string }) {
+  const [sec, setSec] = useState(0)
+  useEffect(() => {
+    const t = window.setInterval(() => setSec((s) => s + 1), 1000)
+    return () => window.clearInterval(t)
+  }, [])
+
+  const steps = [
+    '正在閱讀文章…',
+    `挑出 ${levelText} 程度的單字…`,
+    '還原原形、整理中文意思…',
+    '正在把單字做成卡片…',
+  ]
+  const message = sec >= 40 ? '比平常久一點，請再稍等…' : steps[Math.min(Math.floor(sec / 5), steps.length - 1)]
+
+  return (
+    <div
+      role="status"
+      aria-live="polite"
+      className="flex items-center gap-5 border border-line rounded-[5px] bg-paper-deep px-5 py-4"
+    >
+      <div className="relative w-[96px] h-[60px] shrink-0" aria-hidden>
+        {FAN.map((f, i) => (
+          <span
+            key={i}
+            className="shuffle-card card-ruled absolute left-[33px] top-[6px] w-[30px] h-[42px] rounded-[4px] border border-line shadow-[0_3px_8px_rgba(30,42,64,0.12)]"
+            style={
+              {
+                '--fan-x': f.x,
+                '--fan-y': f.y,
+                '--fan-rot': f.rot,
+                animationDelay: f.delay,
+              } as React.CSSProperties
+            }
+          />
+        ))}
+      </div>
+      <div className="min-w-0">
+        <div className="font-serif font-bold text-[15px]">{message}</div>
+        <div className="font-mono text-[11.5px] text-ink-soft mt-0.5">
+          AI 抽字中 ・ 已等待 {sec} 秒（通常 10–30 秒）
+        </div>
+      </div>
+    </div>
+  )
+}
 
 export function AiExtractButton({
   wordbookId,
@@ -223,14 +278,18 @@ export function AiExtractButton({
                     {text.length} / {MAX_INPUT_CHARS}
                   </span>
                 </div>
-                <button
-                  type="button"
-                  disabled={busy || !text.trim() || text.length > MAX_INPUT_CHARS || remaining <= 0}
-                  onClick={() => void extract()}
-                  className="w-full bg-stamp-red text-cream font-bold py-3 rounded-[5px] text-sm disabled:opacity-60"
-                >
-                  {busy ? 'AI 抽字中…（約 10–30 秒）' : remaining <= 0 ? '本月次數已用完' : '開始抽字（使用 1 次）'}
-                </button>
+                {busy ? (
+                  <ExtractingIndicator levelText={level ? levelLabel(language, level) : ''} />
+                ) : (
+                  <button
+                    type="button"
+                    disabled={!text.trim() || text.length > MAX_INPUT_CHARS || remaining <= 0}
+                    onClick={() => void extract()}
+                    className="w-full bg-stamp-red text-cream font-bold py-3 rounded-[5px] text-sm disabled:opacity-60"
+                  >
+                    {remaining <= 0 ? '本月次數已用完' : '開始抽字（使用 1 次）'}
+                  </button>
+                )}
               </div>
             )}
 
