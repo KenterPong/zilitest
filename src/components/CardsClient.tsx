@@ -1,9 +1,10 @@
 'use client'
 
 import Link from 'next/link'
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 
 import { ScopeFilter } from '@/components/ScopeFilter'
+import { SwipeCard, type SwipeCardHandle } from '@/components/SwipeCard'
 import type { DbTag, WordbookWithCount } from '@/types/vocab'
 
 interface CardItem {
@@ -35,7 +36,7 @@ export function CardsClient({
   const [phase, setPhase] = useState<'setup' | 'play'>('setup')
   const [cards, setCards] = useState<CardItem[]>([])
   const [idx, setIdx] = useState(0)
-  const [flipped, setFlipped] = useState(false)
+  const swipeRef = useRef<SwipeCardHandle>(null)
   const [knownCount, setKnownCount] = useState(0)
   const [unknownCount, setUnknownCount] = useState(0)
   const [error, setError] = useState<string | null>(null)
@@ -67,7 +68,6 @@ export function CardsClient({
       }
       setCards(data.cards)
       setIdx(0)
-      setFlipped(false)
       setKnownCount(0)
       setUnknownCount(0)
       setPhase('play')
@@ -89,14 +89,23 @@ export function CardsClient({
     if (familiarity === 'known') setKnownCount((c) => c + 1)
     else setUnknownCount((c) => c + 1)
 
-    if (idx + 1 >= cards.length) {
-      setIdx(cards.length)
-      setFlipped(false)
-    } else {
-      setIdx(idx + 1)
-      setFlipped(false)
-    }
+    setIdx((i) => Math.min(i + 1, cards.length))
   }
+
+  // 鍵盤：← 不認得、→ 認得、空白鍵翻面
+  useEffect(() => {
+    if (phase !== 'play') return
+    function onKey(e: KeyboardEvent) {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return
+      if (e.key === 'ArrowRight') swipeRef.current?.fly('known')
+      else if (e.key === 'ArrowLeft') swipeRef.current?.fly('unknown')
+      else if (e.key === ' ') swipeRef.current?.flip()
+      else return
+      e.preventDefault()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [phase])
 
   const done = phase === 'play' && idx >= cards.length
   const card = cards[idx]
@@ -158,41 +167,41 @@ export function CardsClient({
           第 {idx + 1} / {cards.length} 張 ・ 不認得 {unknownCount}・認得 {knownCount}
         </div>
 
-        <button
-          type="button"
-          onClick={() => setFlipped((f) => !f)}
-          className="w-[420px] max-w-[90%] min-h-[230px] bg-cream border border-line rounded-[10px] shadow-lg flex flex-col items-center justify-center text-center p-8"
-        >
-          <div className="font-serif font-black text-[34px] mb-1">{card.term}</div>
-          {card.reading && <div className="text-sm text-ink-soft mb-2.5">{card.reading}</div>}
-          {!card.reading && <div className="mb-2.5" />}
-          {flipped ? (
-            <>
-              <div className="text-[15.5px] text-ink-soft mb-2">{card.answer}</div>
-              {card.description && (
-                <div className="text-[12.5px] text-ink-soft border-t border-dashed border-line pt-2.5 mt-2.5 max-w-[320px]">
-                  {card.description}
-                </div>
-              )}
-            </>
-          ) : (
-            <div className="font-mono text-[11px] text-ink-soft mt-3.5">
-              點卡片查看答案
-            </div>
-          )}
-        </button>
+        <div className="relative w-[420px] max-w-[90%]">
+          {Array.from({ length: Math.min(cards.length - idx - 1, 2) }, (_, i) => (
+            <div
+              key={i}
+              className="absolute inset-0 rounded-lg border border-line bg-cream"
+              style={{ transform: `translate(${(i + 1) * 5}px, ${(i + 1) * 5}px) rotate(${(i + 1) * 1.3}deg)` }}
+              aria-hidden
+            />
+          ))}
+          <SwipeCard
+            key={card.word_id}
+            ref={swipeRef}
+            term={card.term}
+            reading={card.reading}
+            answer={card.answer}
+            description={card.description}
+            onDecide={(choice) => void mark(choice)}
+          />
+        </div>
+        <p className="text-[12px] text-ink-soft mt-4">
+          <span className="sm:hidden">左滑不認得、右滑認得，點卡片翻面</span>
+          <span className="hidden sm:inline">拖曳或鍵盤 ← 不認得、→ 認得，空白鍵翻面</span>
+        </p>
 
-        <div className="flex gap-3.5 mt-6">
+        <div className="flex gap-3.5 mt-4">
           <button
             type="button"
-            onClick={() => mark('unknown')}
+            onClick={() => swipeRef.current?.fly('unknown')}
             className="bg-cream border-[1.5px] border-stamp-red text-stamp-red-deep font-bold px-8 py-3 rounded-sm text-[14.5px]"
           >
             不認得
           </button>
           <button
             type="button"
-            onClick={() => mark('known')}
+            onClick={() => swipeRef.current?.fly('known')}
             className="bg-ink text-cream font-bold px-8 py-3 rounded-sm text-[14.5px]"
           >
             認得
@@ -203,10 +212,7 @@ export function CardsClient({
           <button
             type="button"
             disabled={idx === 0}
-            onClick={() => {
-              setIdx((i) => Math.max(0, i - 1))
-              setFlipped(false)
-            }}
+            onClick={() => setIdx((i) => Math.max(0, i - 1))}
             className="disabled:opacity-40 hover:text-ink"
           >
             ← 上一張
