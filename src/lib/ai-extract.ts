@@ -82,6 +82,8 @@ export async function callExtraction(
   try {
     completion = await client.chat.completions.create({
       model,
+      // 不讓 OpenAI 儲存請求與回應（第十節 6.）
+      store: false,
       max_completion_tokens: 8000,
       response_format: {
         type: 'json_schema',
@@ -123,6 +125,8 @@ export async function callImageTranscription(language: Language, imageDataUrl: s
   try {
     completion = await client.chat.completions.create({
       model,
+      // 不讓 OpenAI 儲存請求與回應（第十節 6.）
+      store: false,
       max_completion_tokens: 4000,
       response_format: {
         type: 'json_schema',

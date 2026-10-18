@@ -5,6 +5,7 @@ import { useState } from 'react'
 import * as XLSX from 'xlsx'
 
 import { useAppDialog } from '@/components/AppDialog'
+import { parseWordRows, type SheetWord } from '@/lib/word-sheet'
 
 interface ImportExcelButtonProps {
   wordbookId: string
@@ -13,12 +14,7 @@ interface ImportExcelButtonProps {
   onImported?: () => void
 }
 
-interface PreviewRow {
-  term: string
-  answer: string
-  description: string | null
-  reading: string | null
-}
+type PreviewRow = SheetWord
 
 export function ImportExcelButton({
   wordbookId,
@@ -44,29 +40,12 @@ export function ImportExcelButton({
         const data = e.target?.result
         const wb = XLSX.read(data, { type: 'array' })
         const sheet = wb.Sheets[wb.SheetNames[0]]
-        const json = XLSX.utils.sheet_to_json<(string | number)[]>(sheet, {
+        const json = XLSX.utils.sheet_to_json<unknown[]>(sheet, {
           header: 1,
           defval: '',
         })
 
-        const parsed: PreviewRow[] = []
-        for (let i = 0; i < json.length; i++) {
-          const row = json[i]
-          if (!Array.isArray(row)) continue
-          const c0 = String(row[0] ?? '').trim()
-          const c1 = String(row[1] ?? '').trim()
-          const c2 = String(row[2] ?? '').trim()
-          const c3 = String(row[3] ?? '').trim()
-          // 略過表頭
-          if (i === 0 && (c0 === '單字' || c0.toLowerCase() === 'term')) continue
-          if (!c0 || !c1) continue
-          parsed.push({
-            term: c0,
-            answer: c1,
-            description: c2 || null,
-            reading: c3 || null,
-          })
-        }
+        const parsed = parseWordRows(json)
         if (parsed.length === 0) {
           setError('檔案中沒有有效資料（需至少「單字」「答案」兩欄）')
           setRows([])

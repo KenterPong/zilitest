@@ -5,6 +5,7 @@ import { requireUser } from '@/lib/api-auth'
 import { fetchAllRows } from '@/lib/db-paging'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { taipeiToday } from '@/lib/taipei-date'
+import { WORD_SHEET_HEADER, wordToRow } from '@/lib/word-sheet'
 import { LANGUAGE_LABELS, type Language } from '@/types/vocab'
 
 export const runtime = 'nodejs'
@@ -27,7 +28,7 @@ export async function GET() {
   const wb = XLSX.utils.book_new()
 
   if (!books?.length) {
-    const sheet = XLSX.utils.aoa_to_sheet([['單字', '答案', '描述', '讀音', '單字本', '語言']])
+    const sheet = XLSX.utils.aoa_to_sheet([[...WORD_SHEET_HEADER, '單字本', '語言']])
     XLSX.utils.book_append_sheet(wb, sheet, '單字')
   } else {
     const bookIds = books.map((b) => b.id)
@@ -56,14 +57,11 @@ export async function GET() {
     }
 
     const rows = [
-      ['單字', '答案', '描述', '讀音', '單字本', '語言'],
+      [...WORD_SHEET_HEADER, '單字本', '語言'],
       ...words.map((w) => {
         const book = bookById.get(w.wordbook_id)
         return [
-          w.term,
-          w.answer,
-          w.description ?? '',
-          w.reading ?? '',
+          ...wordToRow(w),
           book?.name ?? '',
           book ? LANGUAGE_LABELS[book.language as Language] : '',
         ]
@@ -77,8 +75,8 @@ export async function GET() {
     for (const book of books) {
       const bookWords = words.filter((w) => w.wordbook_id === book.id)
       const sheetRows = [
-        ['單字', '答案', '描述', '讀音'],
-        ...bookWords.map((w) => [w.term, w.answer, w.description ?? '', w.reading ?? '']),
+        [...WORD_SHEET_HEADER],
+        ...bookWords.map(wordToRow),
       ]
       const s = XLSX.utils.aoa_to_sheet(sheetRows)
       const safeName = book.name.replace(/[\\/?*[\]]/g, '_').slice(0, 28) || '單字本'

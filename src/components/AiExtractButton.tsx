@@ -101,6 +101,20 @@ export function AiExtractButton({
   const [busy, setBusy] = useState(false)
   const [transcribing, setTranscribing] = useState(false)
   const fileInput = useRef<HTMLInputElement>(null)
+  /** 同步送出鎖：state 要等重新渲染才更新，連點時第二下仍會看到 busy=false，以 ref 擋下重複扣次 */
+  const inFlight = useRef(false)
+
+  function lock(): boolean {
+    if (inFlight.current) return false
+    inFlight.current = true
+    setBusy(true)
+    return true
+  }
+
+  function unlock() {
+    inFlight.current = false
+    setBusy(false)
+  }
   const [error, setError] = useState<string | null>(null)
 
   const label = LANGUAGE_LABELS[language]
@@ -145,8 +159,7 @@ export function AiExtractButton({
   }
 
   async function extract() {
-    if (!text.trim() || busy) return
-    setBusy(true)
+    if (!text.trim() || !lock()) return
     setError(null)
     try {
       const res = await fetch('/api/ai-extract', {
@@ -166,13 +179,12 @@ export function AiExtractButton({
     } catch {
       setError('網路錯誤，請再試一次')
     } finally {
-      setBusy(false)
+      unlock()
     }
   }
 
   async function transcribeImage(file: File) {
-    if (busy) return
-    setBusy(true)
+    if (!lock()) return
     setTranscribing(true)
     setError(null)
     try {
@@ -195,7 +207,7 @@ export function AiExtractButton({
     } catch (e) {
       setError(e instanceof ImageDecodeError ? e.message : '網路錯誤，請再試一次')
     } finally {
-      setBusy(false)
+      unlock()
       setTranscribing(false)
       if (fileInput.current) fileInput.current.value = ''
     }
@@ -203,8 +215,7 @@ export function AiExtractButton({
 
   async function importSelected() {
     const selected = words.filter((_, i) => checked[i])
-    if (selected.length === 0 || busy) return
-    setBusy(true)
+    if (selected.length === 0 || !lock()) return
     setError(null)
     try {
       const res = await fetch('/api/words/batch', {
@@ -229,7 +240,7 @@ export function AiExtractButton({
     } catch {
       setError('網路錯誤，請再試一次')
     } finally {
-      setBusy(false)
+      unlock()
     }
   }
 
