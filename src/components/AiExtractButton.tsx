@@ -1,16 +1,19 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 import { useAppDialog } from '@/components/AppDialog'
 import { SpeakButton } from '@/components/SpeakButton'
 import {
+  ACCEPTED_IMAGE_TYPES,
+  appendTranscript,
   EXTRACT_LEVELS,
   LEVEL_SYSTEM_NAME,
   levelLabel,
   MAX_INPUT_CHARS,
   type ExtractedWord,
 } from '@/lib/extraction'
+import { compressImage, ImageDecodeError } from '@/lib/image-compress'
 import { LANGUAGE_LABELS, type Language } from '@/types/vocab'
 
 interface AiExtractButtonProps {
@@ -34,20 +37,14 @@ const FAN = [
   { x: '34px', y: '4px', rot: '12deg', delay: '0.24s' },
 ]
 
-/** AI 抽字等待中：洗牌動畫 + 依時間更換的進度說明 + 已等待秒數 */
-function ExtractingIndicator({ levelText }: { levelText: string }) {
+/** AI 等待中：洗牌動畫 + 依時間更換的進度說明 + 已等待秒數 */
+function ExtractingIndicator({ steps, label }: { steps: string[]; label: string }) {
   const [sec, setSec] = useState(0)
   useEffect(() => {
     const t = window.setInterval(() => setSec((s) => s + 1), 1000)
     return () => window.clearInterval(t)
   }, [])
 
-  const steps = [
-    '正在閱讀文章…',
-    `挑出 ${levelText} 程度的單字…`,
-    '還原原形、整理中文意思…',
-    '正在把單字做成卡片…',
-  ]
   const message = sec >= 40 ? '比平常久一點，請再稍等…' : steps[Math.min(Math.floor(sec / 5), steps.length - 1)]
 
   return (
@@ -75,7 +72,7 @@ function ExtractingIndicator({ levelText }: { levelText: string }) {
       <div className="min-w-0">
         <div className="font-serif font-bold text-[15px]">{message}</div>
         <div className="font-mono text-[11.5px] text-ink-soft mt-0.5">
-          AI 抽字中 ・ 已等待 {sec} 秒（通常 10–30 秒）
+          {label} ・ 已等待 {sec} 秒（通常 10–30 秒）
         </div>
       </div>
     </div>
@@ -102,6 +99,8 @@ export function AiExtractButton({
   const [checked, setChecked] = useState<boolean[]>([])
   const [remaining, setRemaining] = useState(initialRemaining)
   const [busy, setBusy] = useState(false)
+  const [transcribing, setTranscribing] = useState(false)
+  const fileInput = useRef<HTMLInputElement>(null)
   const [error, setError] = useState<string | null>(null)
 
   const label = LANGUAGE_LABELS[language]
@@ -171,6 +170,37 @@ export function AiExtractButton({
     }
   }
 
+  async function transcribeImage(file: File) {
+    if (busy) return
+    setBusy(true)
+    setTranscribing(true)
+    setError(null)
+    try {
+      const image = await compressImage(file)
+      const form = new FormData()
+      form.append('wordbook_id', wordbookId)
+      form.append('image', image, 'image.jpg')
+      const res = await fetch('/api/ai-transcribe', { method: 'POST', body: form })
+      const data = await res.json()
+      if (!res.ok) {
+        setError(data.error ?? '圖片轉文字失敗，請稍後再試')
+        return
+      }
+      setRemaining(data.remaining)
+      if (!data.text) {
+        setError(`圖片中沒有辨識到${label}文字`)
+        return
+      }
+      setText((prev) => appendTranscript(prev, data.text))
+    } catch (e) {
+      setError(e instanceof ImageDecodeError ? e.message : '網路錯誤，請再試一次')
+    } finally {
+      setBusy(false)
+      setTranscribing(false)
+      if (fileInput.current) fileInput.current.value = ''
+    }
+  }
+
   async function importSelected() {
     const selected = words.filter((_, i) => checked[i])
     if (selected.length === 0 || busy) return
@@ -218,7 +248,7 @@ export function AiExtractButton({
 
       {open && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 p-4">
-          <div className="bg-cream border border-line rounded-lg p-6 w-full max-w-2xl shadow-xl max-h-[90vh] flex flex-col">
+          <div className="bg-cream border border-line rounded-lg p-6 w-full max-w-2xl shadow-xl max-h-[90vh] overflow-y-auto flex flex-col">
             <div className="flex items-start justify-between gap-3 mb-3">
               <div>
                 <h2 className="font-serif font-bold text-lg">AI 抽字</h2>
@@ -265,6 +295,27 @@ export function AiExtractButton({
 
             {phase === 'input' && (
               <div className="flex flex-col min-h-0">
+                <div className="flex items-center gap-3 mb-2">
+                  <input
+                    ref={fileInput}
+                    type="file"
+                    accept={`image/*,${ACCEPTED_IMAGE_TYPES.join(',')}`}
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0]
+                      if (file) void transcribeImage(file)
+                    }}
+                  />
+                  <button
+                    type="button"
+                    disabled={busy || remaining <= 0}
+                    onClick={() => fileInput.current?.click()}
+                    className="shrink-0 whitespace-nowrap border border-line bg-white text-sm px-3 py-1.5 rounded-sm hover:border-ink disabled:opacity-60 disabled:cursor-not-allowed"
+                  >
+                    上傳圖片（使用 1 次）
+                  </button>
+                  <span className="text-[11.5px] text-ink-soft">課本、漫畫、截圖都可以，文字會填進下方</span>
+                </div>
                 <textarea
                   lang={language}
                   value={text}
@@ -274,13 +325,31 @@ export function AiExtractButton({
                   className="w-full min-h-[200px] border border-line rounded-[5px] px-3 py-2 text-sm bg-white focus:outline-none focus:border-ink disabled:opacity-60"
                 />
                 <div className="flex justify-between text-[11.5px] font-mono mt-1 mb-3">
-                  <span className="text-ink-soft">原文只送給 AI 分析，處理完即捨棄，不會儲存</span>
+                  <span className="text-ink-soft">原文與圖片只送給 AI 分析，處理完即捨棄，不會儲存</span>
                   <span className={text.length > MAX_INPUT_CHARS ? 'text-stamp-red' : 'text-ink-soft'}>
                     {text.length} / {MAX_INPUT_CHARS}
                   </span>
                 </div>
-                {busy ? (
-                  <ExtractingIndicator levelText={level ? levelLabel(language, level) : ''} />
+                {text.length > MAX_INPUT_CHARS && (
+                  <p className="text-[12.5px] text-stamp-red-deep mb-2">
+                    超過 {MAX_INPUT_CHARS} 字元上限，請刪掉不需要的段落再抽字。
+                  </p>
+                )}
+                {transcribing ? (
+                  <ExtractingIndicator
+                    label="圖片轉文字中"
+                    steps={['正在壓縮圖片…', '正在辨識圖片中的文字…', `整理${label}原文…`]}
+                  />
+                ) : busy ? (
+                  <ExtractingIndicator
+                    label="AI 抽字中"
+                    steps={[
+                      '正在閱讀文章…',
+                      `挑出 ${level ? levelLabel(language, level) : ''} 程度的單字…`,
+                      '還原原形、整理中文意思…',
+                      '正在把單字做成卡片…',
+                    ]}
+                  />
                 ) : (
                   <button
                     type="button"

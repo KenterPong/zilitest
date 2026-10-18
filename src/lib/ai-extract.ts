@@ -4,9 +4,11 @@ import OpenAI from 'openai'
 
 import {
   buildExtractionPrompt,
+  buildTranscriptionPrompt,
   EXTRACTION_SCHEMA,
   monthlyLimit,
   taipeiMonthStartInstant,
+  TRANSCRIPTION_SCHEMA,
 } from '@/lib/extraction'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import type { DbUser } from '@/types/user'
@@ -40,7 +42,19 @@ export interface ExtractionQuota {
   remaining: number
 }
 
-/** 本月（台北自然月）已用次數與剩餘次數 */
+function toAiError(e: unknown): AiExtractError {
+  if (e instanceof OpenAI.APIError) {
+    // 不記錄原文或圖片；只回傳狀態給使用者
+    const status = e.status === 429 ? 429 : 502
+    return new AiExtractError(
+      status === 429 ? 'AI 服務忙碌中，請稍後再試' : 'AI 服務暫時無法使用，請稍後再試',
+      status
+    )
+  }
+  return new AiExtractError('AI 服務連線失敗，請稍後再試', 502)
+}
+
+/** 本月（台北自然月）已用次數與剩餘次數（抽字與圖片轉文字共用） */
 export async function getExtractionQuota(user: DbUser): Promise<ExtractionQuota> {
   const limit = monthlyLimit(user.status)
   const { count, error } = await supabaseAdmin
@@ -79,15 +93,7 @@ export async function callExtraction(
       ],
     })
   } catch (e) {
-    if (e instanceof OpenAI.APIError) {
-      // 不記錄原文；只回傳狀態給使用者
-      const status = e.status === 429 ? 429 : 502
-      throw new AiExtractError(
-        status === 429 ? 'AI 服務忙碌中，請稍後再試' : 'AI 服務暫時無法使用，請稍後再試',
-        status
-      )
-    }
-    throw new AiExtractError('AI 服務連線失敗，請稍後再試', 502)
+    throw toAiError(e)
   }
 
   const choice = completion.choices[0]
@@ -101,6 +107,47 @@ export async function callExtraction(
   try {
     const parsed = JSON.parse(choice.message.content ?? '') as { words?: unknown }
     return Array.isArray(parsed.words) ? parsed.words : []
+  } catch {
+    throw new AiExtractError('AI 回傳格式錯誤，請再試一次', 502)
+  }
+}
+
+/**
+ * 圖片轉文字：把圖片中的該語言文字照原文轉錄（第十節 7.）。
+ * 圖片只送給 AI，不寫入資料庫、儲存空間或應用程式 log。
+ */
+export async function callImageTranscription(language: Language, imageDataUrl: string): Promise<string> {
+  const { client, model } = getClient()
+
+  let completion
+  try {
+    completion = await client.chat.completions.create({
+      model,
+      max_completion_tokens: 4000,
+      response_format: {
+        type: 'json_schema',
+        json_schema: { name: 'transcription', strict: true, schema: TRANSCRIPTION_SCHEMA },
+      },
+      messages: [
+        { role: 'system', content: buildTranscriptionPrompt(language) },
+        { role: 'user', content: [{ type: 'image_url', image_url: { url: imageDataUrl, detail: 'high' } }] },
+      ],
+    })
+  } catch (e) {
+    throw toAiError(e)
+  }
+
+  const choice = completion.choices[0]
+  if (!choice || choice.message.refusal) {
+    throw new AiExtractError('AI 無法處理這張圖片，請換一張試試', 422)
+  }
+  if (choice.finish_reason === 'length') {
+    throw new AiExtractError('圖片中的文字太多，請裁切成小塊再上傳', 422)
+  }
+
+  try {
+    const parsed = JSON.parse(choice.message.content ?? '') as { text?: unknown }
+    return typeof parsed.text === 'string' ? parsed.text.trim() : ''
   } catch {
     throw new AiExtractError('AI 回傳格式錯誤，請再試一次', 502)
   }

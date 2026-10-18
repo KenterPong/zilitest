@@ -1,14 +1,18 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  appendTranscript,
   buildExtractionPrompt,
+  buildTranscriptionPrompt,
   cleanExtracted,
+  fitWithin,
   isValidLevel,
   levelLabel,
   limitMeanings,
   monthlyLimit,
   taipeiMonthStartDate,
   taipeiMonthStartInstant,
+  validateImage,
 } from '@/lib/extraction'
 
 describe('等級', () => {
@@ -98,5 +102,54 @@ describe('buildExtractionPrompt', () => {
     const p = buildExtractionPrompt('en', 'B1')
     expect(p).toContain('CEFR B1')
     expect(p).toContain('reading: always null')
+  })
+})
+
+describe('validateImage', () => {
+  it('只接受 JPG、PNG、WebP', () => {
+    expect(validateImage('image/jpeg', 1000)).toBeNull()
+    expect(validateImage('image/png', 1000)).toBeNull()
+    expect(validateImage('image/webp', 1000)).toBeNull()
+    expect(validateImage('image/heic', 1000)).not.toBeNull()
+    expect(validateImage('application/pdf', 1000)).not.toBeNull()
+  })
+
+  it('空檔與超過上限', () => {
+    expect(validateImage('image/jpeg', 0)).not.toBeNull()
+    expect(validateImage('image/jpeg', 4_000_000)).toBeNull()
+    expect(validateImage('image/jpeg', 4_000_001)).not.toBeNull()
+  })
+})
+
+describe('fitWithin', () => {
+  it('長邊縮到上限、維持比例', () => {
+    expect(fitWithin(4032, 3024, 1800)).toEqual({ width: 1800, height: 1350 })
+    expect(fitWithin(1080, 2400, 1800)).toEqual({ width: 810, height: 1800 })
+  })
+
+  it('小圖不放大', () => {
+    expect(fitWithin(800, 600, 1800)).toEqual({ width: 800, height: 600 })
+  })
+})
+
+describe('appendTranscript', () => {
+  it('空白文字框直接填入', () => {
+    expect(appendTranscript('', '  昨日、駅に行った。\n')).toBe('昨日、駅に行った。')
+  })
+
+  it('接在既有內容後空一行', () => {
+    expect(appendTranscript('第一段\n', '第二段')).toBe('第一段\n\n第二段')
+  })
+
+  it('轉譯結果為空時不變', () => {
+    expect(appendTranscript('原本的字', '   ')).toBe('原本的字')
+  })
+})
+
+describe('buildTranscriptionPrompt', () => {
+  it('要求照原文轉錄、不翻譯', () => {
+    const p = buildTranscriptionPrompt('ko')
+    expect(p).toContain('Korean')
+    expect(p).toContain('Do not translate')
   })
 })
