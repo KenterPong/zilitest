@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 
 import { assertCanMutate, requireUser } from '@/lib/api-auth'
 import { getPersonalBest } from '@/lib/game-service'
-import { isGameKey, isNewBest, MATCH_WORD_COUNT } from '@/lib/games'
+import { isGameKey, isNewBest, isValidListenResult, MATCH_WORD_COUNT } from '@/lib/games'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { isLanguage } from '@/types/vocab'
 
@@ -34,17 +34,16 @@ export async function POST(request: Request) {
   if (!isGameKey(game) || !isLanguage(language)) {
     return NextResponse.json({ error: '無效的遊戲或語言' }, { status: 400 })
   }
-  if (game !== 'match') {
-    return NextResponse.json({ error: '這個遊戲尚未開放' }, { status: 400 })
-  }
-  if (
-    wordCount !== MATCH_WORD_COUNT ||
-    !Number.isInteger(score) ||
-    score < MATCH_MIN_MS ||
-    score > MATCH_MAX_MS ||
-    !Number.isInteger(mistakes) ||
-    mistakes < 0
-  ) {
+  const valid =
+    game === 'match'
+      ? wordCount === MATCH_WORD_COUNT &&
+        Number.isInteger(score) &&
+        score >= MATCH_MIN_MS &&
+        score <= MATCH_MAX_MS &&
+        Number.isInteger(mistakes) &&
+        mistakes >= 0
+      : isValidListenResult(score, wordCount, mistakes)
+  if (!valid) {
     return NextResponse.json({ error: '成績格式不正確' }, { status: 400 })
   }
 

@@ -21,6 +21,7 @@
 - 新資料表一律 `REVOKE ALL ... FROM anon, authenticated`。
 - `users.status = 'cancelled'` 的 session:API 回 401 並清除 cookie。
 - 500 字上限一律以 `users.word_count`(帳號全站加總)判斷,不可用單一單字本字數。
+- **本機 `.env.local` 連的是正式資料庫**:不要用站長帳號實際作答每日任務、自由練習或卡牌模式(會改動熟練度、到期日與連續天數,污染自用驗證資料);需要測試這類功能時先告知。遊戲成績、AI 抽字次數不影響熟練度,測試後清掉測試資料即可。
 
 ## 資料庫 migration
 

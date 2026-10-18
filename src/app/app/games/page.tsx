@@ -1,27 +1,24 @@
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
 
+import { ListenGameRow } from '@/components/ListenGameRow'
 import { getSessionUser } from '@/lib/auth'
-import { getMatchBests } from '@/lib/game-service'
-import { formatMatchTime, MATCH_WORD_COUNT } from '@/lib/games'
+import { getGameBests } from '@/lib/game-service'
+import { formatMatchTime, LISTEN_CHOICES, MATCH_WORD_COUNT } from '@/lib/games'
 import { getLanguageSettings, getProgressSummary } from '@/lib/growth-service'
 import { LANGUAGE_LABELS, LANGUAGES } from '@/types/vocab'
 
 export const dynamic = 'force-dynamic'
 
-const COMING_SOON = [
-  { name: '聽音辨字', desc: '聽發音，從 4 個選項選出聽到的字。60 秒內答對越多越好。' },
-  { name: '拼字挑戰', desc: '看中文，用打散的方塊拼出外文，不用切換輸入法。' },
-]
-
 export default async function GamesPage() {
   const user = await getSessionUser()
   if (!user || user.status === 'cancelled') redirect('/auth/login')
 
-  const [summary, settings, bests] = await Promise.all([
+  const [summary, settings, bests, listenBests] = await Promise.all([
     getProgressSummary(user.id),
     getLanguageSettings(user.id),
-    getMatchBests(user.id),
+    getGameBests(user.id, 'match'),
+    getGameBests(user.id, 'listen'),
   ])
   const languages = LANGUAGES.filter(
     (l) => summary.some((r) => r.language === l) || settings.some((s) => s.language === l)
@@ -81,18 +78,26 @@ export default async function GamesPage() {
         )}
       </section>
 
-      <section className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        {COMING_SOON.map((g) => (
-          <div key={g.name} className="border border-dashed border-line rounded-lg p-5 bg-paper">
-            <div className="flex items-center justify-between mb-1">
-              <h2 className="font-serif font-bold text-lg text-ink-soft">{g.name}</h2>
-              <span className="font-mono text-[11px] text-ink-soft border border-line rounded-full px-2 py-0.5">
-                即將推出
-              </span>
-            </div>
-            <p className="text-[13px] text-ink-soft">{g.desc}</p>
-          </div>
-        ))}
+      <section className="bg-cream border border-line rounded-lg p-6 mb-6">
+        <h2 className="font-serif font-bold text-xl mb-1">聽音辨字</h2>
+        <p className="text-sm text-ink-soft mb-4">
+          聽發音，從 4 個選項選出聽到的字。60 秒內答對越多越好；答錯不扣時間，可以無限重播。
+        </p>
+        {languages.length === 0 ? (
+          <p className="text-sm text-ink-soft">建立單字本並加入至少 {LISTEN_CHOICES} 個單字後就能開始。</p>
+        ) : (
+          <ul className="divide-y divide-dashed divide-line">
+            {languages.map((lang) => (
+              <ListenGameRow
+                key={lang}
+                language={lang}
+                total={summary.find((r) => r.language === lang)?.total ?? 0}
+                best={listenBests[lang]}
+                frozen={frozen}
+              />
+            ))}
+          </ul>
+        )}
       </section>
     </main>
   )

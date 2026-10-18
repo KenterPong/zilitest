@@ -1,7 +1,16 @@
 import 'server-only'
 
 import { getLanguageWords } from '@/lib/daily-service'
-import { lowerIsBetter, MATCH_WORD_COUNT, pickGameWords, type GameKey, type MatchCardWord } from '@/lib/games'
+import {
+  buildListenPool,
+  canStartListen,
+  lowerIsBetter,
+  MATCH_WORD_COUNT,
+  pickGameWords,
+  type GameKey,
+  type ListenWord,
+  type MatchCardWord,
+} from '@/lib/games'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import type { Language } from '@/types/vocab'
 
@@ -15,20 +24,31 @@ export async function getMatchRound(
   return words ? { words } : { words: null, available: all.length }
 }
 
-/** 個人最佳：同遊戲、同語言（配對另需同字數） */
+/** 聽音辨字題庫；湊不出 4 個彼此不衝突的字時回傳 null 與該語言字數 */
+export async function getListenPool(
+  userId: string,
+  language: Language
+): Promise<{ pool: ListenWord[] } | { pool: null; available: number }> {
+  const all = await getLanguageWords(userId, language)
+  const pool = buildListenPool(all)
+  return canStartListen(pool, language) ? { pool } : { pool: null, available: all.length }
+}
+
+/** 個人最佳：同遊戲、同語言（配對另需同字數；聽音不看字數） */
 export async function getPersonalBest(
   userId: string,
   game: GameKey,
   language: Language,
-  wordCount: number
+  wordCount?: number
 ): Promise<number | null> {
-  const { data, error } = await supabaseAdmin
+  let query = supabaseAdmin
     .from('game_scores')
     .select('score')
     .eq('user_id', userId)
     .eq('game', game)
     .eq('language', language)
-    .eq('word_count', wordCount)
+  if (game === 'match') query = query.eq('word_count', wordCount ?? MATCH_WORD_COUNT)
+  const { data, error } = await query
     .order('score', { ascending: lowerIsBetter(game) })
     .limit(1)
     .maybeSingle()
@@ -36,19 +56,18 @@ export async function getPersonalBest(
   return data?.score ?? null
 }
 
-/** 各語言的配對個人最佳（遊戲首頁用） */
-export async function getMatchBests(userId: string): Promise<Partial<Record<Language, number>>> {
-  const { data, error } = await supabaseAdmin
-    .from('game_scores')
-    .select('language, score')
-    .eq('user_id', userId)
-    .eq('game', 'match')
-    .eq('word_count', MATCH_WORD_COUNT)
+/** 各語言的個人最佳（遊戲首頁用） */
+export async function getGameBests(userId: string, game: GameKey): Promise<Partial<Record<Language, number>>> {
+  let query = supabaseAdmin.from('game_scores').select('language, score').eq('user_id', userId).eq('game', game)
+  if (game === 'match') query = query.eq('word_count', MATCH_WORD_COUNT)
+  const { data, error } = await query
   if (error) throw new Error(error.message)
+  const lower = lowerIsBetter(game)
   const best: Partial<Record<Language, number>> = {}
   for (const row of data ?? []) {
     const lang = row.language as Language
-    if (best[lang] === undefined || row.score < best[lang]!) best[lang] = row.score
+    const prev = best[lang]
+    if (prev === undefined || (lower ? row.score < prev : row.score > prev)) best[lang] = row.score
   }
   return best
 }

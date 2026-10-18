@@ -57,6 +57,35 @@ export function useSpeaker(language: Language): ((text: string) => void) | null 
   return voice ? speak : null
 }
 
+/** 等語音清單載入的上限；逾時仍沒有該語言語音才判定「沒有」 */
+const VOICE_WAIT_MS = 3000
+
+export type VoiceStatus = 'loading' | 'ready' | 'none'
+
+/**
+ * 該語言語音是否可用。iOS / Safari 一開始可能回傳空清單，
+ * 載入中先回 'loading'，逾時才回 'none'，避免誤判（第十二節 4.）。
+ */
+export function useVoiceStatus(language: Language): VoiceStatus {
+  const list = useSyncExternalStore(
+    subscribe,
+    () => voices,
+    () => voices
+  )
+  const [timedOut, setTimedOut] = useState(false)
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => {
+    setMounted(true)
+    const t = window.setTimeout(() => setTimedOut(true), VOICE_WAIT_MS)
+    return () => window.clearTimeout(t)
+  }, [])
+
+  if (!mounted) return 'loading'
+  if (!supported()) return 'none'
+  if (pickVoice(list, language)) return 'ready'
+  return timedOut ? 'none' : 'loading'
+}
+
 function readAutoSpeak(): boolean {
   try {
     return window.localStorage.getItem(AUTO_SPEAK_KEY) === '1'
