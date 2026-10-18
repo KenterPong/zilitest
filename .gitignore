@@ -37,3 +37,6 @@ next-env.d.ts
 docs/files.zip
 
 docs/config.py
+
+# Claude Code 本機 dev server 設定
+.claude/launch.json
