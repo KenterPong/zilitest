@@ -10,6 +10,8 @@ import {
   levelLabel,
   limitMeanings,
   monthlyLimit,
+  OWNER_MONTHLY_LIMIT,
+  OWNER_USER_IDS,
   taipeiMonthStartDate,
   taipeiMonthStartInstant,
   validateImage,
@@ -37,6 +39,15 @@ describe('monthlyLimit', () => {
     expect(monthlyLimit('payment_failed')).toBe(50)
     expect(monthlyLimit('suspended')).toBe(0)
     expect(monthlyLimit('cancelled')).toBe(0)
+  })
+
+  it('站長帳號 300，但暫停或刪除時仍為 0', () => {
+    const owner = OWNER_USER_IDS[0]!
+    expect(monthlyLimit('trial', owner)).toBe(OWNER_MONTHLY_LIMIT)
+    expect(monthlyLimit('active', owner)).toBe(OWNER_MONTHLY_LIMIT)
+    expect(monthlyLimit('suspended', owner)).toBe(0)
+    expect(monthlyLimit('cancelled', owner)).toBe(0)
+    expect(monthlyLimit('trial', 'someone-else')).toBe(10)
   })
 })
 

@@ -33,8 +33,18 @@ export function levelLabel(language: Language, level: string): string {
   return language === 'ko' ? `TOPIK ${level} 級` : level
 }
 
-/** 每月可用次數：試用（含早鳥）10、付費 50、暫停或刪除 0 */
-export function monthlyLimit(status: UserStatus): number {
+/** 站長帳號（users.id）：每月次數放寬為 OWNER_MONTHLY_LIMIT，仍保留上限以免耗盡全站共用的 OpenAI 用量 */
+export const OWNER_USER_IDS: readonly string[] = ['65cd3b9b-18e0-4498-b4a8-86cd9e246eb8']
+export const OWNER_MONTHLY_LIMIT = 300
+
+/** 每月可用次數：試用（含早鳥）10、付費 50、暫停或刪除 0；站長帳號在可使用狀態下為 300 */
+export function monthlyLimit(status: UserStatus, userId?: string): number {
+  const base = statusLimit(status)
+  if (base > 0 && userId && OWNER_USER_IDS.includes(userId)) return OWNER_MONTHLY_LIMIT
+  return base
+}
+
+function statusLimit(status: UserStatus): number {
   switch (status) {
     case 'trial':
       return 10

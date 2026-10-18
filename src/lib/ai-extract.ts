@@ -56,7 +56,7 @@ function toAiError(e: unknown): AiExtractError {
 
 /** 本月（台北自然月）已用次數與剩餘次數（抽字與圖片轉文字共用） */
 export async function getExtractionQuota(user: DbUser): Promise<ExtractionQuota> {
-  const limit = monthlyLimit(user.status)
+  const limit = monthlyLimit(user.status, user.id)
   const { count, error } = await supabaseAdmin
     .from('ai_extractions')
     .select('id', { count: 'exact', head: true })
