@@ -7,8 +7,14 @@
 1. 建立新 Supabase 專案
 2. **新專案**：Dashboard → **SQL Editor** → 貼上 [`supabase/schema.sql`](../supabase/schema.sql) → **Run**（`schema.sql` 永遠維持最新完整版本）
 3. **既有專案升級**：依檔名順序執行 `supabase/migrations/` 內**尚未執行過**的 migration 檔（檔名以日期開頭，例如 `20261003_v5_daily_tasks.sql`）
-4. 資料表與欄位定義**以技術規格文件為準**（第一節 `users`、`feedback`;第三節、第八節、第十節、第十二節），本文件不另列資料表清單，避免兩邊不同步
-5. Settings → API 複製：
+4. 資料表與欄位定義**以技術規格文件為準**（第一節 `users`、`feedback`;第三節、第八節、第十節、第十二節、第十三節），本文件不另列資料表清單，避免兩邊不同步
+5. **發音標註（2026/10/26）**：既有專案執行 `20261026_word_pronunciation.sql` 後，再補齊既有英韓單字的發音標註（新專案沒有既有單字，不需要）：
+   ```
+   npm run backfill:pronunciation -- --dry-run   # 先看會寫入幾個字
+   npm run backfill:pronunciation
+   ```
+   腳本讀取 `.env.local` 的 Supabase 設定（本機連的是正式資料庫），可重複執行，只寫入 `words.pronunciation`。**先執行 migration 再部署程式**，否則新版查詢 `pronunciation` 欄位會失敗
+6. Settings → API 複製：
    - `Project URL` → `NEXT_PUBLIC_SUPABASE_URL`
    - `anon` key → `NEXT_PUBLIC_SUPABASE_ANON_KEY`
    - `service_role` key → `SUPABASE_SERVICE_ROLE_KEY`（僅伺服器端，勿公開）
@@ -47,20 +53,21 @@
 
 ### 本機開發（LINE callback）
 
-- 建議使用 `http://www.lvh.me:3000`
-- Callback：`http://www.lvh.me:3000/auth/callback`
-- LINE Developers Console 需登記此 callback
+- 可使用 `http://www.lvh.me:3000` 或 `http://localhost:3000`
+- Callback：`http://www.lvh.me:3000/auth/callback` 或 `http://localhost:3000/auth/callback`（`.env.local` 的 `LINE_CALLBACK_URL`、`NEXT_PUBLIC_LINE_CALLBACK_URL` 須與之一致）
+- LINE Developers Console 需登記此 callback；與正式 callback 寫在同一個輸入框，一行一個。**正式 callback 不可刪除**，否則正式站無法登入；未登記時 LINE 會回 400 `Invalid redirect_uri value`
+- 目前已登記：`https://www.zilitest.com/auth/callback`、`http://localhost:3000/auth/callback`（2026/10/26）
 - `next.config.js` 已設定 `allowedDevOrigins: ['*.lvh.me']`
 
 ### 正式環境
 
-- Callback 只登記：`https://www.zilitest.com/auth/callback`
+- Callback 必須登記：`https://www.zilitest.com/auth/callback`
 - 所有 `NEXT_PUBLIC_*_URL` 使用 `https://www.zilitest.com`
 
 ## 3. LINE Developers Console
 
 1. 建立 **LINE Login** channel（Service 類型，送審）
-2. Callback URL：`https://www.zilitest.com/auth/callback`（本機測試另加 lvh.me）
+2. Callback URL：`https://www.zilitest.com/auth/callback`（本機測試在同一欄另加 localhost 或 lvh.me，一行一個）
 3. Scopes：`profile`、`openid`（不需 email）
 4. 取得 Channel ID / Channel Secret
 
@@ -97,7 +104,11 @@
 - [x] Footer 隱私權／服務條款；已登入時 header 顯示「返回 App」
 - [x] 單字本「AI 抽字」可抽出所設等級的單字並匯入；成功後本月剩餘次數減 1，錯誤時不扣次數
 - [x] AI 抽字「上傳圖片」可把圖片文字填入文字框；成功後本月剩餘次數減 1（與抽字共用），錯誤時不扣次數（需先執行 `20261018_ai_extraction_kind.sql`）
-- [ ] 匯出 Excel 含讀音欄（單字、答案、描述、讀音），匯出檔可原樣再匯入
+- [ ] 匯出 Excel 含讀音欄與發音標註欄（單字、答案、描述、讀音、發音標註），前 4 欄可原樣再匯入
+- [x] 單字本：英文顯示 IPA 音標、韓文顯示羅馬拼音、日文顯示讀音；日文含漢字未填讀音顯示「未填讀音」（2026/10/26 本機連正式資料庫驗收）
+- [x] 設定頁「發音」區塊可依語言關閉第二層，其他語言不受影響
+- [x] 遊戲「拼字挑戰」英日韓可玩，成績寫入 `game_scores`（`game = 'spell'`）
+- [ ] 正式站部署後再確認一次上述三項
 
 ## Phase 2 預留
 
