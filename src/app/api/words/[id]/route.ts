@@ -1,8 +1,10 @@
 import { NextResponse } from 'next/server'
 
 import { assertCanMutate, requireUser } from '@/lib/api-auth'
+import { generatePronunciation } from '@/lib/pronunciation'
 import { recalculateWordCount } from '@/lib/word-count'
 import { supabaseAdmin } from '@/lib/supabase-admin'
+import type { Language } from '@/types/vocab'
 
 export const runtime = 'nodejs'
 
@@ -11,7 +13,7 @@ type Ctx = { params: Promise<{ id: string }> }
 async function getOwnedWord(userId: string, wordId: string) {
   const { data: word } = await supabaseAdmin
     .from('words')
-    .select('id, wordbook_id, term, reading, answer, description, created_at')
+    .select('id, wordbook_id, term, reading, answer, description, pronunciation, created_at')
     .eq('id', wordId)
     .maybeSingle()
 
@@ -19,13 +21,13 @@ async function getOwnedWord(userId: string, wordId: string) {
 
   const { data: book } = await supabaseAdmin
     .from('wordbooks')
-    .select('id')
+    .select('id, language')
     .eq('id', word.wordbook_id)
     .eq('user_id', userId)
     .maybeSingle()
 
   if (!book) return null
-  return word
+  return { ...word, language: book.language as Language }
 }
 
 export async function PATCH(request: Request, context: Ctx) {
@@ -59,6 +61,7 @@ export async function PATCH(request: Request, context: Ctx) {
     reading?: string | null
     answer?: string
     description?: string | null
+    pronunciation?: string | null
   } = {}
 
   if (body.term !== undefined) {
@@ -67,6 +70,10 @@ export async function PATCH(request: Request, context: Ctx) {
       return NextResponse.json({ error: '單字不可為空' }, { status: 400 })
     }
     updates.term = term
+    // 發音標註只在 term 變更時重新計算；不接受前端傳入
+    if (term !== existing.term) {
+      updates.pronunciation = await generatePronunciation(existing.language, term)
+    }
   }
   if (body.answer !== undefined) {
     const answer = body.answer.trim()

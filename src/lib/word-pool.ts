@@ -9,6 +9,7 @@ export interface PoolWord {
   reading: string | null
   answer: string
   description: string | null
+  pronunciation: string | null
   language: Language
   attempt_count: number
   correct_count: number
@@ -43,10 +44,11 @@ export async function fetchWordPool(
     reading: string | null
     answer: string
     description: string | null
+    pronunciation: string | null
   }>((from, to) =>
     supabaseAdmin
       .from('words')
-      .select('id, wordbook_id, term, reading, answer, description')
+      .select('id, wordbook_id, term, reading, answer, description, pronunciation')
       .in('wordbook_id', ownedIds)
       .order('id')
       .range(from, to)

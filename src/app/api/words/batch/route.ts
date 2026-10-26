@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 
 import { assertCanMutate, canAddWords, requireUser } from '@/lib/api-auth'
 import { recalculateWordCount } from '@/lib/word-count'
+import { generatePronunciation } from '@/lib/pronunciation'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 
 export const runtime = 'nodejs'
@@ -37,7 +38,7 @@ export async function POST(request: Request) {
 
   const { data: book } = await supabaseAdmin
     .from('wordbooks')
-    .select('id')
+    .select('id, language')
     .eq('id', wordbookId)
     .eq('user_id', auth.user.id)
     .maybeSingle()
@@ -79,13 +80,16 @@ export async function POST(request: Request) {
     )
   }
 
-  const rows = toInsert.map((w) => ({
-    wordbook_id: wordbookId,
-    term: w.term,
-    answer: w.answer,
-    description: w.description,
-    reading: w.reading,
-  }))
+  const rows = await Promise.all(
+    toInsert.map(async (w) => ({
+      wordbook_id: wordbookId,
+      term: w.term,
+      answer: w.answer,
+      description: w.description,
+      reading: w.reading,
+      pronunciation: await generatePronunciation(book.language, w.term),
+    }))
+  )
 
   const { data: inserted, error } = await supabaseAdmin
     .from('words')

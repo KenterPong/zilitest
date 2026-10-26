@@ -4,6 +4,7 @@ import { useState } from 'react'
 
 import { SpeakButton } from '@/components/SpeakButton'
 import { StagePips } from '@/components/StagePips'
+import { TermSecondLine } from '@/components/TermSecondLine'
 import { COLLECTION_TIERS, tierFor, type Collection, type CollectionWord } from '@/lib/collection'
 import { MASTERED_STAGE } from '@/lib/progress'
 import type { Language } from '@/types/vocab'
@@ -18,7 +19,7 @@ const TIER_FRAME: Record<number, string> = {
   7: 'border-2 border-gold [--card-bg:var(--amber-bg)] ring-1 ring-gold ring-offset-2 ring-offset-paper',
 }
 
-function WordCard({ word, language }: { word: CollectionWord; language: Language }) {
+function WordCard({ word, language, show }: { word: CollectionWord; language: Language; show: boolean }) {
   const [flipped, setFlipped] = useState(false)
   const tier = tierFor(word.stage)
   const frame = tier ? TIER_FRAME[tier.stage] : 'border border-line'
@@ -55,7 +56,7 @@ function WordCard({ word, language }: { word: CollectionWord; language: Language
             <div className="font-serif font-bold text-[19px] leading-tight break-words line-clamp-2">
               {word.term}
             </div>
-            {word.reading && <div className="text-[11.5px] text-ink-soft mt-0.5">{word.reading}</div>}
+            <TermSecondLine language={language} word={word} show={show} className="text-[11.5px] mt-0.5" />
           </div>
         </div>
         <div className={`card-face card-back card-ruled rounded-lg ${frame} p-3 flex items-center justify-center text-center`}>
@@ -66,13 +67,13 @@ function WordCard({ word, language }: { word: CollectionWord; language: Language
   )
 }
 
-function CardGrid({ words, language }: { words: CollectionWord[]; language: Language }) {
+function CardGrid({ words, language, show }: { words: CollectionWord[]; language: Language; show: boolean }) {
   const [shown, setShown] = useState(PAGE_SIZE)
   return (
     <>
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
         {words.slice(0, shown).map((w) => (
-          <WordCard key={w.id} word={w} language={language} />
+          <WordCard key={w.id} word={w} language={language} show={show} />
         ))}
       </div>
       {words.length > shown && (
@@ -88,7 +89,16 @@ function CardGrid({ words, language }: { words: CollectionWord[]; language: Lang
   )
 }
 
-export function CollectionClient({ collection, language }: { collection: Collection; language: Language }) {
+export function CollectionClient({
+  collection,
+  language,
+  showPronunciation,
+}: {
+  collection: Collection
+  language: Language
+  /** 該語言的 show_pronunciation */
+  showPronunciation: boolean
+}) {
   const { mastered, learning, unlearnedCount, total, tierCounts } = collection
 
   if (total === 0) {
@@ -136,7 +146,7 @@ export function CollectionClient({ collection, language }: { collection: Collect
         {mastered.length === 0 ? (
           <p className="text-sm text-ink-soft">還沒有收藏卡。每日任務持續答對，最快約 11 天會收進第一張。</p>
         ) : (
-          <CardGrid words={mastered} language={language} />
+          <CardGrid words={mastered} language={language} show={showPronunciation} />
         )}
       </section>
 
@@ -145,7 +155,7 @@ export function CollectionClient({ collection, language }: { collection: Collect
           <h2 className="font-serif font-bold text-xl mb-3">
             學習中 <span className="font-mono text-sm text-ink-soft font-normal">{learning.length}</span>
           </h2>
-          <CardGrid words={learning} language={language} />
+          <CardGrid words={learning} language={language} show={showPronunciation} />
         </section>
       )}
 

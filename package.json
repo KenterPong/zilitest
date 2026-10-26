@@ -7,10 +7,13 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "test": "vitest run"
+    "test": "vitest run",
+    "backfill:pronunciation": "tsx --env-file=.env.local scripts/backfill-pronunciation.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.45.0",
+    "cmu-pronouncing-dictionary": "3.0.0",
+    "es-hangul": "2.4.0",
     "next": "^14.2.5",
     "openai": "^7.32.0",
     "react": "^18",
@@ -27,6 +30,7 @@
     "eslint-config-next": "^14.2.5",
     "postcss": "^8",
     "tailwindcss": "^3.4.1",
+    "tsx": "4.23.15",
     "typescript": "^5",
     "vitest": "^2.1.9"
   }

@@ -30,6 +30,7 @@ export async function PATCH(request: Request) {
     daily_review_limit?: unknown
     daily_new_limit?: unknown
     extract_level?: unknown
+    show_pronunciation?: unknown
   }
   try {
     body = await request.json()
@@ -47,6 +48,12 @@ export async function PATCH(request: Request) {
       return NextResponse.json({ error: '無效的啟用設定' }, { status: 400 })
     }
     update.enabled = body.enabled
+  }
+  if (body.show_pronunciation !== undefined) {
+    if (typeof body.show_pronunciation !== 'boolean') {
+      return NextResponse.json({ error: '無效的發音標註設定' }, { status: 400 })
+    }
+    update.show_pronunciation = body.show_pronunciation
   }
   for (const key of ['daily_review_limit', 'daily_new_limit'] as const) {
     const n = parseLimit(body[key])

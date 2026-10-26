@@ -5,6 +5,7 @@ import { AutoSpeakToggle } from '@/components/AutoSpeakToggle'
 import { DeleteAccountSection } from '@/components/DeleteAccountSection'
 import { ExportWordsButton } from '@/components/ExportWordsButton'
 import { LanguageSettingsForm } from '@/components/LanguageSettingsForm'
+import { PronunciationToggles } from '@/components/PronunciationToggles'
 import { daysRemaining, formatTrialEndDate, getSessionUser } from '@/lib/auth'
 import { getExtractionQuota } from '@/lib/ai-extract'
 import { getLanguageSettings } from '@/lib/growth-service'
@@ -129,6 +130,7 @@ export default async function SettingsPage() {
           單字旁的 🔊 按鈕使用這台裝置內建的語音播放，不需網路費用。若沒有看到按鈕，代表裝置沒有該語言的語音，可在系統設定中加裝。
         </p>
         <AutoSpeakToggle />
+        <PronunciationToggles settings={languageSettings} disabled={user.status === 'suspended'} />
       </div>
 
       <div className="bg-cream border border-line rounded-lg p-6 mb-4">

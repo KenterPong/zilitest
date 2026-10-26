@@ -77,6 +77,7 @@ CREATE TABLE words (
   reading      TEXT,
   answer       TEXT NOT NULL,
   description  TEXT,
+  pronunciation TEXT,  -- 系統產生：英文 IPA、韓文羅馬拼音；日文一律 NULL（第十三節）
   created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
@@ -116,6 +117,7 @@ CREATE TABLE user_language_settings (
   daily_new_limit      INTEGER NOT NULL DEFAULT 5 CHECK (daily_new_limit >= 0),
   peak_mastered_count  INTEGER NOT NULL DEFAULT 0,
   extract_level        TEXT,
+  show_pronunciation   BOOLEAN NOT NULL DEFAULT true,
   updated_at           TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   PRIMARY KEY (user_id, language)
 );
@@ -456,6 +458,7 @@ AS $$
       w.id,
       w.term,
       w.reading,
+      w.pronunciation,
       w.answer,
       w.description,
       w.created_at,

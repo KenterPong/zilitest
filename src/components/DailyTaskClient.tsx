@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { useCallback, useEffect, useRef, useState } from 'react'
 
 import { SpeakButton } from '@/components/SpeakButton'
+import { TermSecondLine } from '@/components/TermSecondLine'
 import { StagePips } from '@/components/StagePips'
 import { Stamp } from '@/components/Stamp'
 import { ACHIEVEMENT_BY_KEY } from '@/lib/growth'
@@ -15,6 +16,8 @@ import { LANGUAGE_LABELS } from '@/types/vocab'
 interface DailyTaskClientProps {
   payload: DailyTaskPayload
   currentStreak: number
+  /** 該語言的 show_pronunciation */
+  showPronunciation: boolean
 }
 
 type Step = 'card' | 'answer' | 'feedback'
@@ -70,7 +73,7 @@ function CardHeader({ kind, stage, lang }: { kind: DailyQuestion['kind']; stage:
   )
 }
 
-export function DailyTaskClient({ payload, currentStreak }: DailyTaskClientProps) {
+export function DailyTaskClient({ payload, currentStreak, showPronunciation }: DailyTaskClientProps) {
   const label = LANGUAGE_LABELS[payload.language]
   const [questions] = useState(payload.questions)
   const [idx, setIdx] = useState(0)
@@ -354,7 +357,13 @@ export function DailyTaskClient({ payload, currentStreak }: DailyTaskClientProps
                     <div className="font-serif font-bold text-[34px] leading-tight break-words">{q.term}</div>
                     {q.term && <SpeakButton term={q.term} reading={q.reading} language={payload.language} />}
                   </div>
-                  {q.reading && <div className="text-sm text-ink-soft mt-1">{q.reading}</div>}
+                  {q.term && (
+                    <TermSecondLine
+                      language={payload.language}
+                      word={{ term: q.term, reading: q.reading, pronunciation: q.pronunciation }}
+                      show={showPronunciation}
+                    />
+                  )}
                   {step === 'card' ? (
                     <>
                       <div className="text-lg mt-3">{q.answer}</div>
@@ -386,6 +395,8 @@ export function DailyTaskClient({ payload, currentStreak }: DailyTaskClientProps
                         </div>
                         <SpeakButton term={feedback.term} reading={feedback.reading} language={payload.language} />
                       </div>
+                      {/* 填空題翻開答案後才顯示第二層 */}
+                      <TermSecondLine language={payload.language} word={feedback} show={showPronunciation} />
                       <div className="text-base text-ink-soft mt-1">{q.answer}</div>
                     </>
                   ) : (
@@ -394,7 +405,14 @@ export function DailyTaskClient({ payload, currentStreak }: DailyTaskClientProps
                         <div className="font-serif font-bold text-[30px] leading-tight break-words">{q.term}</div>
                         {q.term && <SpeakButton term={q.term} reading={q.reading} language={payload.language} />}
                       </div>
-                      {q.reading && <div className="text-sm text-ink-soft">{q.reading}</div>}
+                      {q.term && (
+                        <TermSecondLine
+                          language={payload.language}
+                          word={{ term: q.term, reading: q.reading, pronunciation: q.pronunciation }}
+                          show={showPronunciation}
+                          className="text-sm"
+                        />
+                      )}
                       <div className="text-lg mt-2">{feedback.correct_answer}</div>
                     </>
                   )}

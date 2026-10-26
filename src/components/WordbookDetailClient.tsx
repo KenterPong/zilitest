@@ -8,7 +8,9 @@ import { AiExtractButton } from '@/components/AiExtractButton'
 import { ImportExcelButton } from '@/components/ImportExcelButton'
 import { LanguageBadge } from '@/components/LanguageBadge'
 import { SpeakButton } from '@/components/SpeakButton'
+import { TermSecondLine } from '@/components/TermSecondLine'
 import { useAppDialog } from '@/components/AppDialog'
+import { needsReadingHint } from '@/lib/pronunciation-display'
 import type { DbTag, Language, WordWithMeta } from '@/types/vocab'
 import { TRIAL_WORD_LIMIT } from '@/types/user'
 
@@ -24,6 +26,8 @@ interface WordbookDetailClientProps {
   accountWordCount: number
   userStatus: string
   canMutate: boolean
+  /** 該語言的 show_pronunciation */
+  showPronunciation: boolean
 }
 
 function accuracyLabel(accuracy: number | null) {
@@ -46,6 +50,7 @@ export function WordbookDetailClient({
   accountWordCount,
   userStatus,
   canMutate,
+  showPronunciation,
 }: WordbookDetailClientProps) {
   const router = useRouter()
   const { alert, confirm } = useAppDialog()
@@ -141,6 +146,7 @@ export function WordbookDetailClient({
             reading: data.word.reading ?? null,
             answer: data.word.answer,
             description: data.word.description ?? null,
+            pronunciation: data.word.pronunciation ?? null,
             created_at: data.word.created_at,
             tags: selectedTags,
             attempt_count: 0,
@@ -177,6 +183,7 @@ export function WordbookDetailClient({
                   reading: form.reading.trim() || null,
                   answer: form.answer.trim(),
                   description: form.description.trim() || null,
+                  pronunciation: data.word?.pronunciation ?? w.pronunciation,
                   tags: selectedTags,
                 }
               : w
@@ -463,10 +470,14 @@ export function WordbookDetailClient({
                         {word.term}
                         <SpeakButton term={word.term} reading={word.reading} language={wordbookLanguage} size="sm" />
                       </span>
-                      {word.reading && (
-                        <span className="block font-sans font-normal text-xs text-ink-soft">
-                          {word.reading}
-                        </span>
+                      <TermSecondLine
+                        language={wordbookLanguage}
+                        word={word}
+                        show={showPronunciation}
+                        className="font-normal text-xs"
+                      />
+                      {needsReadingHint(wordbookLanguage, word.term, word.reading) && (
+                        <span className="block font-sans font-normal text-[11px] text-gold">未填讀音</span>
                       )}
                     </td>
                     <td className="px-4 py-3">{word.answer}</td>
@@ -533,6 +544,9 @@ export function WordbookDetailClient({
               <>
                 <label className="block text-xs text-ink-soft mb-1">
                   讀音（選填，漢字單字可填假名；填空題輸入讀音也算對）
+                  {needsReadingHint(wordbookLanguage, form.term, form.reading) && (
+                    <span className="ml-2 text-gold">未填讀音</span>
+                  )}
                 </label>
                 <input
                   value={form.reading}

@@ -3,6 +3,7 @@
 import { forwardRef, useImperativeHandle, useRef, useState } from 'react'
 
 import { SpeakButton } from '@/components/SpeakButton'
+import { TermSecondLine } from '@/components/TermSecondLine'
 import { isTap, swipeDecision, swipeHintOpacity, type SwipeChoice } from '@/lib/swipe'
 import type { Language } from '@/types/vocab'
 
@@ -14,9 +15,12 @@ export interface SwipeCardHandle {
 interface SwipeCardProps {
   term: string
   reading: string | null
+  pronunciation: string | null
   answer: string
   description: string | null
   language: Language
+  /** 該語言的 show_pronunciation */
+  showPronunciation: boolean
   onDecide: (choice: SwipeChoice) => void
 }
 
@@ -29,7 +33,7 @@ function prefersReducedMotion(): boolean {
 
 /** 卡牌背誦的單字卡：點擊翻面，右滑認得、左滑不認得 */
 export const SwipeCard = forwardRef<SwipeCardHandle, SwipeCardProps>(function SwipeCard(
-  { term, reading, answer, description, language, onDecide },
+  { term, reading, pronunciation, answer, description, language, showPronunciation, onDecide },
   ref
 ) {
   const wrapRef = useRef<HTMLDivElement>(null)
@@ -123,7 +127,7 @@ export const SwipeCard = forwardRef<SwipeCardHandle, SwipeCardProps>(function Sw
             <div className="font-serif font-black text-[34px] leading-tight break-words">{term}</div>
             <SpeakButton term={term} reading={reading} language={language} />
           </div>
-          {reading && <div className="text-sm text-ink-soft mt-1">{reading}</div>}
+          <TermSecondLine language={language} word={{ term, reading, pronunciation }} show={showPronunciation} />
           <div className="font-mono text-[11px] text-ink-soft mt-4">點卡片翻面</div>
         </div>
         <div className="card-face card-back card-ruled rounded-lg border border-line shadow-[0_10px_28px_rgba(30,42,64,0.10)] flex flex-col items-center justify-center text-center px-6">
@@ -131,7 +135,12 @@ export const SwipeCard = forwardRef<SwipeCardHandle, SwipeCardProps>(function Sw
             <div className="font-serif font-bold text-[26px] leading-tight break-words">{term}</div>
             <SpeakButton term={term} reading={reading} language={language} />
           </div>
-          {reading && <div className="text-sm text-ink-soft">{reading}</div>}
+          <TermSecondLine
+            language={language}
+            word={{ term, reading, pronunciation }}
+            show={showPronunciation}
+            className="text-sm"
+          />
           <div className="text-lg mt-2">{answer}</div>
           {description && (
             <p className="text-[12.5px] text-ink-soft mt-2 line-clamp-3 whitespace-pre-wrap">{description}</p>

@@ -122,7 +122,7 @@ describe('seededRandom', () => {
 let ln = 0
 function lw(term: string, reading: string | null = null, meaning = '意思'): ListenWord {
   ln += 1
-  return { id: `l${ln}`, term, reading, meaning, learned: true }
+  return { id: `l${ln}`, term, reading, pronunciation: null, meaning, learned: true }
 }
 
 describe('listenKeys', () => {

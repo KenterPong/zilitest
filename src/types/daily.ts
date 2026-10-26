@@ -13,6 +13,8 @@ export interface DbLanguageSettings {
   peak_mastered_count: number
   /** AI 抽字等級（英 CEFR / 日 JLPT / 韓 TOPIK）；未設定為 null */
   extract_level: string | null
+  /** 是否顯示該語言單字的第二層（音標／讀音／羅馬拼音） */
+  show_pronunciation: boolean
   updated_at: string
 }
 
@@ -39,8 +41,9 @@ export interface DailyQuestion {
   term?: string
   /** new：卡片上的中文意思；fill：題目提示（中文） */
   answer?: string
-  /** new：卡片上的讀音 */
+  /** new / mcq：第二層顯示用（fill 不回傳） */
   reading?: string | null
+  pronunciation?: string | null
   description?: string | null
   /** new / mcq 的四個選項 */
   options?: string[]
@@ -61,9 +64,10 @@ export interface DailyAnswerResult {
   is_correct: boolean
   /** fill：term；new / mcq：answer */
   correct_answer: string
-  /** 發音用：單字本身與讀音 */
+  /** 發音與第二層顯示用 */
   term: string
   reading: string | null
+  pronunciation: string | null
   diff: DiffPart[] | null
   became_mastered: boolean
   /** 作答後的熟練階段 */

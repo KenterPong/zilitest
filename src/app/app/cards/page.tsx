@@ -2,6 +2,8 @@ import { redirect } from 'next/navigation'
 
 import { CardsClient } from '@/components/CardsClient'
 import { getSessionUser } from '@/lib/auth'
+import { getLanguageSettings } from '@/lib/growth-service'
+import { prefsFromSettings } from '@/lib/pronunciation-display'
 import { listTagsForUser, listWordbooksForUser } from '@/lib/vocab-queries'
 
 export const dynamic = 'force-dynamic'
@@ -14,9 +16,10 @@ export default async function CardsPage({ searchParams }: Props) {
   if (user.status === 'suspended') redirect('/app/settings')
 
   const sp = await searchParams
-  const [wordbooks, tags] = await Promise.all([
+  const [wordbooks, tags, settings] = await Promise.all([
     listWordbooksForUser(user.id),
     listTagsForUser(user.id),
+    getLanguageSettings(user.id),
   ])
 
   return (
@@ -25,6 +28,7 @@ export default async function CardsPage({ searchParams }: Props) {
         wordbooks={wordbooks}
         tags={tags}
         initialWordbookId={sp.wordbook}
+        pronunciationPrefs={prefsFromSettings(settings)}
       />
     </main>
   )

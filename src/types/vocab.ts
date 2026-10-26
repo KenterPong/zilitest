@@ -28,6 +28,8 @@ export interface DbWord {
   reading: string | null
   answer: string
   description: string | null
+  /** 系統產生的發音標註：英文 IPA、韓文羅馬拼音；日文一律 null（第十三節） */
+  pronunciation: string | null
   created_at: string
 }
 

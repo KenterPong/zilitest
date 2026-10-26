@@ -6,6 +6,7 @@ import { getSessionUser } from '@/lib/auth'
 import { buildCollection } from '@/lib/collection'
 import { getLanguageWords } from '@/lib/daily-service'
 import { getLanguageSettings, getProgressSummary } from '@/lib/growth-service'
+import { prefsFromSettings } from '@/lib/pronunciation-display'
 import { isLanguage, LANGUAGE_LABELS, LANGUAGES } from '@/types/vocab'
 
 export const dynamic = 'force-dynamic'
@@ -58,7 +59,12 @@ export default async function CollectionPage({ searchParams }: Props) {
               ))}
             </nav>
           )}
-          <CollectionClient key={lang} collection={collection} language={lang} />
+          <CollectionClient
+            key={lang}
+            collection={collection}
+            language={lang}
+            showPronunciation={prefsFromSettings(settings)[lang]}
+          />
         </>
       )}
     </main>

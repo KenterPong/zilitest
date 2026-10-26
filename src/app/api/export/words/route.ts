@@ -5,7 +5,7 @@ import { requireUser } from '@/lib/api-auth'
 import { fetchAllRows } from '@/lib/db-paging'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { taipeiToday } from '@/lib/taipei-date'
-import { WORD_SHEET_HEADER, wordToRow } from '@/lib/word-sheet'
+import { WORD_EXPORT_HEADER, wordToExportRow } from '@/lib/word-sheet'
 import { LANGUAGE_LABELS, type Language } from '@/types/vocab'
 
 export const runtime = 'nodejs'
@@ -28,7 +28,7 @@ export async function GET() {
   const wb = XLSX.utils.book_new()
 
   if (!books?.length) {
-    const sheet = XLSX.utils.aoa_to_sheet([[...WORD_SHEET_HEADER, '單字本', '語言']])
+    const sheet = XLSX.utils.aoa_to_sheet([[...WORD_EXPORT_HEADER, '單字本', '語言']])
     XLSX.utils.book_append_sheet(wb, sheet, '單字')
   } else {
     const bookIds = books.map((b) => b.id)
@@ -39,13 +39,14 @@ export async function GET() {
       reading: string | null
       answer: string
       description: string | null
+      pronunciation: string | null
       wordbook_id: string
     }[]
     try {
       words = await fetchAllRows((from, to) =>
         supabaseAdmin
           .from('words')
-          .select('term, reading, answer, description, wordbook_id')
+          .select('term, reading, answer, description, pronunciation, wordbook_id')
           .in('wordbook_id', bookIds)
           .order('created_at', { ascending: true })
           .order('id')
@@ -57,11 +58,11 @@ export async function GET() {
     }
 
     const rows = [
-      [...WORD_SHEET_HEADER, '單字本', '語言'],
+      [...WORD_EXPORT_HEADER, '單字本', '語言'],
       ...words.map((w) => {
         const book = bookById.get(w.wordbook_id)
         return [
-          ...wordToRow(w),
+          ...wordToExportRow(w),
           book?.name ?? '',
           book ? LANGUAGE_LABELS[book.language as Language] : '',
         ]
@@ -75,8 +76,8 @@ export async function GET() {
     for (const book of books) {
       const bookWords = words.filter((w) => w.wordbook_id === book.id)
       const sheetRows = [
-        [...WORD_SHEET_HEADER],
-        ...bookWords.map(wordToRow),
+        [...WORD_EXPORT_HEADER],
+        ...bookWords.map(wordToExportRow),
       ]
       const s = XLSX.utils.aoa_to_sheet(sheetRows)
       const safeName = book.name.replace(/[\\/?*[\]]/g, '_').slice(0, 28) || '單字本'

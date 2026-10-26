@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { useCallback, useEffect, useRef, useState } from 'react'
 
 import { Stamp } from '@/components/Stamp'
+import { secondLine } from '@/lib/pronunciation-display'
 import {
   formatMatchTime,
   MATCH_PENALTY_MS,
@@ -28,14 +29,16 @@ interface MatchGameProps {
   initialBest: number | null
   /** 第一局洗牌種子（由伺服器產生，讓伺服器與瀏覽器的牌序一致） */
   seed: number
+  /** 該語言的 show_pronunciation；第一版只顯示日文讀音，不顯示英文音標與韓文羅馬拼音 */
+  showPronunciation: boolean
 }
 
 /** 配錯後兩張牌標示錯誤的時間 */
 const WRONG_FLASH_MS = 500
 
-function buildTiles(words: MatchCardWord[], random: () => number): Tile[] {
+function buildTiles(words: MatchCardWord[], random: () => number, showReading: boolean): Tile[] {
   const tiles: Tile[] = words.flatMap((w) => [
-    { key: `${w.id}-t`, wordId: w.id, side: 'term' as const, text: w.term, sub: w.reading },
+    { key: `${w.id}-t`, wordId: w.id, side: 'term' as const, text: w.term, sub: secondLine('ja', w, showReading) },
     { key: `${w.id}-m`, wordId: w.id, side: 'meaning' as const, text: w.meaning, sub: null },
   ])
   for (let i = tiles.length - 1; i > 0; i--) {
@@ -46,9 +49,11 @@ function buildTiles(words: MatchCardWord[], random: () => number): Tile[] {
 }
 
 /** 配對消除（第十二節 3.）：12 張牌正面朝上，外文與中文配對，越快越好 */
-export function MatchGame({ language, initialWords, initialBest, seed }: MatchGameProps) {
+export function MatchGame({ language, initialWords, initialBest, seed, showPronunciation }: MatchGameProps) {
   const label = LANGUAGE_LABELS[language]
-  const [tiles, setTiles] = useState<Tile[]>(() => buildTiles(initialWords, seededRandom(seed)))
+  // 只有日文單字有讀音；英韓的 reading 為 null
+  const showReading = language === 'ja' && showPronunciation
+  const [tiles, setTiles] = useState<Tile[]>(() => buildTiles(initialWords, seededRandom(seed), showReading))
   const [selected, setSelected] = useState<string | null>(null)
   const [matched, setMatched] = useState<Set<string>>(new Set())
   const [wrong, setWrong] = useState<string[]>([])
@@ -149,7 +154,7 @@ export function MatchGame({ language, initialWords, initialBest, seed }: MatchGa
         return
       }
       // 之後的局只在瀏覽器產生，可直接用 Math.random
-      setTiles(buildTiles(data.words, Math.random))
+      setTiles(buildTiles(data.words, Math.random, showReading))
       setSelected(null)
       setMatched(new Set())
       setWrong([])

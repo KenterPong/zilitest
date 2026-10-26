@@ -128,9 +128,3 @@ export function buildAnswerDiff(userInput: string, correct: string): DiffPart[] 
   }
   return parts
 }
-
-/** 正確答案顯示：有讀音時附在後面，例如「受ける（うける）」 */
-export function formatTermWithReading(term: string, reading: string | null | undefined): string {
-  const r = reading?.trim()
-  return r && r !== term.trim() ? `${term}（${r}）` : term
-}

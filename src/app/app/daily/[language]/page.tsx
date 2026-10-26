@@ -4,6 +4,8 @@ import { notFound, redirect } from 'next/navigation'
 import { DailyTaskClient } from '@/components/DailyTaskClient'
 import { getSessionUser } from '@/lib/auth'
 import { ensureToday, getDailyTaskPayload } from '@/lib/daily-service'
+import { getLanguageSettings } from '@/lib/growth-service'
+import { prefsFromSettings } from '@/lib/pronunciation-display'
 import { isLanguage, LANGUAGE_LABELS } from '@/types/vocab'
 
 export const dynamic = 'force-dynamic'
@@ -20,7 +22,10 @@ export default async function DailyTaskPage({ params }: Props) {
 
   // 確保今日任務已產生（直接開啟此頁時）
   const overview = await ensureToday(user)
-  const payload = await getDailyTaskPayload(user, language)
+  const [payload, settings] = await Promise.all([
+    getDailyTaskPayload(user, language),
+    getLanguageSettings(user.id),
+  ])
 
   if (!payload) {
     return (
@@ -35,7 +40,11 @@ export default async function DailyTaskPage({ params }: Props) {
 
   return (
     <main className="px-5 sm:px-8 py-7 max-w-5xl mx-auto">
-      <DailyTaskClient payload={payload} currentStreak={overview.streak.current_streak} />
+      <DailyTaskClient
+        payload={payload}
+        currentStreak={overview.streak.current_streak}
+        showPronunciation={prefsFromSettings(settings)[language]}
+      />
     </main>
   )
 }

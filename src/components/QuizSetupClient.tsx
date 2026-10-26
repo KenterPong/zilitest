@@ -5,10 +5,12 @@ import { useRouter } from 'next/navigation'
 import { useCallback, useEffect, useRef, useState } from 'react'
 
 import { ScopeFilter } from '@/components/ScopeFilter'
+import { TermSecondLine } from '@/components/TermSecondLine'
 import { useAppDialog } from '@/components/AppDialog'
 import { ACHIEVEMENT_BY_KEY } from '@/lib/growth'
+import type { PronunciationPrefs } from '@/lib/pronunciation-display'
 import type { QuestionType, QuizQuestion } from '@/types/quiz'
-import type { DbTag, WordbookWithCount } from '@/types/vocab'
+import type { DbTag, Language, WordbookWithCount } from '@/types/vocab'
 
 const QTYPES: { type: QuestionType; name: string; desc: string }[] = [
   { type: '是非題', name: '是非題', desc: '判斷單字與翻譯配對是否正確' },
@@ -20,6 +22,7 @@ interface QuizSetupClientProps {
   wordbooks: WordbookWithCount[]
   tags: DbTag[]
   initialWordbookId?: string
+  pronunciationPrefs: PronunciationPrefs
 }
 
 type AnswerDraft = {
@@ -34,6 +37,7 @@ export function QuizSetupClient({
   wordbooks,
   tags,
   initialWordbookId,
+  pronunciationPrefs,
 }: QuizSetupClientProps) {
   const router = useRouter()
   const { confirm } = useAppDialog()
@@ -68,6 +72,9 @@ export function QuizSetupClient({
     results: {
       word_id: string
       term: string
+      language: Language
+      reading: string | null
+      pronunciation: string | null
       prompt?: string
       correct_answer: string
       is_correct: boolean
@@ -260,6 +267,14 @@ export function QuizSetupClient({
               >
                 <div className="font-serif font-bold text-base min-w-[110px]">
                   {result.question_type === '輸入題' ? (r.prompt ?? r.term) : r.term}
+                  {result.question_type !== '輸入題' && (
+                    <TermSecondLine
+                      language={r.language}
+                      word={r}
+                      show={pronunciationPrefs[r.language]}
+                      className="font-normal text-xs"
+                    />
+                  )}
                 </div>
                 <div className="flex gap-5 text-sm">
                   {result.question_type === '輸入題' && (
@@ -297,6 +312,14 @@ export function QuizSetupClient({
                       正確答案
                     </span>
                     <span className="font-semibold font-mono">{r.correct_answer}</span>
+                    {result.question_type === '輸入題' && (
+                      <TermSecondLine
+                        language={r.language}
+                        word={r}
+                        show={pronunciationPrefs[r.language]}
+                        className="text-xs"
+                      />
+                    )}
                   </div>
                 </div>
               </div>
@@ -354,6 +377,15 @@ export function QuizSetupClient({
         <div className="bg-cream border border-line rounded-lg p-6">
           <div className="font-serif font-black text-2xl text-center mb-5 pt-1">
             {qtype === '輸入題' ? q.prompt : q.term}
+            {/* 填空題作答前不顯示第二層（會洩漏拼法） */}
+            {qtype !== '輸入題' && q.term && q.language && (
+              <TermSecondLine
+                language={q.language}
+                word={{ term: q.term, reading: q.reading, pronunciation: q.pronunciation }}
+                show={pronunciationPrefs[q.language]}
+                className="font-normal text-sm mt-1"
+              />
+            )}
           </div>
 
           {qtype === '是非題' && (

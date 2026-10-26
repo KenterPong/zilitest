@@ -53,6 +53,7 @@ export async function POST(request: Request) {
       term: w.term,
       answer: w.answer,
       reading: w.reading,
+      pronunciation: w.pronunciation,
       language: w.language,
       description: w.description,
       familiarity: w.familiarity,

@@ -22,6 +22,7 @@ export interface GameWord {
   id: string
   term: string
   reading: string | null
+  pronunciation?: string | null
   answer: string
   stage: number
 }
@@ -139,6 +140,8 @@ export interface ListenWord {
   id: string
   term: string
   reading: string | null
+  /** 作答後的第二層顯示用 */
+  pronunciation: string | null
   /** 只取第一個譯義（作答後顯示） */
   meaning: string
   /** stage ≥ 1（學過的字），再玩一局重新洗牌時仍排在前面 */
@@ -174,6 +177,7 @@ export function buildListenPool(
     id: w.id,
     term: w.term,
     reading: w.reading,
+    pronunciation: w.pronunciation ?? null,
     meaning: firstMeaning(w.answer),
     learned: w.stage >= 1,
   })

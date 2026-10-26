@@ -3,6 +3,8 @@ import { notFound, redirect } from 'next/navigation'
 
 import { MatchGame } from '@/components/MatchGame'
 import { getSessionUser } from '@/lib/auth'
+import { getLanguageSettings } from '@/lib/growth-service'
+import { prefsFromSettings } from '@/lib/pronunciation-display'
 import { getMatchRound, getPersonalBest } from '@/lib/game-service'
 import { MATCH_WORD_COUNT } from '@/lib/games'
 import { isLanguage, LANGUAGE_LABELS } from '@/types/vocab'
@@ -19,9 +21,10 @@ export default async function MatchPage({ searchParams }: Props) {
   const { lang } = await searchParams
   if (!isLanguage(lang)) notFound()
 
-  const [round, best] = await Promise.all([
+  const [round, best, settings] = await Promise.all([
     getMatchRound(user.id, lang),
     getPersonalBest(user.id, 'match', lang, MATCH_WORD_COUNT),
+    getLanguageSettings(user.id),
   ])
 
   if (!round.words) {
@@ -44,6 +47,7 @@ export default async function MatchPage({ searchParams }: Props) {
         initialWords={round.words}
         initialBest={best}
         seed={Math.floor(Math.random() * 2 ** 31)}
+        showPronunciation={prefsFromSettings(settings)[lang]}
       />
     </main>
   )

@@ -3,7 +3,6 @@ import { describe, expect, it } from 'vitest'
 import {
   buildAnswerDiff,
   fillDiffTarget,
-  formatTermWithReading,
   isExactAnswerMatch,
   isFillAnswerCorrect,
   levenshtein,
@@ -80,16 +79,5 @@ describe('levenshtein / buildAnswerDiff', () => {
 
   it('差異過大不標紅字', () => {
     expect(buildAnswerDiff('xyz', '受ける')).toBeNull()
-  })
-})
-
-describe('formatTermWithReading', () => {
-  it('有讀音時附在後面', () => {
-    expect(formatTermWithReading('受ける', 'うける')).toBe('受ける（うける）')
-  })
-
-  it('沒有讀音或讀音與單字相同時只顯示單字', () => {
-    expect(formatTermWithReading('journey', null)).toBe('journey')
-    expect(formatTermWithReading('うける', 'うける')).toBe('うける')
   })
 })

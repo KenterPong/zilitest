@@ -3,7 +3,6 @@ import { NextResponse } from 'next/server'
 import {
   buildAnswerDiff,
   fillDiffTarget,
-  formatTermWithReading,
   isFillAnswerCorrect,
 } from '@/lib/answer-match'
 import { assertCanMutate, requireUser } from '@/lib/api-auth'
@@ -13,6 +12,7 @@ import { refreshPeakMastered, unlockAchievements } from '@/lib/growth-service'
 import { applyAnswer, type ProgressState } from '@/lib/progress'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { taipeiToday } from '@/lib/taipei-date'
+import type { Language } from '@/types/vocab'
 
 export const runtime = 'nodejs'
 
@@ -73,8 +73,11 @@ export async function POST(request: Request, context: Ctx) {
     id: string
     term: string
     reading: string | null
+    pronunciation: string | null
     answer: string
     wordbook_id: string
+    // PostgREST 對 !inner 多對一回傳物件；型別推論為陣列，兩者都接受
+    wordbooks: { language: string } | { language: string }[]
   }[]
   let progressRows: (ProgressState & { word_id: string })[]
   try {
@@ -82,7 +85,7 @@ export async function POST(request: Request, context: Ctx) {
       fetchByIds(wordIds, (ids) =>
         supabaseAdmin
           .from('words')
-          .select('id, term, reading, answer, wordbook_id, wordbooks!inner(user_id)')
+          .select('id, term, reading, pronunciation, answer, wordbook_id, wordbooks!inner(user_id, language)')
           .eq('wordbooks.user_id', auth.user.id)
           .in('id', ids)
       ),
@@ -105,6 +108,9 @@ export async function POST(request: Request, context: Ctx) {
   const results: {
     word_id: string
     term: string
+    language: Language
+    reading: string | null
+    pronunciation: string | null
     prompt: string
     correct_answer: string
     is_correct: boolean
@@ -163,11 +169,12 @@ export async function POST(request: Request, context: Ctx) {
     results.push({
       word_id: word.id,
       term: word.term,
+      language: (Array.isArray(word.wordbooks) ? word.wordbooks[0] : word.wordbooks)
+        ?.language as Language,
+      reading: word.reading,
+      pronunciation: word.pronunciation,
       prompt: word.answer,
-      correct_answer:
-        session.question_type === '輸入題'
-          ? formatTermWithReading(word.term, word.reading)
-          : word.answer,
+      correct_answer: session.question_type === '輸入題' ? word.term : word.answer,
       is_correct: isCorrect,
       user_input: ans.user_input,
       display_answer: ans.display_answer,

@@ -27,6 +27,7 @@ export interface CollectionWord {
   id: string
   term: string
   reading: string | null
+  pronunciation?: string | null
   answer: string
   stage: number
   mastered_at: string | null

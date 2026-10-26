@@ -53,11 +53,12 @@ export async function listWordsForWordbook(
     reading: string | null
     answer: string
     description: string | null
+    pronunciation: string | null
     created_at: string
   }>((from, to) =>
     supabaseAdmin
       .from('words')
-      .select('id, wordbook_id, term, reading, answer, description, created_at')
+      .select('id, wordbook_id, term, reading, answer, description, pronunciation, created_at')
       .eq('wordbook_id', wordbookId)
       .order('created_at', { ascending: false })
       .order('id')

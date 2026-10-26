@@ -4,11 +4,13 @@ import { WordbookDetailClient } from '@/components/WordbookDetailClient'
 import { getExtractionQuota } from '@/lib/ai-extract'
 import { getSessionUser } from '@/lib/auth'
 import { getLanguageSettings } from '@/lib/growth-service'
+import { prefsFromSettings } from '@/lib/pronunciation-display'
 import {
   getWordbookForUser,
   listTagsForUser,
   listWordsForWordbook,
 } from '@/lib/vocab-queries'
+import type { Language } from '@/types/vocab'
 
 export const dynamic = 'force-dynamic'
 
@@ -44,6 +46,7 @@ export default async function WordbookDetailPage({ params }: Props) {
         accountWordCount={user.word_count}
         userStatus={user.status}
         canMutate={user.status !== 'suspended'}
+        showPronunciation={prefsFromSettings(settings)[book.language as Language]}
       />
     </main>
   )

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 
 import { assertCanMutate, canAddWords, requireUser } from '@/lib/api-auth'
 import { recalculateWordCount } from '@/lib/word-count'
+import { generatePronunciation } from '@/lib/pronunciation'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { listWordsForWordbook } from '@/lib/vocab-queries'
 import type { WordWithMeta } from '@/types/vocab'
@@ -13,7 +14,7 @@ type Ctx = { params: Promise<{ id: string }> }
 async function assertOwnedWordbook(userId: string, wordbookId: string) {
   const { data } = await supabaseAdmin
     .from('wordbooks')
-    .select('id')
+    .select('id, language')
     .eq('id', wordbookId)
     .eq('user_id', userId)
     .maybeSingle()
@@ -97,8 +98,9 @@ export async function POST(request: Request, context: Ctx) {
       reading,
       answer,
       description,
+      pronunciation: await generatePronunciation(book.language, term),
     })
-    .select('id, wordbook_id, term, reading, answer, description, created_at')
+    .select('id, wordbook_id, term, reading, answer, description, pronunciation, created_at')
     .single()
 
   if (error || !word) {

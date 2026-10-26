@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 
 import { ScopeFilter } from '@/components/ScopeFilter'
 import { SwipeCard, type SwipeCardHandle } from '@/components/SwipeCard'
+import type { PronunciationPrefs } from '@/lib/pronunciation-display'
 import { speechText } from '@/lib/speech'
 import { useAutoSpeak, useSpeaker } from '@/lib/use-speech'
 import type { DbTag, Language, WordbookWithCount } from '@/types/vocab'
@@ -13,6 +14,7 @@ interface CardItem {
   word_id: string
   term: string
   reading: string | null
+  pronunciation: string | null
   answer: string
   description: string | null
   language: Language
@@ -23,12 +25,14 @@ interface CardsClientProps {
   wordbooks: WordbookWithCount[]
   tags: DbTag[]
   initialWordbookId?: string
+  pronunciationPrefs: PronunciationPrefs
 }
 
 export function CardsClient({
   wordbooks,
   tags,
   initialWordbookId,
+  pronunciationPrefs,
 }: CardsClientProps) {
   const [wordbookIds, setWordbookIds] = useState<string[]>(
     initialWordbookId ? [initialWordbookId] : []
@@ -202,9 +206,11 @@ export function CardsClient({
             ref={swipeRef}
             term={card.term}
             reading={card.reading}
+            pronunciation={card.pronunciation}
             answer={card.answer}
             description={card.description}
             language={card.language}
+            showPronunciation={pronunciationPrefs[card.language]}
             onDecide={(choice) => void mark(choice)}
           />
         </div>

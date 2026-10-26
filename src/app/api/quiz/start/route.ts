@@ -80,7 +80,13 @@ export async function POST(request: Request) {
       return { word_id: word.id, prompt: word.answer }
     }
 
-    const base: QuizQuestion = { word_id: word.id, term: word.term }
+    const base: QuizQuestion = {
+      word_id: word.id,
+      term: word.term,
+      language: word.language,
+      reading: word.reading,
+      pronunciation: word.pronunciation,
+    }
 
     if (questionType === '是非題') {
       const askTrue = Math.random() < 0.5

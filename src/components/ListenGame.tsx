@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { useCallback, useEffect, useRef, useState } from 'react'
 
 import { Stamp } from '@/components/Stamp'
+import { TermSecondLine } from '@/components/TermSecondLine'
 import {
   LISTEN_DURATION_MS,
   LISTEN_FEEDBACK_MS,
@@ -20,6 +21,8 @@ interface ListenGameProps {
   language: Language
   pool: ListenWord[]
   initialBest: number | null
+  /** 該語言的 show_pronunciation（作答後才顯示第二層） */
+  showPronunciation: boolean
 }
 
 type Phase = 'ready' | 'playing' | 'done'
@@ -35,7 +38,7 @@ interface Result {
  * 聽音辨字（第十二節 4.）：聽發音，4 選 1，60 秒內答對越多越好。
  * 必須由「開始」按鈕觸發第一次播放（iOS Safari 需使用者點擊才允許語音）。
  */
-export function ListenGame({ language, pool: initialPool, initialBest }: ListenGameProps) {
+export function ListenGame({ language, pool: initialPool, initialBest, showPronunciation }: ListenGameProps) {
   const label = LANGUAGE_LABELS[language]
   const speak = useSpeaker(language)
   const voiceStatus = useVoiceStatus(language)
@@ -345,20 +348,19 @@ export function ListenGame({ language, pool: initialPool, initialBest }: ListenG
 
       <div aria-live="polite" className="min-h-[52px] mt-4 text-center">
         {answered && (
-          <p className="text-sm">
-            <span className={`font-bold ${isRight ? 'text-good' : 'text-stamp-red'}`}>{isRight ? '正確' : '答錯'}</span>
-            <span className="text-ink-soft">
-              {' ・ '}
-              <span lang={language} className="font-serif font-bold text-ink">
-                {question.answer.term}
+          <>
+            <p className="text-sm">
+              <span className={`font-bold ${isRight ? 'text-good' : 'text-stamp-red'}`}>{isRight ? '正確' : '答錯'}</span>
+              <span className="text-ink-soft">
+                {' ・ '}
+                <span lang={language} className="font-serif font-bold text-ink">
+                  {question.answer.term}
+                </span>{' '}
+                {question.answer.meaning}
               </span>
-              {question.answer.reading && question.answer.reading !== question.answer.term
-                ? `（${question.answer.reading}）`
-                : ''}
-              {' '}
-              {question.answer.meaning}
-            </span>
-          </p>
+            </p>
+            <TermSecondLine language={language} word={question.answer} show={showPronunciation} className="text-xs mt-0.5" />
+          </>
         )}
       </div>
     </div>

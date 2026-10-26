@@ -3,6 +3,8 @@ import { notFound, redirect } from 'next/navigation'
 
 import { ListenGame } from '@/components/ListenGame'
 import { getSessionUser } from '@/lib/auth'
+import { getLanguageSettings } from '@/lib/growth-service'
+import { prefsFromSettings } from '@/lib/pronunciation-display'
 import { getListenPool, getPersonalBest } from '@/lib/game-service'
 import { LISTEN_CHOICES } from '@/lib/games'
 import { isLanguage, LANGUAGE_LABELS } from '@/types/vocab'
@@ -19,7 +21,11 @@ export default async function ListenPage({ searchParams }: Props) {
   const { lang } = await searchParams
   if (!isLanguage(lang)) notFound()
 
-  const [round, best] = await Promise.all([getListenPool(user.id, lang), getPersonalBest(user.id, 'listen', lang)])
+  const [round, best, settings] = await Promise.all([
+    getListenPool(user.id, lang),
+    getPersonalBest(user.id, 'listen', lang),
+    getLanguageSettings(user.id),
+  ])
 
   if (!round.pool) {
     return (
@@ -36,7 +42,12 @@ export default async function ListenPage({ searchParams }: Props) {
 
   return (
     <main className="px-5 sm:px-8 py-7 max-w-5xl mx-auto">
-      <ListenGame language={lang} pool={round.pool} initialBest={best} />
+      <ListenGame
+        language={lang}
+        pool={round.pool}
+        initialBest={best}
+        showPronunciation={prefsFromSettings(settings)[lang]}
+      />
     </main>
   )
 }

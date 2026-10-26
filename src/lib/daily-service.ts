@@ -3,7 +3,6 @@ import 'server-only'
 import {
   buildAnswerDiff,
   fillDiffTarget,
-  formatTermWithReading,
   isFillAnswerCorrect,
 } from '@/lib/answer-match'
 import {
@@ -34,6 +33,8 @@ export interface LanguageWord {
   id: string
   term: string
   reading: string | null
+  /** migration 20261026 之前的 RPC 不回傳此欄 */
+  pronunciation?: string | null
   answer: string
   description: string | null
   created_at: string
@@ -383,12 +384,21 @@ export async function getDailyTaskPayload(
           stage: w.stage,
           term: w.term,
           reading: w.reading,
+          pronunciation: w.pronunciation ?? null,
           answer: w.answer,
           description: w.description,
           options,
         }
       }
-      return { word_id: id, kind, stage: w.stage, term: w.term, options }
+      return {
+        word_id: id,
+        kind,
+        stage: w.stage,
+        term: w.term,
+        reading: w.reading,
+        pronunciation: w.pronunciation ?? null,
+        options,
+      }
     })
 
   return {
@@ -436,7 +446,7 @@ export async function submitDailyAnswer(
   const [{ data: word }, { data: progressRow }] = await Promise.all([
     supabaseAdmin
       .from('words')
-      .select('id, term, reading, answer, wordbooks!inner(user_id)')
+      .select('id, term, reading, pronunciation, answer, wordbooks!inner(user_id)')
       .eq('id', input.word_id)
       .eq('wordbooks.user_id', user.id)
       .maybeSingle(),
@@ -480,9 +490,10 @@ export async function submitDailyAnswer(
 
   return {
     is_correct: isCorrect,
-    correct_answer: isFill ? formatTermWithReading(word.term, word.reading) : word.answer,
+    correct_answer: isFill ? word.term : word.answer,
     term: word.term,
     reading: word.reading,
+    pronunciation: word.pronunciation,
     diff:
       isFill && !isCorrect
         ? buildAnswerDiff(
