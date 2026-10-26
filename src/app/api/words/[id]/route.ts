@@ -120,7 +120,9 @@ export async function PATCH(request: Request, context: Ctx) {
     }
   }
 
-  const word = await getOwnedWord(auth.user.id, id)
+  const owned = await getOwnedWord(auth.user.id, id)
+  // language 只供計算發音標註，不回傳
+  const word = owned && (({ language: _language, ...rest }) => rest)(owned)
   return NextResponse.json({ word })
 }
 

@@ -9,50 +9,50 @@
 
 ### 1. 資料庫
 
-- [ ] 新增 migration `supabase/migrations/20261026_word_pronunciation.sql`:
+- [x] 新增 migration `supabase/migrations/20261026_word_pronunciation.sql`:
   - `words` 新增 `pronunciation TEXT NULL`
   - `user_language_settings` 新增 `show_pronunciation BOOLEAN NOT NULL DEFAULT true`
   - 只新增欄位、不改既有資料,須可安全套用在正式資料庫
-- [ ] 同步更新 `supabase/schema.sql`
-- [ ] 不需修改 `delete_account()`(欄位屬於既有資料表)
+- [x] 同步更新 `supabase/schema.sql`
+- [x] 不需修改 `delete_account()`(欄位屬於既有資料表)
 
 ### 2. 產生邏輯(純函式 + 單元測試)
 
-- [ ] 選定套件並回報:英文 CMUdict 套件(含授權)、韓文國語羅馬字轉換套件;確認打包後的 Vercel function 大小
-- [ ] ARPAbet 轉 IPA 對照(美式),結果以 `/…/` 包住;依重音數字轉換母音(AH0 → ə、AH1/2 → ʌ,ER0 → ɚ、ER1/2 → ɝ),不標 ˈ ˌ
-- [ ] `generatePronunciation(language, term)`:
+- [x] 選定套件並回報:英文 CMUdict 套件(含授權)、韓文國語羅馬字轉換套件;確認打包後的 Vercel function 大小
+- [x] ARPAbet 轉 IPA 對照(美式),結果以 `/…/` 包住;依重音數字轉換母音(AH0 → ə、AH1/2 → ʌ,ER0 → ɚ、ER1/2 → ɝ),不標 ˈ ˌ
+- [x] `generatePronunciation(language, term)`:
   - `en`:去頭尾空白、轉小寫查字典;多個發音取第一個;片語逐字查詢,全部查到才以空格串接,否則回傳 null
   - `ko`:`term` 含韓文字才轉換,否則回傳 null
   - `ja`:一律回傳 null
-- [ ] 單元測試涵蓋:一般英文字、多發音字、片語(全查到/部分查不到)、查不到的字、韓文音變例(같이)、不含韓文字、日文
+- [x] 單元測試涵蓋:一般英文字、多發音字、片語(全查到/部分查不到)、查不到的字、韓文音變例(같이)、不含韓文字、日文
 
 ### 3. 寫入時機
 
-- [ ] 手動新增單字、Excel 匯入、AI 抽字匯入:寫入 `words` 的同一個 API 請求內計算 `pronunciation`
-- [ ] 編輯單字:只有 `term` 變更時重新計算
-- [ ] `pronunciation` 不接受前端傳入(任何 API 都忽略此欄位)
-- [ ] 一次性補齊腳本(`scripts/` 下):只處理單字本 `language IN ('en','ko')` 且 `pronunciation IS NULL` 的單字,可重複執行、分批更新;**連正式資料庫,執行前先告知**,只寫入 `pronunciation`
+- [x] 手動新增單字、Excel 匯入、AI 抽字匯入:寫入 `words` 的同一個 API 請求內計算 `pronunciation`
+- [x] 編輯單字:只有 `term` 變更時重新計算
+- [x] `pronunciation` 不接受前端傳入(任何 API 都忽略此欄位)
+- [x] 一次性補齊腳本(`scripts/` 下):只處理單字本 `language IN ('en','ko')` 且 `pronunciation IS NULL` 的單字,可重複執行、分批更新;**連正式資料庫,執行前先告知**,只寫入 `pronunciation`
 
 ### 4. 顯示
 
-- [ ] 共用元件:依語言取第二層(en/ko 取 `pronunciation`;ja 取 `reading`,為空或與 `term` 相同時不顯示),並依 `show_pronunciation` 決定是否顯示
-- [ ] 套用位置:單字列表、單字卡冊、背誦卡片、測驗結果頁正確答案(日文原本的「term(reading)」改為兩層)
-- [ ] 選擇題、是非題可顯示;**填空題翻開答案前不顯示**
-- [ ] 配對消除不顯示英文音標與韓文羅馬拼音(日文讀音維持現狀)
-- [ ] 日文含漢字且未填 `reading` 的單字:單字列表與編輯畫面顯示小提示「未填讀音」
-- [ ] 設定頁依語言加開關:英文「顯示音標」、日文「顯示假名讀音」、韓文「顯示羅馬拼音」,預設開啟,存入 `user_language_settings.show_pronunciation`
-- [ ] 資料匯出(Excel/CSV)新增發音標註欄位;Excel 匯入不讀取此欄
-- [ ] 樣式:`--ink-soft`、字級比 `term` 小;英韓用 IBM Plex Mono,日文假名用 Noto Sans TC
+- [x] 共用元件:依語言取第二層(en/ko 取 `pronunciation`;ja 取 `reading`,為空或與 `term` 相同時不顯示),並依 `show_pronunciation` 決定是否顯示
+- [x] 套用位置:單字列表、單字卡冊、背誦卡片、測驗結果頁正確答案(日文原本的「term(reading)」改為兩層)
+- [x] 選擇題、是非題可顯示;**填空題翻開答案前不顯示**
+- [x] 配對消除不顯示英文音標與韓文羅馬拼音(日文讀音維持現狀)
+- [x] 日文含漢字且未填 `reading` 的單字:單字列表與編輯畫面顯示小提示「未填讀音」
+- [x] 設定頁依語言加開關:英文「顯示音標」、日文「顯示假名讀音」、韓文「顯示羅馬拼音」,預設開啟,存入 `user_language_settings.show_pronunciation`
+- [x] 資料匯出(Excel/CSV)新增發音標註欄位;Excel 匯入不讀取此欄
+- [x] 樣式:`--ink-soft`、字級比 `term` 小;英韓用 IBM Plex Mono,日文假名用 Noto Sans TC
 
 ### 5. 驗收
 
-- [ ] 新增英文字 → 自動出現音標;查不到的字不顯示第二層
-- [ ] 新增韓文字 → 自動出現羅馬拼音
-- [ ] 日文有讀音 → 第二層顯示讀音;沒讀音的漢字字 → 只顯示漢字並有「未填讀音」提示
-- [ ] 編輯英文 `term` → 音標更新;只改中文意思 → 音標不變
-- [ ] 關閉某語言開關 → 該語言全站不顯示第二層,其他語言不受影響
+- [x] 新增英文字 → 自動出現音標;查不到的字不顯示第二層
+- [x] 新增韓文字 → 自動出現羅馬拼音
+- [x] 日文有讀音 → 第二層顯示讀音;沒讀音的漢字字 → 只顯示漢字並有「未填讀音」提示
+- [x] 編輯英文 `term` → 音標更新;只改中文意思 → 音標不變
+- [x] 關閉某語言開關 → 該語言全站不顯示第二層,其他語言不受影響
 - [ ] 填空題作答前看不到第二層,翻開後才出現
-- [ ] 補齊腳本執行後,既有英韓單字有音標/羅馬拼音;重跑腳本不會重複處理
+- [x] 補齊腳本執行後,既有英韓單字有音標/羅馬拼音;重跑腳本不會重複處理
 
 ---
 
