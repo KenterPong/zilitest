@@ -11,6 +11,7 @@ import {
   type ListenWord,
   type MatchCardWord,
 } from '@/lib/games'
+import { buildSpellPool, SPELL_MIN_WORDS, type SpellWord } from '@/lib/spell'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import type { Language } from '@/types/vocab'
 
@@ -34,7 +35,31 @@ export async function getListenPool(
   return canStartListen(pool, language) ? { pool } : { pool: null, available: all.length }
 }
 
-/** 個人最佳：同遊戲、同語言（配對另需同字數；聽音不看字數） */
+/**
+ * 拼字挑戰題庫與干擾字來源（同語言全部單字的 term）；可出題的字少於 5 個時回傳 null 與可出題字數
+ */
+export async function getSpellRound(
+  userId: string,
+  language: Language
+): Promise<{ pool: SpellWord[]; terms: string[] } | { pool: null; available: number }> {
+  const all = await getLanguageWords(userId, language)
+  const pool = buildSpellPool(all, language)
+  if (pool.length < SPELL_MIN_WORDS) return { pool: null, available: pool.length }
+  return { pool, terms: all.map((w) => w.term) }
+}
+
+/** 遊戲列表用：各語言可出拼字題的字數 */
+export async function getSpellableCounts(
+  userId: string,
+  languages: Language[]
+): Promise<Partial<Record<Language, number>>> {
+  const counts = await Promise.all(
+    languages.map(async (l) => [l, buildSpellPool(await getLanguageWords(userId, l), l).length] as const)
+  )
+  return Object.fromEntries(counts)
+}
+
+/** 個人最佳：同遊戲、同語言（配對另需同字數；聽音、拼字不看字數） */
 export async function getPersonalBest(
   userId: string,
   game: GameKey,

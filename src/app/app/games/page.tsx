@@ -3,9 +3,10 @@ import { redirect } from 'next/navigation'
 
 import { ListenGameRow } from '@/components/ListenGameRow'
 import { getSessionUser } from '@/lib/auth'
-import { getGameBests } from '@/lib/game-service'
+import { getGameBests, getSpellableCounts } from '@/lib/game-service'
 import { formatMatchTime, LISTEN_CHOICES, MATCH_WORD_COUNT } from '@/lib/games'
 import { getLanguageSettings, getProgressSummary } from '@/lib/growth-service'
+import { SPELL_MIN_WORDS } from '@/lib/spell'
 import { LANGUAGE_LABELS, LANGUAGES } from '@/types/vocab'
 
 export const dynamic = 'force-dynamic'
@@ -14,15 +15,17 @@ export default async function GamesPage() {
   const user = await getSessionUser()
   if (!user || user.status === 'cancelled') redirect('/auth/login')
 
-  const [summary, settings, bests, listenBests] = await Promise.all([
+  const [summary, settings, bests, listenBests, spellBests] = await Promise.all([
     getProgressSummary(user.id),
     getLanguageSettings(user.id),
     getGameBests(user.id, 'match'),
     getGameBests(user.id, 'listen'),
+    getGameBests(user.id, 'spell'),
   ])
   const languages = LANGUAGES.filter(
     (l) => summary.some((r) => r.language === l) || settings.some((s) => s.language === l)
   )
+  const spellable = await getSpellableCounts(user.id, languages)
   const frozen = user.status === 'suspended'
 
   return (
@@ -96,6 +99,45 @@ export default async function GamesPage() {
                 frozen={frozen}
               />
             ))}
+          </ul>
+        )}
+      </section>
+
+      <section className="bg-cream border border-line rounded-lg p-6 mb-6">
+        <h2 className="font-serif font-bold text-xl mb-1">拼字挑戰</h2>
+        <p className="text-sm text-ink-soft mb-4">
+          看中文意思，把打散的方塊拼回單字，方塊裡混有不需要的字。60 秒內拼對越多越好；拼錯或跳過會記一次錯。
+        </p>
+        {languages.length === 0 ? (
+          <p className="text-sm text-ink-soft">建立單字本並加入至少 {SPELL_MIN_WORDS} 個單字後就能開始。</p>
+        ) : (
+          <ul className="divide-y divide-dashed divide-line">
+            {languages.map((lang) => {
+              const count = spellable[lang] ?? 0
+              const best = spellBests[lang]
+              return (
+                <li key={lang} className="flex items-center justify-between gap-4 py-3 flex-wrap">
+                  <div>
+                    <div className="font-serif font-bold">{LANGUAGE_LABELS[lang]}</div>
+                    <div className="font-mono text-[11.5px] text-ink-soft">
+                      {best !== undefined ? `個人最佳 ${best} 題` : '還沒有紀錄'}
+                    </div>
+                  </div>
+                  {frozen ? null : count >= SPELL_MIN_WORDS ? (
+                    <Link
+                      href={`/app/games/spell?lang=${lang}`}
+                      className="bg-ink text-cream font-semibold text-sm px-5 py-2.5 rounded-[5px] hover:bg-stamp-red-deep"
+                    >
+                      開始拼字
+                    </Link>
+                  ) : (
+                    <span className="text-[12.5px] text-ink-soft">
+                      至少需要 {SPELL_MIN_WORDS} 個 2–12 字、不含空格與符號的單字（目前 {count} 個）
+                    </span>
+                  )}
+                </li>
+              )
+            })}
           </ul>
         )}
       </section>

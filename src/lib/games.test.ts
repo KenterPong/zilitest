@@ -97,7 +97,7 @@ describe('計分與最佳', () => {
     expect(formatMatchTime(12_340)).toBe('12.3 秒')
     expect(isGameKey('match')).toBe(true)
     expect(isGameKey('listen')).toBe(true)
-    expect(isGameKey('spell')).toBe(false)
+    expect(isGameKey('spell')).toBe(true)
     expect(isGameKey('poker')).toBe(false)
   })
 })

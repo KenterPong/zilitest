@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server'
 import { assertCanMutate, requireUser } from '@/lib/api-auth'
 import { getPersonalBest } from '@/lib/game-service'
 import { isGameKey, isNewBest, isValidListenResult, MATCH_WORD_COUNT } from '@/lib/games'
+import { isValidSpellResult } from '@/lib/spell'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { isLanguage } from '@/types/vocab'
 
@@ -42,7 +43,9 @@ export async function POST(request: Request) {
         score <= MATCH_MAX_MS &&
         Number.isInteger(mistakes) &&
         mistakes >= 0
-      : isValidListenResult(score, wordCount, mistakes)
+      : game === 'listen'
+        ? isValidListenResult(score, wordCount, mistakes)
+        : isValidSpellResult(score, wordCount, mistakes)
   if (!valid) {
     return NextResponse.json({ error: '成績格式不正確' }, { status: 400 })
   }

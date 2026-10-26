@@ -5,8 +5,7 @@
 import { normalizeAnswer } from '@/lib/answer-match'
 import type { Language } from '@/types/vocab'
 
-/** 拼字挑戰已取消；資料庫 CHECK 仍允許 'spell'，但程式不再接受 */
-export const GAMES = ['match', 'listen'] as const
+export const GAMES = ['match', 'listen', 'spell'] as const
 export type GameKey = (typeof GAMES)[number]
 
 export function isGameKey(value: unknown): value is GameKey {
@@ -45,7 +44,7 @@ export function firstMeaning(answer: string): string {
   )
 }
 
-function shuffled<T>(items: T[], random: () => number): T[] {
+export function shuffled<T>(items: T[], random: () => number): T[] {
   const a = [...items]
   for (let i = a.length - 1; i > 0; i--) {
     const j = Math.floor(random() * (i + 1))
@@ -93,7 +92,7 @@ export function matchScore(elapsedMs: number, mistakes: number): number {
   return Math.max(0, Math.round(elapsedMs)) + mistakes * MATCH_PENALTY_MS
 }
 
-/** 配對越快越好；聽音答對越多越好 */
+/** 配對越快越好；聽音、拼字答對越多越好 */
 export function lowerIsBetter(game: GameKey): boolean {
   return game === 'match'
 }
