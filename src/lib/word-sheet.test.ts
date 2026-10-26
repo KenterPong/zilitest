@@ -1,7 +1,14 @@
 import * as XLSX from 'xlsx'
 import { describe, expect, it } from 'vitest'
 
-import { parseWordRows, WORD_SHEET_HEADER, wordToRow, type SheetWord } from '@/lib/word-sheet'
+import {
+  parseWordRows,
+  WORD_EXPORT_HEADER,
+  WORD_SHEET_HEADER,
+  wordToExportRow,
+  wordToRow,
+  type SheetWord,
+} from '@/lib/word-sheet'
 
 /** 模擬匯出 → 寫成 xlsx → 匯入解析 */
 function roundTrip(rows: string[][]): SheetWord[] {
@@ -49,5 +56,16 @@ describe('parseWordRows', () => {
     expect(parseWordRows([[100, 'hundred']])).toEqual([
       { term: '100', answer: 'hundred', description: null, reading: null },
     ])
+  })
+})
+
+describe('匯出含發音標註欄', () => {
+  it('第 5 欄為發音標註，連同單字本與語言欄原樣再匯入時只讀前 4 欄', () => {
+    const rows = [
+      [...WORD_EXPORT_HEADER, '單字本', '語言'],
+      [...wordToExportRow({ term: 'complete', answer: '完成', description: '動詞', reading: null, pronunciation: '/kəmplit/' }), '第一課', '英文'],
+    ]
+    expect(rows[0]!.slice(0, 5)).toEqual(['單字', '答案', '描述', '讀音', '發音標註'])
+    expect(roundTrip(rows)).toEqual([{ term: 'complete', answer: '完成', description: '動詞', reading: null }])
   })
 })
