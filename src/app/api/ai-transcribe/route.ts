@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 
 import { AiExtractError, callImageTranscription, getExtractionQuota } from '@/lib/ai-extract'
 import { assertCanMutate, requireUser } from '@/lib/api-auth'
-import { isValidLevel, validateImage } from '@/lib/extraction'
+import { isValidLevel, validateImages } from '@/lib/extraction'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import type { Language } from '@/types/vocab'
 
@@ -11,7 +11,7 @@ export const runtime = 'nodejs'
 export const maxDuration = 60
 
 /**
- * 圖片轉文字：上傳 1 張圖片 → 轉錄成該單字本語言的文字，回傳給前端填入抽字文字框。
+ * 圖片轉文字：一次上傳 1–2 張圖片 → 依序轉錄成該單字本語言的文字，回傳給前端填入抽字文字框。
  * 與 AI 抽字共用每月次數，AI 成功回傳即計 1 次（含沒有辨識到文字）；錯誤或逾時不計次。
  * 圖片不寫入資料庫、儲存空間或 log。
  */
@@ -29,11 +29,8 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: '無效的上傳資料' }, { status: 400 })
   }
 
-  const image = form.get('image')
-  if (!(image instanceof File)) {
-    return NextResponse.json({ error: '請選擇一張圖片' }, { status: 400 })
-  }
-  const invalid = validateImage(image.type, image.size)
+  const images = form.getAll('image').filter((v): v is File => v instanceof File)
+  const invalid = validateImages(images)
   if (invalid) {
     return NextResponse.json({ error: invalid }, { status: 400 })
   }
@@ -70,8 +67,10 @@ export async function POST(request: Request) {
       )
     }
 
-    const base64 = Buffer.from(await image.arrayBuffer()).toString('base64')
-    const text = await callImageTranscription(language, `data:${image.type};base64,${base64}`)
+    const dataUrls = await Promise.all(
+      images.map(async (img) => `data:${img.type};base64,${Buffer.from(await img.arrayBuffer()).toString('base64')}`)
+    )
+    const text = await callImageTranscription(language, dataUrls)
 
     const { error: logError } = await supabaseAdmin.from('ai_extractions').insert({
       user_id: auth.user.id,
@@ -79,7 +78,7 @@ export async function POST(request: Request) {
       kind: 'transcribe_image',
       language,
       level,
-      input_length: image.size,
+      input_length: images.reduce((sum, img) => sum + img.size, 0),
       result_count: text.length,
     })
     if (logError) throw new Error(logError.message)

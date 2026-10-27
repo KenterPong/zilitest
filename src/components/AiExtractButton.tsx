@@ -10,6 +10,7 @@ import {
   EXTRACT_LEVELS,
   LEVEL_SYSTEM_NAME,
   levelLabel,
+  MAX_IMAGES,
   MAX_INPUT_CHARS,
   type ExtractedWord,
 } from '@/lib/extraction'
@@ -29,6 +30,13 @@ interface AiExtractButtonProps {
 }
 
 type Phase = 'level' | 'input' | 'preview'
+
+/** 等級設定說明的例子：抽出該等級以及以下 */
+const LEVEL_RANGE_EXAMPLE: Record<Language, string> = {
+  en: '例如選 B2，會一起抽出 B1、A2 的字',
+  ja: '例如選 N3，會一起抽出 N4、N5 的字',
+  ko: '例如選 TOPIK 3 級，會一起抽出 1、2 級的字',
+}
 
 /** 三張卡的展開方向：左、中（往上跳）、右 */
 const FAN = [
@@ -183,15 +191,20 @@ export function AiExtractButton({
     }
   }
 
-  async function transcribeImage(file: File) {
+  async function transcribeImages(files: File[]) {
+    if (files.length > MAX_IMAGES) {
+      setError(`一次最多 ${MAX_IMAGES} 張圖片`)
+      if (fileInput.current) fileInput.current.value = ''
+      return
+    }
     if (!lock()) return
     setTranscribing(true)
     setError(null)
     try {
-      const image = await compressImage(file)
+      const images = await Promise.all(files.map((f) => compressImage(f)))
       const form = new FormData()
       form.append('wordbook_id', wordbookId)
-      form.append('image', image, 'image.jpg')
+      images.forEach((image, i) => form.append('image', image, `image-${i + 1}.jpg`))
       const res = await fetch('/api/ai-transcribe', { method: 'POST', body: form })
       const data = await res.json()
       if (!res.ok) {
@@ -276,8 +289,8 @@ export function AiExtractButton({
             {phase === 'level' && (
               <div>
                 <p className="text-sm mb-3">
-                  先選擇你目前的{label}程度（{LEVEL_SYSTEM_NAME[language]}）。AI 只會抽出<b>這個等級</b>
-                  的單字，太簡單和太難的都不收；之後每次沿用，可在設定頁修改。
+                  先選擇你目前的{label}程度（{LEVEL_SYSTEM_NAME[language]}）。AI 會抽出<b>這個等級以及以下</b>
+                  的單字（{LEVEL_RANGE_EXAMPLE[language]}），太難的不收，不想背的字在預覽時取消勾選；之後每次沿用，可在設定頁修改。
                 </p>
                 <div className="grid grid-cols-3 sm:grid-cols-6 gap-2 mb-4">
                   {EXTRACT_LEVELS[language].map((lv) => (
@@ -311,10 +324,11 @@ export function AiExtractButton({
                     ref={fileInput}
                     type="file"
                     accept={`image/*,${ACCEPTED_IMAGE_TYPES.join(',')}`}
+                    multiple
                     className="hidden"
                     onChange={(e) => {
-                      const file = e.target.files?.[0]
-                      if (file) void transcribeImage(file)
+                      const files = Array.from(e.target.files ?? [])
+                      if (files.length > 0) void transcribeImages(files)
                     }}
                   />
                   <button
@@ -325,7 +339,9 @@ export function AiExtractButton({
                   >
                     上傳圖片（使用 1 次）
                   </button>
-                  <span className="text-[11.5px] text-ink-soft">課本、漫畫、截圖都可以，文字會填進下方</span>
+                  <span className="text-[11.5px] text-ink-soft">
+                    一次最多 {MAX_IMAGES} 張，課本、漫畫、截圖都可以，文字會填進下方
+                  </span>
                 </div>
                 <textarea
                   lang={language}
@@ -356,7 +372,7 @@ export function AiExtractButton({
                     label="AI 抽字中"
                     steps={[
                       '正在閱讀文章…',
-                      `挑出 ${level ? levelLabel(language, level) : ''} 程度的單字…`,
+                      `挑出 ${level ? levelLabel(language, level) : ''} 以下的單字…`,
                       '還原原形、整理中文意思…',
                       '正在把單字做成卡片…',
                     ]}
@@ -378,12 +394,12 @@ export function AiExtractButton({
               <div className="flex flex-col min-h-0">
                 {words.length === 0 ? (
                   <p className="text-sm text-ink-soft py-6 text-center">
-                    這段文字中沒有符合 {level && levelLabel(language, level)} 的新單字。
+                    這段文字中沒有 {level && levelLabel(language, level)} 以下的新單字。
                   </p>
                 ) : (
                   <>
                     <p className="text-xs text-ink-soft mb-2">
-                      抽出 {words.length} 個字（已排除你單字本裡已有的字）。等級由 AI 判斷，不需要的字請取消勾選。
+                      抽出 {words.length} 個字（{level && levelLabel(language, level)} 以下，已排除你單字本裡已有的字），越難的排越前面。等級由 AI 判斷，不想背的字請取消勾選。
                     </p>
                     <div className="overflow-auto border border-line rounded-sm mb-3 flex-1 min-h-0">
                       <table className="w-full text-sm">
@@ -400,6 +416,7 @@ export function AiExtractButton({
                             <th className="text-left px-3 py-2">單字</th>
                             <th className="text-left px-3 py-2">中文</th>
                             <th className="text-left px-3 py-2">說明</th>
+                            <th className="text-left px-3 py-2 whitespace-nowrap">等級</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -424,6 +441,9 @@ export function AiExtractButton({
                               </td>
                               <td className="px-3 py-2">{w.answer}</td>
                               <td className="px-3 py-2 text-xs text-ink-soft">{w.description ?? ''}</td>
+                              <td className="px-3 py-2 font-mono text-[11.5px] text-ink-soft whitespace-nowrap">
+                                {w.level ? levelLabel(language, w.level) : '—'}
+                              </td>
                             </tr>
                           ))}
                         </tbody>

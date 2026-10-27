@@ -116,7 +116,7 @@ export default async function SettingsPage() {
       <div className="bg-cream border border-line rounded-lg p-6 mb-4">
         <h2 className="font-serif font-bold mb-1">每日任務</h2>
         <p className="text-sm text-ink-soft mb-2">
-          選擇要學習的語言與每日量，系統會依熟練度自動安排複習字與新字。修改自明天的任務起生效。AI 抽字只會抽出所設定等級的單字，本月剩 {aiQuota.remaining} / {aiQuota.limit} 次（每月 1 日重置）。
+          選擇要學習的語言與每日量，系統會依熟練度自動安排複習字與新字。修改自明天的任務起生效。AI 抽字會抽出所設定等級以及以下的單字，本月剩 {aiQuota.remaining} / {aiQuota.limit} 次（每月 1 日重置）。
         </p>
         <LanguageSettingsForm
           settings={languageSettings}

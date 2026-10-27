@@ -8,13 +8,14 @@ import {
   fitWithin,
   isValidLevel,
   levelLabel,
+  levelsUpTo,
   limitMeanings,
   monthlyLimit,
   OWNER_MONTHLY_LIMIT,
   OWNER_USER_IDS,
   taipeiMonthStartDate,
   taipeiMonthStartInstant,
-  validateImage,
+  validateImages,
 } from '@/lib/extraction'
 
 describe('等級', () => {
@@ -83,7 +84,7 @@ describe('cleanExtracted', () => {
       ],
       ['apple']
     )
-    expect(r).toEqual([{ term: 'Journey', answer: '旅程', description: '名詞', reading: null }])
+    expect(r).toEqual([{ term: 'Journey', answer: '旅程', description: '名詞', reading: null, level: null }])
   })
 
   it('讀音與單字相同時不存讀音', () => {
@@ -102,10 +103,57 @@ describe('cleanExtracted', () => {
   })
 })
 
+describe('levelsUpTo', () => {
+  it('設定等級以及以下（由易到難）', () => {
+    expect(levelsUpTo('en', 'B2')).toEqual(['A2', 'B1', 'B2'])
+    expect(levelsUpTo('ja', 'N3')).toEqual(['N5', 'N4', 'N3'])
+    expect(levelsUpTo('ko', '1')).toEqual(['1'])
+    expect(levelsUpTo('en', 'N3')).toEqual([])
+  })
+})
+
+describe('cleanExtracted 等級', () => {
+  const raw = [
+    { term: 'apple', answer: '蘋果', description: null, reading: null, level: 'A2' },
+    { term: 'reimburse', answer: '償還', description: null, reading: null, level: 'B2' },
+    { term: 'journey', answer: '旅程', description: null, reading: null, level: 'B1' },
+    { term: 'ubiquitous', answer: '普遍存在的', description: null, reading: null, level: 'C1' },
+    { term: 'borrow', answer: '借', description: null, reading: null, level: 'B2' },
+  ]
+
+  it('範圍外的等級標為 null，依等級由難到易排序、同級維持原順序', () => {
+    const r = cleanExtracted(raw, [], ['A2', 'B1', 'B2'])
+    expect(r.map((w) => `${w.term}:${w.level}`)).toEqual([
+      'reimburse:B2',
+      'borrow:B2',
+      'journey:B1',
+      'apple:A2',
+      'ubiquitous:null',
+    ])
+  })
+
+  it('去掉 AI 加上的制度名稱', () => {
+    const r = cleanExtracted(
+      [
+        { term: '약속', answer: '約定', level: 'TOPIK 2' },
+        { term: '공부', answer: '學習', level: '1級' },
+      ],
+      [],
+      ['1', '2', '3']
+    )
+    expect(r.map((w) => w.level)).toEqual(['2', '1'])
+  })
+
+  it('沒傳範圍時不排序', () => {
+    expect(cleanExtracted(raw, []).map((w) => w.term)).toEqual(raw.map((w) => w.term))
+  })
+})
+
 describe('buildExtractionPrompt', () => {
   it('包含語言與等級，日文要求讀音', () => {
     const p = buildExtractionPrompt('ja', 'N3')
     expect(p).toContain('JLPT N3')
+    expect(p).toContain('JLPT N5, JLPT N4, JLPT N3')
     expect(p).toContain('hiragana reading')
   })
 
@@ -116,19 +164,25 @@ describe('buildExtractionPrompt', () => {
   })
 })
 
-describe('validateImage', () => {
+describe('validateImages', () => {
+  const img = (type: string, size = 1000) => ({ type, size })
+
   it('只接受 JPG、PNG、WebP', () => {
-    expect(validateImage('image/jpeg', 1000)).toBeNull()
-    expect(validateImage('image/png', 1000)).toBeNull()
-    expect(validateImage('image/webp', 1000)).toBeNull()
-    expect(validateImage('image/heic', 1000)).not.toBeNull()
-    expect(validateImage('application/pdf', 1000)).not.toBeNull()
+    expect(validateImages([img('image/jpeg')])).toBeNull()
+    expect(validateImages([img('image/png'), img('image/webp')])).toBeNull()
+    expect(validateImages([img('image/jpeg'), img('image/heic')])).not.toBeNull()
+    expect(validateImages([img('application/pdf')])).not.toBeNull()
   })
 
-  it('空檔與超過上限', () => {
-    expect(validateImage('image/jpeg', 0)).not.toBeNull()
-    expect(validateImage('image/jpeg', 4_000_000)).toBeNull()
-    expect(validateImage('image/jpeg', 4_000_001)).not.toBeNull()
+  it('1–2 張', () => {
+    expect(validateImages([])).not.toBeNull()
+    expect(validateImages([img('image/jpeg'), img('image/jpeg'), img('image/jpeg')])).toBe('一次最多 2 張圖片')
+  })
+
+  it('空檔與合計大小上限', () => {
+    expect(validateImages([img('image/jpeg', 0)])).not.toBeNull()
+    expect(validateImages([img('image/jpeg', 2_000_000), img('image/jpeg', 2_000_000)])).toBeNull()
+    expect(validateImages([img('image/jpeg', 2_000_000), img('image/jpeg', 2_000_001)])).not.toBeNull()
   })
 })
 

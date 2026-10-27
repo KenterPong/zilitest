@@ -118,7 +118,7 @@ export async function callExtraction(
  * 圖片轉文字：把圖片中的該語言文字照原文轉錄（第十節 7.）。
  * 圖片只送給 AI，不寫入資料庫、儲存空間或應用程式 log。
  */
-export async function callImageTranscription(language: Language, imageDataUrl: string): Promise<string> {
+export async function callImageTranscription(language: Language, imageDataUrls: string[]): Promise<string> {
   const { client, model } = getClient()
 
   let completion
@@ -134,7 +134,10 @@ export async function callImageTranscription(language: Language, imageDataUrl: s
       },
       messages: [
         { role: 'system', content: buildTranscriptionPrompt(language) },
-        { role: 'user', content: [{ type: 'image_url', image_url: { url: imageDataUrl, detail: 'high' } }] },
+        {
+          role: 'user',
+          content: imageDataUrls.map((url) => ({ type: 'image_url' as const, image_url: { url, detail: 'high' as const } })),
+        },
       ],
     })
   } catch (e) {

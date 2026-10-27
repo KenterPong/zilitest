@@ -3,7 +3,7 @@ import { NextResponse } from 'next/server'
 import { AiExtractError, callExtraction, getExtractionQuota } from '@/lib/ai-extract'
 import { assertCanMutate, requireUser } from '@/lib/api-auth'
 import { getLanguageWords } from '@/lib/daily-service'
-import { cleanExtracted, isValidLevel, MAX_INPUT_CHARS } from '@/lib/extraction'
+import { cleanExtracted, isValidLevel, levelsUpTo, MAX_INPUT_CHARS } from '@/lib/extraction'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import type { Language } from '@/types/vocab'
 
@@ -75,7 +75,8 @@ export async function POST(request: Request) {
     const existing = await getLanguageWords(auth.user.id, language)
     const words = cleanExtracted(
       raw,
-      existing.map((w) => w.term)
+      existing.map((w) => w.term),
+      levelsUpTo(language, level)
     )
 
     const { error: logError } = await supabaseAdmin.from('ai_extractions').insert({
