@@ -5,9 +5,11 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 
 import { ScopeFilter } from '@/components/ScopeFilter'
 import { SwipeCard, type SwipeCardHandle } from '@/components/SwipeCard'
+import { WritingPractice } from '@/components/WritingPractice'
 import type { PronunciationPrefs } from '@/lib/pronunciation-display'
 import { speechText } from '@/lib/speech'
 import { useAutoSpeak, useSpeaker } from '@/lib/use-speech'
+import { isWritable, WRITING_MAX_LENGTH, WRITING_ROUND_SIZE } from '@/lib/writing'
 import type { DbTag, Language, WordbookWithCount } from '@/types/vocab'
 
 interface CardItem {
@@ -41,6 +43,9 @@ export function CardsClient({
   const [poolSize, setPoolSize] = useState(0)
   const [poolLoading, setPoolLoading] = useState(!!initialWordbookId)
   const [phase, setPhase] = useState<'setup' | 'play'>('setup')
+  const [mode, setMode] = useState<'swipe' | 'write'>('swipe')
+  /** 書寫練習每輪重新掛載，狀態從頭開始 */
+  const [round, setRound] = useState(0)
   const [cards, setCards] = useState<CardItem[]>([])
   const [idx, setIdx] = useState(0)
   const swipeRef = useRef<SwipeCardHandle>(null)
@@ -71,9 +76,22 @@ export function CardsClient({
       const data = await res.json()
       if (!res.ok) {
         setError(data.error ?? '無法開始背誦')
+        setPhase('setup')
         return
       }
-      setCards(data.cards)
+      if (mode === 'write') {
+        // 依加權順序套用出題範圍後取前 10 個
+        const writable = (data.cards as CardItem[]).filter((c) => isWritable(c.term))
+        if (writable.length === 0) {
+          setError(`篩選結果的單字都超過 ${WRITING_MAX_LENGTH} 個字元，無法書寫練習`)
+          setPhase('setup')
+          return
+        }
+        setCards(writable.slice(0, WRITING_ROUND_SIZE))
+        setRound((r) => r + 1)
+      } else {
+        setCards(data.cards)
+      }
       setIdx(0)
       setKnownCount(0)
       setUnknownCount(0)
@@ -113,13 +131,13 @@ export function CardsClient({
 
   // 自動播放：每張新卡出現時唸一次（設定頁開關，預設關閉）
   useEffect(() => {
-    if (phase === 'play' && autoSpeak && card) speakCard()
+    if (phase === 'play' && mode === 'swipe' && autoSpeak && card) speakCard()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [phase, autoSpeak, card?.word_id])
+  }, [phase, mode, autoSpeak, card?.word_id])
 
   // 鍵盤：← 不認得、→ 認得、空白鍵翻面、S 發音
   useEffect(() => {
-    if (phase !== 'play') return
+    if (phase !== 'play' || mode !== 'swipe') return
     function onKey(e: KeyboardEvent) {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return
       if (e.key === 'ArrowRight') swipeRef.current?.fly('known')
@@ -131,9 +149,21 @@ export function CardsClient({
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [phase, speakCard])
+  }, [phase, mode, speakCard])
 
   const done = phase === 'play' && idx >= cards.length
+
+  if (phase === 'play' && mode === 'write') {
+    return (
+      <WritingPractice
+        key={round}
+        cards={cards}
+        pronunciationPrefs={pronunciationPrefs}
+        onRestart={start}
+        onExit={() => setPhase('setup')}
+      />
+    )
+  }
 
   if (phase === 'play') {
     const quizHref =
@@ -285,6 +315,39 @@ export function CardsClient({
         onChange={onFilterChange}
       />
 
+      <div className="mb-5">
+        <div className="text-[13px] font-bold mb-2">背誦方式</div>
+        <div role="radiogroup" aria-label="背誦方式" className="inline-flex border border-line rounded-[5px] overflow-hidden">
+          {(
+            [
+              ['swipe', '滑卡'],
+              ['write', '書寫'],
+            ] as const
+          ).map(([value, label]) => (
+            <button
+              key={value}
+              type="button"
+              role="radio"
+              aria-checked={mode === value}
+              onClick={() => {
+                setMode(value)
+                setError(null)
+              }}
+              className={`px-5 py-2 text-sm font-medium ${
+                mode === value ? 'bg-ink text-cream' : 'bg-cream text-ink-soft hover:text-ink'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+        <p className="text-[12px] text-ink-soft mt-2">
+          {mode === 'swipe'
+            ? '翻卡自評認得或不認得'
+            : `先照著抄打，整輪抄完再看中文憑記憶打出單字（每輪最多 ${WRITING_ROUND_SIZE} 個字）`}
+        </p>
+      </div>
+
       {error && <p className="text-sm text-stamp-red mb-3">{error}</p>}
 
       <button
@@ -295,7 +358,7 @@ export function CardsClient({
         onClick={start}
         className="bg-stamp-red text-cream font-bold text-[15px] px-8 py-3.5 rounded-sm disabled:opacity-60"
       >
-        {loading ? '準備中…' : poolLoading ? '計算單字池…' : '開始背誦'}
+        {loading ? '準備中…' : poolLoading ? '計算單字池…' : mode === 'write' ? '開始書寫' : '開始背誦'}
       </button>
       <Link href="/app" className="ml-3 text-sm text-ink-soft underline">
         返回

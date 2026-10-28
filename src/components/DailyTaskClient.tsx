@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { useCallback, useEffect, useRef, useState } from 'react'
 
+import { AnswerDiff } from '@/components/AnswerDiff'
 import { SpeakButton } from '@/components/SpeakButton'
 import { TermSecondLine } from '@/components/TermSecondLine'
 import { StagePips } from '@/components/StagePips'
@@ -35,27 +36,6 @@ const LEAVE_MS = 260
 
 function prefersReducedMotion(): boolean {
   return typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
-}
-
-function DiffView({ diff }: { diff: NonNullable<DailyAnswerResult['diff']> }) {
-  return (
-    <span className="font-mono">
-      {diff.map((p, i) => {
-        if (p.type === 'ok') return <span key={i}>{p.text}</span>
-        if (p.type === 'bad' || p.type === 'extra')
-          return (
-            <span key={i} className="text-stamp-red font-bold underline decoration-wavy">
-              {p.text}
-            </span>
-          )
-        return (
-          <span key={i} className="text-stamp-red font-bold">
-            {p.text}
-          </span>
-        )
-      })}
-    </span>
-  )
 }
 
 function CardHeader({ kind, stage, lang }: { kind: DailyQuestion['kind']; stage: number; lang: string }) {
@@ -424,7 +404,7 @@ export function DailyTaskClient({ payload, currentStreak, showPronunciation }: D
                   </div>
                   {!feedback.is_correct && q.kind === 'fill' && feedback.diff && (
                     <div className="text-[13px] mt-1">
-                      你的輸入：<DiffView diff={feedback.diff} />
+                      你的輸入：<AnswerDiff diff={feedback.diff} />
                     </div>
                   )}
                 </div>
