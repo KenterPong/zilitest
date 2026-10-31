@@ -10,6 +10,8 @@ interface ScopeFilterProps {
   wordbooks: WordbookWithCount[]
   tags: DbTag[]
   initialWordbookIds?: string[]
+  /** 回到篩選畫面時沿用上次選的標籤 */
+  initialTagIds?: string[]
   /** 測驗頁強調「複選＝綜合測驗」 */
   emphasizeCombined?: boolean
   onChange: (
@@ -26,11 +28,12 @@ export function ScopeFilter({
   wordbooks,
   tags,
   initialWordbookIds = [],
+  initialTagIds = [],
   emphasizeCombined = false,
   onChange,
 }: ScopeFilterProps) {
   const [wordbookIds, setWordbookIds] = useState<string[]>(initialWordbookIds)
-  const [tagIds, setTagIds] = useState<string[]>([])
+  const [tagIds, setTagIds] = useState<string[]>(initialTagIds)
   const [poolSize, setPoolSize] = useState(0)
   const [poolLoading, setPoolLoading] = useState(initialWordbookIds.length > 0)
 

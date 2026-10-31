@@ -317,7 +317,9 @@ export function CardsClient({
       <ScopeFilter
         wordbooks={wordbooks}
         tags={tags}
-        initialWordbookIds={initialWordbookId ? [initialWordbookId] : []}
+        // 練習結束回到篩選畫面時沿用同樣範圍（初次進入時為網址帶入的單字本）
+        initialWordbookIds={wordbookIds}
+        initialTagIds={tagIds}
         onChange={onFilterChange}
       />
 
