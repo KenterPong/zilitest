@@ -86,3 +86,12 @@ describe('isReorderFilledCorrect', () => {
     expect(isReorderFilledCorrect(tiles.slice(0, 5), src)).toBe(false)
   })
 })
+
+describe('shuffleChunks 讀音', () => {
+  it('已存的讀音與詞塊對不上時不顯示', () => {
+    const tiles = shuffleChunks([{ text: 'いつ' }, { text: '日本に', reading: 'にほんに' }, { text: '来ましたか。', reading: 'きました' }])
+    const byText = Object.fromEntries(tiles.map((t) => [t.text, t.reading]))
+    expect(byText['日本に']).toBe('にほんに')
+    expect(byText['来ましたか。']).toBeUndefined()
+  })
+})

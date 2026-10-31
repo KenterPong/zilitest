@@ -2,6 +2,7 @@
  * 單字例句（技術規格 v5 第三節 2.、第五節 9.、第六節 5.、第十節 3.）的純邏輯：
  * AI 回傳的伺服器端驗證、英韓依空格切詞塊、挖空與替換、重組判定。
  */
+import { katakanaToHiragana } from '@/lib/answer-match'
 import type { ExampleChunk, ExampleSource, Language, WordExample } from '@/types/vocab'
 
 /** 例句長度上限（字元），超過時例句欄位全部為 NULL */
@@ -18,6 +19,33 @@ const HAN = new RegExp(String.raw`\p{Script=Han}`, 'u')
 const PUNCT_ONLY = new RegExp(String.raw`^\p{P}+$`, 'u')
 /** example_tts 只能有平假名、片假名、長音、空格與標點 */
 const TTS_ALLOWED = new RegExp(String.raw`^[\p{Script=Hiragana}\p{Script=Katakana}ー\p{P} 　]+$`, 'u')
+
+/** 詞塊讀音比對時只看漢字與假名（標點、符號、英數字略過） */
+const READING_IGNORED = new RegExp(String.raw`[^\p{Script=Han}々\p{Script=Hiragana}\p{Script=Katakana}ー]`, 'gu')
+const HAN_OR_ITERATION = new RegExp(String.raw`[\p{Script=Han}々]`, 'u')
+
+/**
+ * 日文詞塊讀音是否與詞塊相符：詞塊中的假名（片假名視同平假名）須原樣出現在讀音的對應位置，
+ * 每段漢字對應至少一個假名。例如「来ましたか」的讀音「きました」少了「か」→ 不相符。
+ * 標點與英數字不比對（讀音省略句末「。」「、」視為相符）
+ */
+export function isChunkReadingValid(text: string, reading: string): boolean {
+  const t = katakanaToHiragana(text.replace(READING_IGNORED, ''))
+  const r = katakanaToHiragana(reading.replace(READING_IGNORED, ''))
+  if (!t || !r || !/^[ぁ-ゖー]+$/.test(r)) return false
+  let pattern = ''
+  let inHan = false
+  for (const ch of Array.from(t)) {
+    if (HAN_OR_ITERATION.test(ch)) {
+      if (!inHan) pattern += '[ぁ-ゖー]+'
+      inHan = true
+    } else {
+      pattern += ch === 'ー' ? 'ー' : ch
+      inHan = false
+    }
+  }
+  return new RegExp(`^${pattern}$`).test(r)
+}
 
 function charLength(s: string): number {
   return Array.from(s).length
@@ -58,7 +86,14 @@ function parseChunks(raw: unknown, language: Language): ExampleChunk[] | null {
     const chunk: ExampleChunk = { text: language === 'ja' ? text : text.trim() }
     // 讀音只留給日文含漢字的詞塊
     const reading = (item as { reading?: unknown } | null)?.reading
-    if (language === 'ja' && HAN.test(text) && typeof reading === 'string' && reading.trim()) {
+    // 讀音與詞塊的假名對不上時不保留讀音（只影響顯示，詞塊照常使用）
+    if (
+      language === 'ja' &&
+      HAN.test(text) &&
+      typeof reading === 'string' &&
+      reading.trim() &&
+      isChunkReadingValid(text, reading)
+    ) {
       chunk.reading = reading.trim()
     }
     chunks.push(chunk)

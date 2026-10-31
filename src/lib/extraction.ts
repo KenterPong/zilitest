@@ -227,7 +227,7 @@ function sentenceRules(language: Language, level: string, textField: string): st
   const lengthRule = language === 'en' ? 'about 12 words or fewer' : 'about 40 characters or fewer'
   const chunkRule =
     language === 'ja'
-      ? `- chunks: split ${textField} into bunsetsu (a content word plus the particles and auxiliaries that follow it), at most 12 chunks; attach sentence-final punctuation to the last chunk. Concatenating the chunks with no separator must reproduce ${textField} exactly. reading: the hiragana reading of the chunk when it contains kanji, otherwise null.`
+      ? `- chunks: split ${textField} into bunsetsu (a content word plus the particles and auxiliaries that follow it), at most 12 chunks; attach sentence-final punctuation to the last chunk. Concatenating the chunks with no separator must reproduce ${textField} exactly. reading: the hiragana reading of the whole chunk when it contains kanji, covering every kana and particle in the chunk (e.g. 来ましたか。 → きましたか), otherwise null.`
       : '- chunks: always null.'
   const ttsRule =
     language === 'ja'

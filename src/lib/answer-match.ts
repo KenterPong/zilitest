@@ -6,7 +6,7 @@
  */
 
 /** 片假名（ァ–ヶ）轉平假名；長音符等其他字元不變 */
-function katakanaToHiragana(s: string): string {
+export function katakanaToHiragana(s: string): string {
   return s.replace(/[ァ-ヶ]/g, (ch) => String.fromCharCode(ch.charCodeAt(0) - 0x60))
 }
 

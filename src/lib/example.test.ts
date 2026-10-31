@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import {
   buildClozeSentence,
   buildTfSentence,
+  isChunkReadingValid,
   isReorderable,
   isReorderCorrect,
   resolveExampleSource,
@@ -33,7 +34,7 @@ const jaRaw = {
   example_target: '受けた',
   example_chunks: [
     { text: '昨日、', reading: 'きのう' },
-    { text: '試験を', reading: 'しけん' },
+    { text: '試験を', reading: 'しけんを' },
     { text: '受けた。', reading: 'うけた' },
   ],
   example_tts: 'きのう、 しけんを うけた。',
@@ -226,5 +227,38 @@ describe('splitAtTarget', () => {
   it('找不到或沒有 target → 整句放在 before', () => {
     expect(splitAtTarget('hello', 'bye')).toEqual({ before: 'hello', target: '', after: '' })
     expect(splitAtTarget('hello', null)).toEqual({ before: 'hello', target: '', after: '' })
+  })
+})
+
+describe('isChunkReadingValid', () => {
+  it('假名對得上即相符，讀音省略句末標點也算', () => {
+    expect(isChunkReadingValid('学校は', 'がっこうは')).toBe(true)
+    expect(isChunkReadingValid('明日、', 'あした')).toBe(true)
+    expect(isChunkReadingValid('便利です。', 'べんりです')).toBe(true)
+    expect(isChunkReadingValid('お願いしても', 'おねがいしても')).toBe(true)
+    expect(isChunkReadingValid('人々', 'ひとびと')).toBe(true)
+    expect(isChunkReadingValid('ケーキ屋', 'けーきや')).toBe(true)
+  })
+
+  it('讀音少了或多了假名、漢字沒有對應讀音、讀音含漢字 → 不相符', () => {
+    expect(isChunkReadingValid('来ましたか。', 'きました')).toBe(false)
+    expect(isChunkReadingValid('駅で', 'えき')).toBe(false)
+    expect(isChunkReadingValid('駅で', 'えきでした')).toBe(false)
+    expect(isChunkReadingValid('駅で', '駅で')).toBe(false)
+  })
+})
+
+describe('validateExample 日文詞塊讀音', () => {
+  it('讀音與詞塊對不上時只去掉讀音，詞塊照常保留', () => {
+    const v = validateExample('ja', {
+      example: 'いつ日本に来ましたか。',
+      example_target: '日本',
+      example_chunks: [
+        { text: 'いつ' },
+        { text: '日本に', reading: 'にほんに' },
+        { text: '来ましたか。', reading: 'きました' },
+      ],
+    })
+    expect(v?.example_chunks).toEqual([{ text: 'いつ' }, { text: '日本に', reading: 'にほんに' }, { text: '来ましたか。' }])
   })
 })

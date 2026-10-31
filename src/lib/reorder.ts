@@ -2,7 +2,7 @@
  * 重組練習（技術規格 v5 第六節 5.）的純邏輯：出題範圍、詞塊打散、填入判定。
  * 默組的出題順序與重出佇列沿用書寫練習（writing.ts 的 buildRecallOrder / RecallQueue）。
  */
-import { isReorderable, isReorderCorrect } from '@/lib/example'
+import { isChunkReadingValid, isReorderable, isReorderCorrect } from '@/lib/example'
 import { shuffleTiles } from '@/lib/spell'
 import type { ExampleChunk } from '@/types/vocab'
 
@@ -39,19 +39,26 @@ export function reorderUnavailableReason(cards: ReorderSource[]): 'no_example' |
   return cards.some((c) => !!c.example?.trim()) ? 'not_reorderable' : 'no_example'
 }
 
+function validReading(c: ExampleChunk): string | undefined {
+  return c.reading && isChunkReadingValid(c.text, c.reading) ? c.reading : undefined
+}
+
 export interface ReorderTile {
   id: number
   text: string
   reading?: string
 }
 
-/** 打散詞塊；剛好排回原順序時重新打散（最多 20 次，同拼字挑戰） */
+/**
+ * 打散詞塊；剛好排回原順序時重新打散（最多 20 次，同拼字挑戰）。
+ * 已存的讀音與詞塊對不上時不顯示（驗證加入前寫入的例句）
+ */
 export function shuffleChunks(chunks: ExampleChunk[], random: () => number = Math.random): ReorderTile[] {
   const texts = chunks.map((c) => c.text)
   return shuffleTiles(texts, texts, random).map((t) => ({
     id: t.id,
     text: t.char,
-    reading: chunks[t.id]!.reading,
+    reading: validReading(chunks[t.id]!),
   }))
 }
 
