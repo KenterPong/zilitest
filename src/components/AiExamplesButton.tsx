@@ -12,11 +12,15 @@ interface AiExamplesButtonProps {
   language: Language
   /** 該語言的抽字等級；未設定時不能使用 */
   level: string | null
+  /** 本月 AI 剩餘次數（抽字與補例句共用，由單字本頁統一保存） */
   remaining: number
+  onRemainingChange: (remaining: number) => void
   limit: number
   canMutate: boolean
   /** 單字本中沒有例句的字數 */
   missingCount: number
+  /** 單字本是否有單字（空的單字本不顯示「都已有例句」） */
+  hasWords: boolean
   onApplied: () => Promise<void> | void
 }
 
@@ -36,16 +40,17 @@ export function AiExamplesButton({
   wordbookId,
   language,
   level,
-  remaining: initialRemaining,
+  remaining,
+  onRemainingChange,
   limit,
   canMutate,
   missingCount,
+  hasWords,
   onApplied,
 }: AiExamplesButtonProps) {
   const { alert } = useAppDialog()
   const [open, setOpen] = useState(false)
   const [phase, setPhase] = useState<Phase>('confirm')
-  const [remaining, setRemaining] = useState(initialRemaining)
   const [extractionId, setExtractionId] = useState<string | null>(null)
   const [requested, setRequested] = useState(0)
   const [items, setItems] = useState<PreviewItem[]>([])
@@ -93,7 +98,7 @@ export function AiExamplesButton({
         setError(data.error ?? '產生例句失敗，請稍後再試')
         return
       }
-      setRemaining(data.remaining)
+      onRemainingChange(data.remaining)
       setExtractionId(data.extraction_id)
       setRequested(data.requested)
       setItems(data.items)
@@ -141,7 +146,7 @@ export function AiExamplesButton({
       <button
         type="button"
         disabled={!canMutate || missingCount === 0}
-        title={missingCount === 0 ? '所有單字都已有例句' : undefined}
+        title={missingCount === 0 ? (hasWords ? '所有單字都已有例句' : '單字本還沒有單字') : undefined}
         onClick={openDialog}
         className="border border-line bg-cream text-sm font-medium px-4 py-2 rounded-sm hover:border-ink disabled:opacity-60 disabled:cursor-not-allowed"
       >

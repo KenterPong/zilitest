@@ -21,7 +21,11 @@ interface AiExtractButtonProps {
   wordbookId: string
   language: Language
   initialLevel: string | null
+  /** 設定抽字等級後通知單字本頁（補例句也要用） */
+  onLevelChange: (level: string) => void
+  /** 本月 AI 剩餘次數（抽字與補例句共用，由單字本頁統一保存） */
   remaining: number
+  onRemainingChange: (remaining: number) => void
   limit: number
   canMutate: boolean
   /** 試用期剩餘可新增字數；付費為 null */
@@ -91,7 +95,9 @@ export function AiExtractButton({
   wordbookId,
   language,
   initialLevel,
-  remaining: initialRemaining,
+  onLevelChange,
+  remaining,
+  onRemainingChange,
   limit,
   canMutate,
   remainingSlots,
@@ -107,7 +113,6 @@ export function AiExtractButton({
   const [checked, setChecked] = useState<boolean[]>([])
   /** 個別「不保留例句」 */
   const [dropExample, setDropExample] = useState<boolean[]>([])
-  const [remaining, setRemaining] = useState(initialRemaining)
   const [busy, setBusy] = useState(false)
   const [transcribing, setTranscribing] = useState(false)
   const fileInput = useRef<HTMLInputElement>(null)
@@ -160,6 +165,7 @@ export function AiExtractButton({
         return
       }
       setLevel(pickedLevel)
+      onLevelChange(pickedLevel)
       setPhase('input')
     } catch {
       setError('網路錯誤，請再試一次')
@@ -182,7 +188,7 @@ export function AiExtractButton({
         setError(data.error ?? '抽字失敗，請稍後再試')
         return
       }
-      setRemaining(data.remaining)
+      onRemainingChange(data.remaining)
       setWords(data.words)
       setChecked(data.words.map(() => true))
       setDropExample(data.words.map(() => false))
@@ -214,7 +220,7 @@ export function AiExtractButton({
         setError(data.error ?? '圖片轉文字失敗，請稍後再試')
         return
       }
-      setRemaining(data.remaining)
+      onRemainingChange(data.remaining)
       if (!data.text) {
         setError(`圖片中沒有辨識到${label}文字`)
         return

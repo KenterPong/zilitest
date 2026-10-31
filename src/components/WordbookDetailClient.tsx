@@ -62,6 +62,9 @@ export function WordbookDetailClient({
   /** 展開顯示例句的列 */
   const [expanded, setExpanded] = useState<Set<string>>(() => new Set())
   const [wordCount, setWordCount] = useState(accountWordCount)
+  // AI 抽字與補例句共用等級與每月次數；任一邊用掉後另一邊要同步
+  const [aiLevel, setAiLevel] = useState(aiExtract.level)
+  const [aiRemaining, setAiRemaining] = useState(aiExtract.remaining)
 
   const [wordModal, setWordModal] = useState<'create' | WordWithMeta | null>(null)
   /** 編輯時按下「刪除例句」，儲存時一併清除 */
@@ -385,7 +388,9 @@ export function WordbookDetailClient({
             wordbookId={wordbookId}
             language={wordbookLanguage}
             initialLevel={aiExtract.level}
-            remaining={aiExtract.remaining}
+            onLevelChange={setAiLevel}
+            remaining={aiRemaining}
+            onRemainingChange={setAiRemaining}
             limit={aiExtract.limit}
             canMutate={canMutate}
             remainingSlots={
@@ -398,11 +403,13 @@ export function WordbookDetailClient({
           <AiExamplesButton
             wordbookId={wordbookId}
             language={wordbookLanguage}
-            level={aiExtract.level}
-            remaining={aiExtract.remaining}
+            level={aiLevel}
+            remaining={aiRemaining}
+            onRemainingChange={setAiRemaining}
             limit={aiExtract.limit}
             canMutate={canMutate}
             missingCount={words.filter((w) => !w.example).length}
+            hasWords={words.length > 0}
             onApplied={reloadWords}
           />
           <button
