@@ -16,7 +16,7 @@ import {
   type LanguageCounts,
 } from '@/lib/quiz-language'
 import { QUESTION_TYPE_LABELS, type QuestionType, type QuizQuestion } from '@/types/quiz'
-import type { DbTag, Language, WordbookWithCount } from '@/types/vocab'
+import { LANGUAGE_LABELS, type DbTag, type Language, type WordbookWithCount } from '@/types/vocab'
 
 const QTYPES: { type: QuestionType; name: string; desc: string }[] = [
   { type: 'tf', name: QUESTION_TYPE_LABELS.tf, desc: '判斷單字與翻譯配對是否正確' },
@@ -484,7 +484,8 @@ export function QuizSetupClient({
                     })
                   }
                 }}
-                placeholder="輸入英文單字…"
+                lang={q.language}
+                placeholder={q.language ? `輸入${LANGUAGE_LABELS[q.language]}單字…` : '輸入單字…'}
                 className="w-full border-[1.5px] border-line rounded-md px-3.5 py-3 text-[15px] text-center mb-3.5 font-mono"
                 autoFocus
                 autoCapitalize="off"

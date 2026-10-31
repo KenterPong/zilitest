@@ -20,7 +20,7 @@ export interface QuizQuestion {
   word_id: string
   /** 是非／選擇：顯示的外文單字；填空題不回傳（避免洩漏答案） */
   term?: string
-  /** 是非／選擇：第二層顯示用 */
+  /** 單字的語言：是非／選擇的第二層顯示，填空題的提示文字與輸入法提示 */
   language?: Language
   reading?: string | null
   pronunciation?: string | null
