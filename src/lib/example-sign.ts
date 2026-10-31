@@ -7,8 +7,16 @@ import { createHmac, timingSafeEqual } from 'node:crypto'
 
 import type { ExampleChunk, ExampleSource, WordExample } from '@/types/vocab'
 
+let warnedMissingSecret = false
+
 function secret(): string | null {
-  return process.env.EXAMPLE_SIGNING_SECRET?.trim() || null
+  const key = process.env.EXAMPLE_SIGNING_SECRET?.trim() || null
+  // 漏設時例句會靜默不寫入，每個伺服器實例留一行警告方便從 log 發現
+  if (!key && !warnedMissingSecret) {
+    warnedMissingSecret = true
+    console.warn('[example-sign] EXAMPLE_SIGNING_SECRET 未設定：例句不會簽章，也不會寫入')
+  }
+  return key
 }
 
 /** 固定欄位順序，讓前端來回傳遞後仍能重現同一份內容 */
