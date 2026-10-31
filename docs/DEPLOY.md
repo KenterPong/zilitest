@@ -37,6 +37,7 @@
 | `CRON_SECRET` | Phase 2 cron 用（可先填隨機字串） |
 | `OPENAI_API_KEY` | AI 抽字用 OpenAI API key（僅伺服器端） |
 | `OPENAI_MODEL` | AI 抽字用模型 ID，目前為 `gpt-6-luna`（僅伺服器端） |
+| `EXAMPLE_SIGNING_SECRET` | 例句簽章金鑰（僅伺服器端，隨機長字串，例如 `openssl rand -base64 32`）；AI 產生的例句寫入前驗證未被改動。未設定時 AI 抽字照常運作，但例句不會寫入 |
 
 ### OpenAI（AI 抽字）
 

@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server'
 import { AiExtractError, callExtraction, getExtractionQuota } from '@/lib/ai-extract'
 import { assertCanMutate, requireUser } from '@/lib/api-auth'
 import { getLanguageWords } from '@/lib/daily-service'
+import { extractScope, signExample } from '@/lib/example-sign'
 import { cleanExtracted, isValidLevel, levelsUpTo, MAX_INPUT_CHARS } from '@/lib/extraction'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import type { Language } from '@/types/vocab'
@@ -14,6 +15,7 @@ export const maxDuration = 60
 /**
  * AI 抽字：貼上原文 → 依該語言設定的等級抽出單字 → 回傳預覽（尚未寫入單字本）。
  * AI 成功回傳即計 1 次（含 0 個字）；錯誤或逾時不計次。
+ * 例句經驗證後附上簽章，匯入時驗證，確保例句由系統產生（第三節 2.、第十節 3.）。
  */
 export async function POST(request: Request) {
   const auth = await requireUser()
@@ -76,8 +78,14 @@ export async function POST(request: Request) {
     const words = cleanExtracted(
       raw,
       existing.map((w) => w.term),
-      levelsUpTo(language, level)
-    )
+      levelsUpTo(language, level),
+      { language, sourceText: text }
+    ).map((w) => {
+      if (!w.example) return w
+      const sig = signExample(extractScope(auth.user.id, language, w.term), w.example)
+      // 未設定簽章金鑰時例句無法寫入，預覽也不顯示
+      return sig ? { ...w, example_sig: sig } : { ...w, example: null }
+    })
 
     const { error: logError } = await supabaseAdmin.from('ai_extractions').insert({
       user_id: auth.user.id,

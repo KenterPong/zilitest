@@ -1,13 +1,17 @@
 import { NextResponse } from 'next/server'
 
 import { assertCanMutate, canAddWords, requireUser } from '@/lib/api-auth'
+import { exampleColumns, extractScope, verifyExample } from '@/lib/example-sign'
 import { recalculateWordCount } from '@/lib/word-count'
 import { generatePronunciation } from '@/lib/pronunciation'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 
 export const runtime = 'nodejs'
 
-/** 批次新增單字（Excel／CSV 匯入用） */
+/**
+ * 批次新增單字（Excel／CSV 匯入、AI 抽字匯入）。
+ * 例句只接受 AI 抽字附上且簽章有效的（第三節 2.）；Excel 匯入不帶例句
+ */
 export async function POST(request: Request) {
   const auth = await requireUser()
   if (auth.error) return auth.error
@@ -22,6 +26,8 @@ export async function POST(request: Request) {
       answer: string
       description?: string | null
       reading?: string | null
+      example?: unknown
+      example_sig?: unknown
     }[]
     truncate_to_limit?: boolean
   }
@@ -54,6 +60,8 @@ export async function POST(request: Request) {
       answer: String(w.answer ?? '').trim(),
       description: w.description?.toString().trim() || null,
       reading: w.reading?.toString().trim() || null,
+      example: w.example,
+      example_sig: w.example_sig,
     }))
     .filter((w) => w.term && w.answer)
 
@@ -80,15 +88,20 @@ export async function POST(request: Request) {
     )
   }
 
+  const now = new Date().toISOString()
   const rows = await Promise.all(
-    toInsert.map(async (w) => ({
-      wordbook_id: wordbookId,
-      term: w.term,
-      answer: w.answer,
-      description: w.description,
-      reading: w.reading,
-      pronunciation: await generatePronunciation(book.language, w.term),
-    }))
+    toInsert.map(async (w) => {
+      const example = verifyExample(extractScope(auth.user.id, book.language, w.term), w.example, w.example_sig)
+      return {
+        wordbook_id: wordbookId,
+        term: w.term,
+        answer: w.answer,
+        description: w.description,
+        reading: w.reading,
+        pronunciation: await generatePronunciation(book.language, w.term),
+        ...exampleColumns(example, now),
+      }
+    })
   )
 
   const { data: inserted, error } = await supabaseAdmin

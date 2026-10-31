@@ -46,7 +46,7 @@ const FAN = [
 ]
 
 /** AI 等待中：洗牌動畫 + 依時間更換的進度說明 + 已等待秒數 */
-function ExtractingIndicator({ steps, label }: { steps: string[]; label: string }) {
+export function ExtractingIndicator({ steps, label }: { steps: string[]; label: string }) {
   const [sec, setSec] = useState(0)
   useEffect(() => {
     const t = window.setInterval(() => setSec((s) => s + 1), 1000)
@@ -105,6 +105,8 @@ export function AiExtractButton({
   const [text, setText] = useState('')
   const [words, setWords] = useState<ExtractedWord[]>([])
   const [checked, setChecked] = useState<boolean[]>([])
+  /** 個別「不保留例句」 */
+  const [dropExample, setDropExample] = useState<boolean[]>([])
   const [remaining, setRemaining] = useState(initialRemaining)
   const [busy, setBusy] = useState(false)
   const [transcribing, setTranscribing] = useState(false)
@@ -183,6 +185,7 @@ export function AiExtractButton({
       setRemaining(data.remaining)
       setWords(data.words)
       setChecked(data.words.map(() => true))
+      setDropExample(data.words.map(() => false))
       setPhase('preview')
     } catch {
       setError('網路錯誤，請再試一次')
@@ -227,7 +230,9 @@ export function AiExtractButton({
   }
 
   async function importSelected() {
-    const selected = words.filter((_, i) => checked[i])
+    const selected = words
+      .map((w, i) => (dropExample[i] ? { ...w, example: null, example_sig: undefined } : w))
+      .filter((_, i) => checked[i])
     if (selected.length === 0 || !lock()) return
     setError(null)
     try {
@@ -246,6 +251,7 @@ export function AiExtractButton({
       setText('')
       setWords([])
       setChecked([])
+      setDropExample([])
       await alert(
         `已匯入 ${data.inserted} 個字` + (data.skipped ? `（略過 ${data.skipped} 個，因試用上限）` : ''),
         'AI 抽字完成'
@@ -352,7 +358,7 @@ export function AiExtractButton({
                   className="w-full min-h-[200px] border border-line rounded-[5px] px-3 py-2 text-sm bg-white focus:outline-none focus:border-ink disabled:opacity-60"
                 />
                 <div className="flex justify-between text-[11.5px] font-mono mt-1 mb-3">
-                  <span className="text-ink-soft">原文與圖片只送給 AI 分析，處理完即捨棄，不會儲存</span>
+                  <span className="text-ink-soft">原文與圖片只送給 AI 分析，處理完即捨棄；只保留含單字的一句作為例句</span>
                   <span className={text.length > MAX_INPUT_CHARS ? 'text-stamp-red' : 'text-ink-soft'}>
                     {text.length} / {MAX_INPUT_CHARS}
                   </span>
@@ -399,7 +405,7 @@ export function AiExtractButton({
                 ) : (
                   <>
                     <p className="text-xs text-ink-soft mb-2">
-                      抽出 {words.length} 個字（{level && levelLabel(language, level)} 以下，已排除你單字本裡已有的字），越難的排越前面。等級由 AI 判斷，不想背的字請取消勾選。
+                      抽出 {words.length} 個字（{level && levelLabel(language, level)} 以下，已排除你單字本裡已有的字），越難的排越前面。等級由 AI 判斷，不想背的字請取消勾選；例句取自原文，原文沒有完整句子時由 AI 造句。
                     </p>
                     <div className="overflow-auto border border-line rounded-sm mb-3 flex-1 min-h-0">
                       <table className="w-full text-sm">
@@ -439,7 +445,36 @@ export function AiExtractButton({
                                 </span>
                                 {w.reading && <span className="block text-xs text-ink-soft">{w.reading}</span>}
                               </td>
-                              <td className="px-3 py-2">{w.answer}</td>
+                              <td className="px-3 py-2">
+                                {w.answer}
+                                {w.example && (
+                                  <div className="mt-1.5 text-xs">
+                                    <div lang={language} className={`text-ink ${dropExample[i] ? 'line-through opacity-60' : ''}`}>
+                                      {w.example.example}
+                                      {w.example.example_source === 'generated' && (
+                                        <span className="ml-1.5 font-mono text-[10.5px] text-ink-soft border border-line rounded-sm px-1">
+                                          AI 例句
+                                        </span>
+                                      )}
+                                    </div>
+                                    {w.example.example_translation && (
+                                      <div className={`text-ink-soft mt-0.5 ${dropExample[i] ? 'line-through opacity-60' : ''}`}>
+                                        {w.example.example_translation}
+                                      </div>
+                                    )}
+                                    <label className="inline-flex items-center gap-1 mt-1 text-ink-soft">
+                                      <input
+                                        type="checkbox"
+                                        checked={dropExample[i] ?? false}
+                                        onChange={(e) =>
+                                          setDropExample((prev) => prev.map((d, j) => (j === i ? e.target.checked : d)))
+                                        }
+                                      />
+                                      不保留例句
+                                    </label>
+                                  </div>
+                                )}
+                              </td>
                               <td className="px-3 py-2 text-xs text-ink-soft">{w.description ?? ''}</td>
                               <td className="px-3 py-2 font-mono text-[11.5px] text-ink-soft whitespace-nowrap">
                                 {w.level ? levelLabel(language, w.level) : '—'}

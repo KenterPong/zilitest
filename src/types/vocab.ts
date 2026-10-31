@@ -30,6 +30,13 @@ export interface DbWord {
   description: string | null
   /** 系統產生的發音標註：英文 IPA、韓文羅馬拼音；日文一律 null（第十三節） */
   pronunciation: string | null
+  /** 例句欄位（第三節 2.）；一律由系統寫入，查詢未帶出時為 undefined */
+  example?: string | null
+  example_translation?: string | null
+  example_source?: ExampleSource | null
+  example_target?: string | null
+  example_chunks?: ExampleChunk[] | null
+  example_tts?: string | null
   created_at: string
 }
 

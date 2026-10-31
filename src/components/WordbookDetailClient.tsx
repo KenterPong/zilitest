@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useMemo, useState } from 'react'
 
+import { AiExamplesButton } from '@/components/AiExamplesButton'
 import { AiExtractButton } from '@/components/AiExtractButton'
 import { ImportExcelButton } from '@/components/ImportExcelButton'
 import { LanguageBadge } from '@/components/LanguageBadge'
@@ -60,6 +61,8 @@ export function WordbookDetailClient({
   const [wordCount, setWordCount] = useState(accountWordCount)
 
   const [wordModal, setWordModal] = useState<'create' | WordWithMeta | null>(null)
+  /** 編輯時按下「刪除例句」，儲存時一併清除 */
+  const [clearExample, setClearExample] = useState(false)
   const [tagModal, setTagModal] = useState(false)
   const [renameOpen, setRenameOpen] = useState(false)
   const [nameDraft, setNameDraft] = useState(wordbookName)
@@ -110,6 +113,7 @@ export function WordbookDetailClient({
       description: word.description ?? '',
       tag_ids: word.tags.map((t) => t.id),
     })
+    setClearExample(false)
     setError(null)
     setWordModal(word)
   }
@@ -166,6 +170,7 @@ export function WordbookDetailClient({
             answer: form.answer,
             description: form.description || null,
             tag_ids: form.tag_ids,
+            clear_example: clearExample,
           }),
         })
         const data = await res.json()
@@ -173,6 +178,7 @@ export function WordbookDetailClient({
           setError(data.error ?? '更新失敗')
           return
         }
+        const exampleCleared = data.word ? data.word.example == null : clearExample
         const selectedTags = tags.filter((t) => form.tag_ids.includes(t.id))
         setWords((prev) =>
           prev.map((w) =>
@@ -184,6 +190,16 @@ export function WordbookDetailClient({
                   answer: form.answer.trim(),
                   description: form.description.trim() || null,
                   pronunciation: data.word?.pronunciation ?? w.pronunciation,
+                  ...(exampleCleared
+                    ? {
+                        example: null,
+                        example_translation: null,
+                        example_source: null,
+                        example_target: null,
+                        example_chunks: null,
+                        example_tts: null,
+                      }
+                    : {}),
                   tags: selectedTags,
                 }
               : w
@@ -375,6 +391,16 @@ export function WordbookDetailClient({
                 : null
             }
             onImported={reloadWords}
+          />
+          <AiExamplesButton
+            wordbookId={wordbookId}
+            language={wordbookLanguage}
+            level={aiExtract.level}
+            remaining={aiExtract.remaining}
+            limit={aiExtract.limit}
+            canMutate={canMutate}
+            missingCount={words.filter((w) => !w.example).length}
+            onApplied={reloadWords}
           />
           <button
             type="button"
@@ -572,6 +598,43 @@ export function WordbookDetailClient({
               className="w-full border border-line rounded-sm px-3 py-2 text-sm bg-white mb-3 min-h-[72px] disabled:opacity-60"
               disabled={loading}
             />
+            {typeof wordModal === 'object' && wordModal.example && (
+              <div className="mb-3">
+                <label className="block text-xs text-ink-soft mb-1">
+                  例句{wordModal.example_source === 'generated' && '（AI 例句）'}
+                </label>
+                {clearExample ? (
+                  <p className="text-[12.5px] text-ink-soft">
+                    儲存後刪除例句。
+                    <button
+                      type="button"
+                      onClick={() => setClearExample(false)}
+                      className="ml-1.5 underline hover:text-ink"
+                    >
+                      復原
+                    </button>
+                  </p>
+                ) : (
+                  <div className="text-[13px] border border-line rounded-sm bg-paper-deep px-3 py-2">
+                    <div lang={wordbookLanguage}>{wordModal.example}</div>
+                    {wordModal.example_translation && (
+                      <div className="text-ink-soft mt-0.5">{wordModal.example_translation}</div>
+                    )}
+                    <button
+                      type="button"
+                      disabled={loading}
+                      onClick={() => setClearExample(true)}
+                      className="mt-1.5 text-[12px] text-stamp-red-deep underline disabled:opacity-60"
+                    >
+                      刪除例句
+                    </button>
+                  </div>
+                )}
+                {!clearExample && form.term.trim() !== wordModal.term && (
+                  <p className="text-[12px] text-stamp-red-deep mt-1">修改單字後，例句會一併刪除。</p>
+                )}
+              </div>
+            )}
             {tags.length > 0 && (
               <>
                 <label className="block text-xs text-ink-soft mb-2">標籤</label>

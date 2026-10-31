@@ -3,12 +3,17 @@ import 'server-only'
 import OpenAI from 'openai'
 
 import {
+  buildExampleGenerationPrompt,
   buildExtractionPrompt,
   buildTranscriptionPrompt,
+  EXAMPLE_GENERATION_SCHEMA,
   EXTRACTION_SCHEMA,
+  expandSentenceRefs,
+  generatedToRaw,
   monthlyLimit,
   taipeiMonthStartInstant,
   TRANSCRIPTION_SCHEMA,
+  type RawExtractedWord,
 } from '@/lib/extraction'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import type { DbUser } from '@/types/user'
@@ -54,6 +59,12 @@ function toAiError(e: unknown): AiExtractError {
   return new AiExtractError('AI 服務連線失敗，請稍後再試', 502)
 }
 
+/** 本機開發時記錄 token 用量（只記數字，不記原文或結果），用來評估例句增加的成本 */
+function logUsage(kind: string, usage: OpenAI.CompletionUsage | undefined) {
+  if (process.env.NODE_ENV !== 'development' || !usage) return
+  console.info(`[ai-usage] ${kind} prompt=${usage.prompt_tokens} completion=${usage.completion_tokens}`)
+}
+
 /** 本月（台北自然月）已用次數與剩餘次數（抽字與圖片轉文字共用） */
 export async function getExtractionQuota(user: DbUser): Promise<ExtractionQuota> {
   const limit = monthlyLimit(user.status, user.id)
@@ -75,7 +86,7 @@ export async function callExtraction(
   language: Language,
   level: string,
   text: string
-): Promise<{ term?: unknown; answer?: unknown; description?: unknown; reading?: unknown }[]> {
+): Promise<RawExtractedWord[]> {
   const { client, model } = getClient()
 
   let completion
@@ -84,7 +95,10 @@ export async function callExtraction(
       model,
       // 不讓 OpenAI 儲存請求與回應（第十節 6.）
       store: false,
-      max_completion_tokens: 8000,
+      // 含例句句子表，輸出量較大
+      max_completion_tokens: 16000,
+      // 預設推理在日文常超過 60 秒時限，改用低推理
+      reasoning_effort: 'low',
       response_format: {
         type: 'json_schema',
         json_schema: { name: 'vocabulary', strict: true, schema: EXTRACTION_SCHEMA },
@@ -105,10 +119,59 @@ export async function callExtraction(
   if (choice.finish_reason === 'length') {
     throw new AiExtractError('文字中的單字太多，請分段貼上', 422)
   }
+  logUsage('extract', completion.usage)
 
   try {
-    const parsed = JSON.parse(choice.message.content ?? '') as { words?: unknown }
-    return Array.isArray(parsed.words) ? parsed.words : []
+    // 句子表展開成每個字各自的例句欄位
+    return expandSentenceRefs(JSON.parse(choice.message.content ?? '') as { words?: unknown; sentences?: unknown })
+  } catch {
+    throw new AiExtractError('AI 回傳格式錯誤，請再試一次', 502)
+  }
+}
+
+/**
+ * AI 補例句（第十節 8.）：依單字與中文意思造句，回傳未清理的原始結果（n 為送出時的索引）
+ */
+export async function callExampleGeneration(
+  language: Language,
+  level: string,
+  words: { n: number; term: string; reading: string | null; answer: string }[]
+): Promise<(RawExtractedWord & { n?: unknown })[]> {
+  const { client, model } = getClient()
+
+  let completion
+  try {
+    completion = await client.chat.completions.create({
+      model,
+      // 不讓 OpenAI 儲存請求與回應（第十節 6.）
+      store: false,
+      max_completion_tokens: 16000,
+      reasoning_effort: 'low',
+      response_format: {
+        type: 'json_schema',
+        json_schema: { name: 'examples', strict: true, schema: EXAMPLE_GENERATION_SCHEMA },
+      },
+      messages: [
+        { role: 'system', content: buildExampleGenerationPrompt(language, level) },
+        { role: 'user', content: JSON.stringify(words) },
+      ],
+    })
+  } catch (e) {
+    throw toAiError(e)
+  }
+
+  const choice = completion.choices[0]
+  if (!choice || choice.message.refusal) {
+    throw new AiExtractError('AI 無法處理這些單字，請稍後再試', 422)
+  }
+  if (choice.finish_reason === 'length') {
+    throw new AiExtractError('AI 回應過長，請稍後再試', 422)
+  }
+  logUsage('generate_examples', completion.usage)
+
+  try {
+    const parsed = JSON.parse(choice.message.content ?? '') as { examples?: unknown }
+    return Array.isArray(parsed.examples) ? parsed.examples.map(generatedToRaw) : []
   } catch {
     throw new AiExtractError('AI 回傳格式錯誤，請再試一次', 502)
   }

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 
 import { assertCanMutate, requireUser } from '@/lib/api-auth'
+import { exampleColumns } from '@/lib/example-sign'
 import { generatePronunciation } from '@/lib/pronunciation'
 import { recalculateWordCount } from '@/lib/word-count'
 import { supabaseAdmin } from '@/lib/supabase-admin'
@@ -13,7 +14,7 @@ type Ctx = { params: Promise<{ id: string }> }
 async function getOwnedWord(userId: string, wordId: string) {
   const { data: word } = await supabaseAdmin
     .from('words')
-    .select('id, wordbook_id, term, reading, answer, description, pronunciation, created_at')
+    .select('id, wordbook_id, term, reading, answer, description, pronunciation, example, example_translation, example_source, example_target, example_chunks, example_tts, created_at')
     .eq('id', wordId)
     .maybeSingle()
 
@@ -49,6 +50,8 @@ export async function PATCH(request: Request, context: Ctx) {
     answer?: string
     description?: string | null
     tag_ids?: string[]
+    /** 刪除例句（例句欄位全部清為 NULL） */
+    clear_example?: boolean
   }
   try {
     body = await request.json()
@@ -62,7 +65,8 @@ export async function PATCH(request: Request, context: Ctx) {
     answer?: string
     description?: string | null
     pronunciation?: string | null
-  } = {}
+  } & Partial<ReturnType<typeof exampleColumns>> = {}
+  let clearExample = body.clear_example === true
 
   if (body.term !== undefined) {
     const term = body.term.trim()
@@ -73,6 +77,8 @@ export async function PATCH(request: Request, context: Ctx) {
     // 發音標註只在 term 變更時重新計算；不接受前端傳入
     if (term !== existing.term) {
       updates.pronunciation = await generatePronunciation(existing.language, term)
+      // term 修改時例句一併清除（example_target 與詞塊可能已不相符，第三節 2.）
+      clearExample = true
     }
   }
   if (body.answer !== undefined) {
@@ -87,6 +93,9 @@ export async function PATCH(request: Request, context: Ctx) {
   }
   if (body.reading !== undefined) {
     updates.reading = body.reading?.trim() || null
+  }
+  if (clearExample && existing.example !== null) {
+    Object.assign(updates, exampleColumns(null, ''))
   }
 
   if (Object.keys(updates).length > 0) {

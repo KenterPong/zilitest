@@ -5,6 +5,7 @@ import {
   buildTfSentence,
   isReorderable,
   isReorderCorrect,
+  resolveExampleSource,
   splitBySpaces,
   validateExample,
 } from '@/lib/example'
@@ -201,5 +202,18 @@ describe('isReorderCorrect', () => {
 
   it('塊數不同 → 錯誤', () => {
     expect(isReorderCorrect(['I', 'like'], ['I', 'like', 'it'])).toBe(false)
+  })
+})
+
+describe('resolveExampleSource', () => {
+  const e = validateExample('en', enRaw)!
+  it('原文含這句（空白差異不計）→ original', () => {
+    expect(resolveExampleSource(e, 'Hello.\nThe  company reimbursed my\ntravel expenses. Bye.')).toBe('original')
+  })
+  it('原文沒有這句 → generated', () => {
+    expect(resolveExampleSource(e, 'Something else.')).toBe('generated')
+  })
+  it('本來就是 generated → generated', () => {
+    expect(resolveExampleSource({ ...e, example_source: 'generated' }, enRaw.example)).toBe('generated')
   })
 })

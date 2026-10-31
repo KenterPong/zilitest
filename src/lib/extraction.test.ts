@@ -2,9 +2,12 @@ import { describe, expect, it } from 'vitest'
 
 import {
   appendTranscript,
+  buildExampleGenerationPrompt,
   buildExtractionPrompt,
   buildTranscriptionPrompt,
   cleanExtracted,
+  expandSentenceRefs,
+  generatedToRaw,
   fitWithin,
   isValidLevel,
   levelLabel,
@@ -84,7 +87,9 @@ describe('cleanExtracted', () => {
       ],
       ['apple']
     )
-    expect(r).toEqual([{ term: 'Journey', answer: '旅程', description: '名詞', reading: null, level: null }])
+    expect(r).toEqual([
+      { term: 'Journey', answer: '旅程', description: '名詞', reading: null, level: null, example: null },
+    ])
   })
 
   it('讀音與單字相同時不存讀音', () => {
@@ -216,5 +221,170 @@ describe('buildTranscriptionPrompt', () => {
     const p = buildTranscriptionPrompt('ko')
     expect(p).toContain('Korean')
     expect(p).toContain('Do not translate')
+  })
+})
+
+describe('cleanExtracted 例句', () => {
+  const source = 'I took a long journey. My boss reimbursed my travel expenses.'
+  const base = {
+    answer: '報銷',
+    description: '動詞',
+    reading: null,
+    level: 'B2',
+    example_translation: '老闆報銷了我的差旅費。',
+    example_chunks: null,
+    example_tts: null,
+  }
+
+  it('原句確實在原文中 → 保留 original', () => {
+    const [w] = cleanExtracted(
+      [
+        {
+          ...base,
+          term: 'reimburse',
+          example: 'My boss reimbursed my travel expenses.',
+          example_source: 'original',
+          example_target: 'reimbursed',
+        },
+      ],
+      [],
+      ['B2'],
+      { language: 'en', sourceText: source }
+    )
+    expect(w!.example!.example_source).toBe('original')
+    expect(w!.example!.example_chunks!.map((c) => c.text)).toEqual([
+      'My',
+      'boss',
+      'reimbursed',
+      'my',
+      'travel',
+      'expenses.',
+    ])
+  })
+
+  it('標為原句但原文沒有這句 → 改標 generated', () => {
+    const [w] = cleanExtracted(
+      [
+        {
+          ...base,
+          term: 'reimburse',
+          example: 'The company reimbursed me.',
+          example_source: 'original',
+          example_target: 'reimbursed',
+        },
+      ],
+      [],
+      ['B2'],
+      { language: 'en', sourceText: source }
+    )
+    expect(w!.example!.example_source).toBe('generated')
+  })
+
+  it('例句驗證不通過 → example 為 null，單字照常保留', () => {
+    const [w] = cleanExtracted(
+      [{ ...base, term: 'journey', example: 'A long trip.', example_source: 'generated', example_target: 'journey' }],
+      [],
+      ['B2'],
+      { language: 'en', sourceText: source }
+    )
+    expect(w!.term).toBe('journey')
+    expect(w!.example).toBeNull()
+  })
+
+  it('沒有傳入 exampleContext 時不處理例句', () => {
+    const [w] = cleanExtracted(
+      [{ ...base, term: 'journey', example: 'A long journey.', example_source: 'generated', example_target: 'journey' }],
+      []
+    )
+    expect(w!.example).toBeNull()
+  })
+})
+
+describe('例句提示詞', () => {
+  it('抽字提示詞包含原句優先與日文 tts 規則', () => {
+    const p = buildExtractionPrompt('ja', 'N3')
+    expect(p).toContain('copy it into text exactly')
+    expect(p).toContain('List every sentence you use once')
+    expect(p).toContain('bunsetsu')
+    expect(p).toContain('わ and え')
+  })
+
+  it('英文造句約 12 個字；英文不請 AI 切詞塊、不產生 tts', () => {
+    const p = buildExtractionPrompt('en', 'B1')
+    expect(p).toContain('about 12 words or fewer, at most 12 space-separated words')
+    expect(p).toContain('chunks: always null')
+    expect(p).toContain('tts: always null')
+  })
+
+  it('補例句提示詞一律造句並對應 n', () => {
+    const p = buildExampleGenerationPrompt('ko', '3')
+    expect(p).toContain('same n')
+    expect(p).toContain('TOPIK 3')
+    expect(p).not.toContain('copy it into text exactly')
+    expect(p).toContain('chunks: always null')
+  })
+})
+
+describe('expandSentenceRefs', () => {
+  const sentences = [
+    { text: 'My boss reimbursed my expenses.', source: 'original', translation: '老闆報銷了我的費用。', chunks: null, tts: null },
+    { text: 'I took a long journey.', source: 'generated', translation: '我走了很長的旅程。', chunks: null, tts: null },
+  ]
+
+  it('依索引帶出句子、翻譯與來源；同一句可被多個字引用', () => {
+    const r = expandSentenceRefs({
+      sentences,
+      words: [
+        { term: 'reimburse', answer: '報銷', example_sentence: 0, example_target: 'reimbursed' },
+        { term: 'expense', answer: '費用', example_sentence: 0, example_target: 'expenses' },
+        { term: 'journey', answer: '旅程', example_sentence: 1, example_target: 'journey' },
+      ],
+    })
+    expect(r[0]).toMatchObject({ term: 'reimburse', example: sentences[0]!.text, example_source: 'original', example_target: 'reimbursed' })
+    expect(r[1]!.example).toBe(sentences[0]!.text)
+    expect(r[2]).toMatchObject({ example: sentences[1]!.text, example_source: 'generated', example_translation: '我走了很長的旅程。' })
+    expect(r[0]).not.toHaveProperty('example_sentence')
+  })
+
+  it('索引為 null、超出範圍或非整數 → 該字沒有例句', () => {
+    const r = expandSentenceRefs({
+      sentences,
+      words: [
+        { term: 'a', example_sentence: null },
+        { term: 'b', example_sentence: 5 },
+        { term: 'c', example_sentence: 0.5 },
+      ],
+    })
+    expect(r.map((w) => w.example)).toEqual([null, null, null])
+  })
+
+  it('格式錯誤時回傳空陣列', () => {
+    expect(expandSentenceRefs({})).toEqual([])
+  })
+
+  it('展開後經 cleanExtracted 驗證：英文詞塊由伺服器依空格切分', () => {
+    const raw = expandSentenceRefs({
+      sentences,
+      words: [{ term: 'reimburse', answer: '報銷', level: 'B2', example_sentence: 0, example_target: 'reimbursed' }],
+    })
+    const [w] = cleanExtracted(raw, [], ['B2'], { language: 'en', sourceText: 'Hi. My boss reimbursed my expenses.' })
+    expect(w!.example!.example_source).toBe('original')
+    expect(w!.example!.example_chunks!.map((c) => c.text)).toEqual(['My', 'boss', 'reimbursed', 'my', 'expenses.'])
+  })
+})
+
+describe('generatedToRaw', () => {
+  it('補例句一律標為 generated 並對應欄位名稱', () => {
+    expect(
+      generatedToRaw({ n: 2, example: 'x y z', translation: '翻譯', example_target: 'y', chunks: null, tts: null })
+    ).toEqual({
+      n: 2,
+      example: 'x y z',
+      example_translation: '翻譯',
+      example_source: 'generated',
+      example_target: 'y',
+      example_chunks: null,
+      example_tts: null,
+    })
   })
 })

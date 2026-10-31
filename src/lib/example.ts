@@ -139,3 +139,9 @@ export function isReorderable(chunks: ExampleChunk[] | null | undefined): chunks
 export function isReorderCorrect(chunkTexts: string[], answerTexts: string[]): boolean {
   return chunkTexts.length === answerTexts.length && chunkTexts.every((t, i) => t === answerTexts[i])
 }
+
+/** 標示為原句的例句必須真的出現在使用者原文中（空白正規化後比對），否則改標為 AI 造句 */
+export function resolveExampleSource(example: WordExample, sourceText: string): ExampleSource {
+  if (example.example_source !== 'original') return 'generated'
+  return normalizeSpaces(sourceText).includes(normalizeSpaces(example.example)) ? 'original' : 'generated'
+}
