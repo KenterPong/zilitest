@@ -93,7 +93,8 @@ export function AiExamplesButton({
     setError(null)
     try {
       const res = await fetch(`/api/wordbooks/${wordbookId}/ai-examples`, { method: 'POST' })
-      const data = await res.json()
+      // 伺服器逾時被平台中斷時回傳的不是 JSON
+      const data = await res.json().catch(() => ({ error: 'AI 處理時間過長，請稍後再試' }))
       if (!res.ok) {
         setError(data.error ?? '產生例句失敗，請稍後再試')
         return

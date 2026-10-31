@@ -7,8 +7,8 @@ import { supabaseAdmin } from '@/lib/supabase-admin'
 import type { Language } from '@/types/vocab'
 
 export const runtime = 'nodejs'
-/** AI 回應可能需要十幾秒 */
-export const maxDuration = 60
+/** AI 回應常需 20–40 秒，日文長文偶爾超過 50 秒；須開啟 Vercel Fluid Compute 才能超過 60 秒 */
+export const maxDuration = 120
 
 /**
  * 圖片轉文字：一次上傳 1–2 張圖片 → 依序轉錄成該單字本語言的文字，回傳給前端填入抽字文字框。

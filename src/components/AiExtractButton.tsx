@@ -183,7 +183,8 @@ export function AiExtractButton({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ wordbook_id: wordbookId, text }),
       })
-      const data = await res.json()
+      // 伺服器逾時被平台中斷時回傳的不是 JSON
+      const data = await res.json().catch(() => ({ error: 'AI 處理時間過長，請把文字分段貼上' }))
       if (!res.ok) {
         setError(data.error ?? '抽字失敗，請稍後再試')
         return
@@ -215,7 +216,7 @@ export function AiExtractButton({
       form.append('wordbook_id', wordbookId)
       images.forEach((image, i) => form.append('image', image, `image-${i + 1}.jpg`))
       const res = await fetch('/api/ai-transcribe', { method: 'POST', body: form })
-      const data = await res.json()
+      const data = await res.json().catch(() => ({ error: 'AI 處理時間過長，請改傳 1 張或裁切後再試' }))
       if (!res.ok) {
         setError(data.error ?? '圖片轉文字失敗，請稍後再試')
         return

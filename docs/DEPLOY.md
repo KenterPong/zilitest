@@ -14,7 +14,10 @@
    npm run backfill:pronunciation
    ```
    腳本讀取 `.env.local` 的 Supabase 設定（本機連的是正式資料庫），可重複執行，只寫入 `words.pronunciation`。**先執行 migration 再部署程式**，否則新版查詢 `pronunciation` 欄位會失敗
-6. Settings → API 複製：
+6. **例句（2026/10/31）**：既有專案執行 `20261031_word_examples.sql`（`words` 新增 7 個 `example_*` 欄位、`ai_extractions.kind` 允許 `generate_examples`、`quiz_sessions.question_type` 中文值改為英文代碼並允許例句題型、`get_language_words()` 回傳例句欄位）。既有單字不會被改動，例句欄位皆為 NULL，可用「AI 補例句」補上。
+   - ⚠️ **執行 migration 後須立即部署新程式**：新的 `question_type` CHECK 不接受中文值，舊程式也寫不進英文代碼，兩者之間不要用正式站或本機舊程式開測驗。執行前先備份
+   - 部署前確認 Vercel 已設定 `EXAMPLE_SIGNING_SECRET`（見第 2 節），否則例句不會寫入
+7. Settings → API 複製：
    - `Project URL` → `NEXT_PUBLIC_SUPABASE_URL`
    - `anon` key → `NEXT_PUBLIC_SUPABASE_ANON_KEY`
    - `service_role` key → `SUPABASE_SERVICE_ROLE_KEY`（僅伺服器端，勿公開）
@@ -50,7 +53,12 @@
 - 模型須支援 Structured Outputs（JSON Schema），程式以此固定回傳格式
 - 模型須支援**圖片輸入**（圖片轉文字沿用同一個 `OPENAI_MODEL`）
 - 程式呼叫一律設定 `store: false`，OpenAI 後台 Logs 不會留下請求內容
+- **時限**：AI 抽字、圖片轉文字、AI 補例句三支 API 的 `maxDuration` 為 120 秒，OpenAI 用戶端逾時 110 秒、不重試（2026/10/31 由 60／50 秒放寬：日文長文實測 20–55 秒）。Vercel 專案須開啟 **Fluid Compute**（Settings → Functions），否則 Hobby 方案上限仍為 60 秒；平台中斷時前端顯示「AI 處理時間過長」
 - 成本：2026/10/18 實測，`zilitest` 專案 13 次請求（抽字與圖片轉文字合計）< US$0.005，每次遠低於 US$0.002
+- 例句 token 用量（2026/10/31 本機直接呼叫 OpenAI 實測，現行設定 `reasoning_effort: 'low'`）：
+  - 加入例句前（預設推理）：英文 640 字元 → 36 字、輸出 2,323 token、20.9 秒
+  - 加入例句後：英文 2,765 字元 → 53 字、輸出 3,689 token、23.2 秒；日文 536 字元 → 29 字、輸出 4,138 token、34.3 秒；日文約 1,900–2,750 字元（N2）→ 9–49 字、輸出 1,500–7,400 token、20–55 秒（舊設定 50 秒逾時時，曾有一次逾時重試共 63 秒）
+  - 同一段原文每次結果差異很大；每月 US$5 上限是否調整，依 OpenAI 後台 Usage 的實際月支出再評估
 
 ### 本機開發（LINE callback）
 
@@ -105,7 +113,7 @@
 - [x] Footer 隱私權／服務條款；已登入時 header 顯示「返回 App」
 - [x] 單字本「AI 抽字」可抽出所設等級的單字並匯入；成功後本月剩餘次數減 1，錯誤時不扣次數
 - [x] AI 抽字「上傳圖片」可把圖片文字填入文字框；成功後本月剩餘次數減 1（與抽字共用），錯誤時不扣次數（需先執行 `20261018_ai_extraction_kind.sql`）
-- [x] 匯出 Excel 含讀音欄與發音標註欄（單字、答案、描述、讀音、發音標註），前 4 欄可原樣再匯入（2026/10/26 實際匯出確認欄位；再匯入以單元測試確認，未匯入站長帳號以免重複）
+- [x] 匯出 Excel 共 7 欄（單字、答案、描述、讀音、發音標註、例句、例句翻譯），前 4 欄可原樣再匯入；第 5–7 欄唯讀（例句兩欄 2026/10/31 加入；2026/10/26 實際匯出確認前 5 欄；再匯入以單元測試確認，未匯入站長帳號以免重複）
 - [x] 單字本：英文顯示 IPA 音標、韓文顯示羅馬拼音、日文顯示讀音；日文含漢字未填讀音顯示「未填讀音」（2026/10/26 本機連正式資料庫驗收）
 - [x] 設定頁「發音」區塊可依語言關閉第二層，其他語言不受影響
 - [x] 遊戲「拼字挑戰」英日韓可玩，成績寫入 `game_scores`（`game = 'spell'`）

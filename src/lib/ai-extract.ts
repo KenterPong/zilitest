@@ -37,7 +37,8 @@ function getClient(): { client: OpenAI; model: string } {
   if (!apiKey || !model) {
     throw new AiExtractError('AI 抽字尚未開放（伺服器未設定 AI 服務）', 503)
   }
-  if (!_client) _client = new OpenAI({ apiKey, timeout: 50_000, maxRetries: 1 })
+  // 逾時須短於 API route 的 maxDuration（120 秒）；逾時後重試必定超過時限、只會多計費，因此不重試
+  if (!_client) _client = new OpenAI({ apiKey, timeout: 110_000, maxRetries: 0 })
   return { client: _client, model }
 }
 
@@ -48,6 +49,9 @@ export interface ExtractionQuota {
 }
 
 function toAiError(e: unknown): AiExtractError {
+  if (e instanceof OpenAI.APIConnectionTimeoutError) {
+    return new AiExtractError('AI 處理時間過長，請減少內容後再試', 504)
+  }
   if (e instanceof OpenAI.APIError) {
     // 不記錄原文或圖片；只回傳狀態給使用者
     const status = e.status === 429 ? 429 : 502
