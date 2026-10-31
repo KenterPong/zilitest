@@ -9,13 +9,19 @@ import { TermSecondLine } from '@/components/TermSecondLine'
 import { useAppDialog } from '@/components/AppDialog'
 import { ACHIEVEMENT_BY_KEY } from '@/lib/growth'
 import type { PronunciationPrefs } from '@/lib/pronunciation-display'
-import type { QuestionType, QuizQuestion } from '@/types/quiz'
+import {
+  insufficientLanguagesText,
+  MIN_WORDS_PER_LANGUAGE,
+  splitLanguagesByMinimum,
+  type LanguageCounts,
+} from '@/lib/quiz-language'
+import { QUESTION_TYPE_LABELS, type QuestionType, type QuizQuestion } from '@/types/quiz'
 import type { DbTag, Language, WordbookWithCount } from '@/types/vocab'
 
 const QTYPES: { type: QuestionType; name: string; desc: string }[] = [
-  { type: '是非題', name: '是非題', desc: '判斷單字與翻譯配對是否正確' },
-  { type: '選擇題', name: '選擇題', desc: '從 4 個選項選出正確翻譯' },
-  { type: '輸入題', name: '填空題', desc: '顯示中文，輸入外文單字' },
+  { type: 'tf', name: QUESTION_TYPE_LABELS.tf, desc: '判斷單字與翻譯配對是否正確' },
+  { type: 'choice', name: QUESTION_TYPE_LABELS.choice, desc: '從 4 個選項選出正確翻譯' },
+  { type: 'input', name: QUESTION_TYPE_LABELS.input, desc: '顯示中文，輸入外文單字' },
 ]
 
 interface QuizSetupClientProps {
@@ -45,9 +51,9 @@ export function QuizSetupClient({
     initialWordbookId ? [initialWordbookId] : []
   )
   const [tagIds, setTagIds] = useState<string[]>([])
-  const [poolSize, setPoolSize] = useState(0)
+  const [languageCounts, setLanguageCounts] = useState<LanguageCounts>({})
   const [poolLoading, setPoolLoading] = useState(!!initialWordbookId)
-  const [qtype, setQtype] = useState<QuestionType>('選擇題')
+  const [qtype, setQtype] = useState<QuestionType>('choice')
   const [countInput, setCountInput] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
@@ -67,7 +73,7 @@ export function QuizSetupClient({
     correct: number
     wrong: number
     score: number
-    question_type: string
+    question_type: QuestionType
     new_achievements?: string[]
     results: {
       word_id: string
@@ -84,17 +90,17 @@ export function QuizSetupClient({
   } | null>(null)
 
   const onFilterChange = useCallback(
-    (wb: string[], tg: string[], size: number, loadingPool: boolean) => {
+    (wb: string[], tg: string[], _size: number, loadingPool: boolean, counts: LanguageCounts) => {
       setWordbookIds(wb)
       setTagIds(tg)
-      setPoolSize(size)
+      setLanguageCounts(counts)
       setPoolLoading(loadingPool)
     },
     []
   )
 
   useEffect(() => {
-    if (phase !== 'play' || qtype !== '輸入題') return
+    if (phase !== 'play' || qtype !== 'input') return
     const id = window.requestAnimationFrame(() => {
       answerInputRef.current?.focus()
     })
@@ -240,7 +246,7 @@ export function QuizSetupClient({
             <div>
               題型
               <b className="block font-serif text-xl text-ink">
-                {result.question_type === '輸入題' ? '填空題' : result.question_type}
+                {QUESTION_TYPE_LABELS[result.question_type]}
               </b>
             </div>
           </div>
@@ -266,8 +272,8 @@ export function QuizSetupClient({
                 className="bg-cream border border-line rounded-md px-5 py-4 mb-2.5 flex items-center justify-between gap-5 flex-wrap"
               >
                 <div className="font-serif font-bold text-base min-w-[110px]">
-                  {result.question_type === '輸入題' ? (r.prompt ?? r.term) : r.term}
-                  {result.question_type !== '輸入題' && (
+                  {result.question_type === 'input' ? (r.prompt ?? r.term) : r.term}
+                  {result.question_type !== 'input' && (
                     <TermSecondLine
                       language={r.language}
                       word={r}
@@ -277,7 +283,7 @@ export function QuizSetupClient({
                   )}
                 </div>
                 <div className="flex gap-5 text-sm">
-                  {result.question_type === '輸入題' && (
+                  {result.question_type === 'input' && (
                     <div>
                       <span className="font-mono text-[9.5px] text-ink-soft block mb-0.5">
                         你的輸入
@@ -312,7 +318,7 @@ export function QuizSetupClient({
                       正確答案
                     </span>
                     <span className="font-semibold font-mono">{r.correct_answer}</span>
-                    {result.question_type === '輸入題' && (
+                    {result.question_type === 'input' && (
                       <TermSecondLine
                         language={r.language}
                         word={r}
@@ -369,16 +375,16 @@ export function QuizSetupClient({
     return (
       <div className="max-w-md mx-auto">
         <div className="font-mono text-[10.5px] text-ink-soft mb-3">
-          {qtype === '輸入題' ? '填空題' : qtype}{' '}
+          {QUESTION_TYPE_LABELS[qtype]}{' '}
           <span className="float-right">
             第 {idx + 1} / {questions.length} 題
           </span>
         </div>
         <div className="bg-cream border border-line rounded-lg p-6">
           <div className="font-serif font-black text-2xl text-center mb-5 pt-1">
-            {qtype === '輸入題' ? q.prompt : q.term}
+            {qtype === 'input' ? q.prompt : q.term}
             {/* 填空題作答前不顯示第二層（會洩漏拼法） */}
-            {qtype !== '輸入題' && q.term && q.language && (
+            {qtype !== 'input' && q.term && q.language && (
               <TermSecondLine
                 language={q.language}
                 word={{ term: q.term, reading: q.reading, pronunciation: q.pronunciation }}
@@ -388,7 +394,7 @@ export function QuizSetupClient({
             )}
           </div>
 
-          {qtype === '是非題' && (
+          {qtype === 'tf' && (
             <>
               <div className="flex items-center justify-center gap-2 text-[15px] mb-4 p-3.5 bg-paper-deep rounded-md">
                 中文翻譯：<b>{q.display_answer}</b>
@@ -426,7 +432,7 @@ export function QuizSetupClient({
             </>
           )}
 
-          {qtype === '選擇題' && q.options && (
+          {qtype === 'choice' && q.options && (
             <div key={q.word_id} className="flex flex-col gap-2">
               {q.options.map((opt, i) => {
                 const selected = selectedChoice === opt
@@ -463,7 +469,7 @@ export function QuizSetupClient({
             </div>
           )}
 
-          {qtype === '輸入題' && (
+          {qtype === 'input' && (
             <div className="text-center">
               <p className="text-xs text-ink-soft mb-3">請輸入對應的外文單字</p>
               <input
@@ -525,7 +531,12 @@ export function QuizSetupClient({
     )
   }
 
-  const minPool = qtype === '選擇題' ? 4 : qtype === '是非題' ? 2 : 1
+  // 防呆依語言計算：字數不足的語言不出題（第五節 5.）
+  const minPool = MIN_WORDS_PER_LANGUAGE[qtype]
+  const split = splitLanguagesByMinimum(languageCounts, minPool)
+  const poolSize = split.ok.reduce((sum, l) => sum + (languageCounts[l] ?? 0), 0)
+  const totalWords = Object.values(languageCounts).reduce((sum, n) => sum + (n ?? 0), 0)
+  const excludedText = insufficientLanguagesText(split.insufficient, minPool)
   const parsedCount = parseCountInput(countInput)
   const maxCount = Math.max(poolSize, 1)
   const canStart =
@@ -616,9 +627,11 @@ export function QuizSetupClient({
             最多 {poolLoading ? '計算中…' : poolSize || '—'} 題
           </span>
         </div>
-        {!poolLoading && poolSize > 0 && poolSize < minPool && (
+        {!poolLoading && totalWords > 0 && excludedText && (
           <div className="text-[12.5px] text-stamp-red-deep bg-warn-bg border border-warn-line px-3 py-2 rounded mt-2">
-            {qtype}單字池需至少 {minPool} 個字，目前僅 {poolSize} 個，請擴大篩選或改題型。
+            {poolSize === 0
+              ? `${QUESTION_TYPE_LABELS[qtype]}每個語言需至少 ${minPool} 個字（${excludedText}），請擴大篩選或改題型。`
+              : `${excludedText}，${QUESTION_TYPE_LABELS[qtype]}不出這些語言的字。`}
           </div>
         )}
       </div>

@@ -78,6 +78,14 @@ CREATE TABLE words (
   answer       TEXT NOT NULL,
   description  TEXT,
   pronunciation TEXT,  -- 系統產生：英文 IPA、韓文羅馬拼音；日文一律 NULL（第十三節）
+  -- 例句（第三節 2.、第十節 3.）：一律由系統寫入；term 修改時全部清為 NULL
+  example             TEXT,
+  example_translation TEXT,
+  example_source      TEXT CONSTRAINT words_example_source_check CHECK (example_source IN ('original', 'generated')),
+  example_target      TEXT,   -- 單字在例句中的實際形態，須為 example 的子字串
+  example_chunks      JSONB,  -- 詞塊 [{ text, reading? }]，供重組使用
+  example_tts         TEXT,   -- 僅日文：整句朗讀用假名
+  example_updated_at  TIMESTAMPTZ,
   created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
@@ -124,14 +132,14 @@ CREATE TABLE user_language_settings (
 
 -- =============================================
 -- AI 抽字紀錄（只存統計，不存原文、圖片與抽取結果）
--- kind：extract = 抽字、transcribe_image = 圖片轉文字（共用每月次數）
+-- kind：extract = 抽字、transcribe_image = 圖片轉文字、generate_examples = 補例句（共用每月次數）
 -- =============================================
 CREATE TABLE ai_extractions (
   id            UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   user_id       UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   wordbook_id   UUID REFERENCES wordbooks(id) ON DELETE SET NULL,
   kind          TEXT NOT NULL DEFAULT 'extract'
-                CONSTRAINT ai_extractions_kind_check CHECK (kind IN ('extract', 'transcribe_image')),
+                CONSTRAINT ai_extractions_kind_check CHECK (kind IN ('extract', 'transcribe_image', 'generate_examples')),
   language      TEXT NOT NULL CHECK (language IN ('en', 'ja', 'ko')),
   level         TEXT NOT NULL,
   input_length  INTEGER NOT NULL,
@@ -220,7 +228,7 @@ CREATE TABLE quiz_sessions (
   filter_wordbook_ids   JSONB NOT NULL DEFAULT '[]'::jsonb,
   filter_tag_ids        JSONB NOT NULL DEFAULT '[]'::jsonb,
   question_type         TEXT NOT NULL CONSTRAINT quiz_sessions_question_type_check
-                        CHECK (question_type IN ('是非題', '選擇題', '輸入題', 'mixed')),
+                        CHECK (question_type IN ('tf', 'choice', 'input', 'mixed', 'example_choice', 'example_tf', 'example_reorder')),
   mode                  TEXT NOT NULL DEFAULT 'free_practice' CONSTRAINT quiz_sessions_mode_check
                         CHECK (mode IN ('daily_task', 'free_practice')),
   daily_task_id         UUID REFERENCES daily_tasks(id) ON DELETE SET NULL,
@@ -461,6 +469,11 @@ AS $$
       w.pronunciation,
       w.answer,
       w.description,
+      w.example,
+      w.example_translation,
+      w.example_source,
+      w.example_target,
+      w.example_tts,
       w.created_at,
       b.created_at AS wordbook_created_at,
       COALESCE(p.stage, 0) AS stage,

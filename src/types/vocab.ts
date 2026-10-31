@@ -65,3 +65,24 @@ export interface WordInput {
   description?: string | null
   tag_ids?: string[]
 }
+
+/** 例句詞塊（重組用）；reading 僅日文含漢字的詞塊才有 */
+export interface ExampleChunk {
+  text: string
+  reading?: string
+}
+
+export type ExampleSource = 'original' | 'generated'
+
+/** words 的例句欄位（第三節 2.）；一律由系統寫入 */
+export interface WordExample {
+  example: string
+  example_translation: string | null
+  example_source: ExampleSource
+  /** 單字在例句中的實際形態，為 example 的子字串 */
+  example_target: string
+  /** 詞塊；不可用於重組時為 null */
+  example_chunks: ExampleChunk[] | null
+  /** 僅日文：整句朗讀用假名 */
+  example_tts: string | null
+}

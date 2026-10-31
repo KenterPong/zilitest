@@ -135,11 +135,11 @@ export async function POST(request: Request, context: Ctx) {
     }
 
     let isCorrect = false
-    if (session.question_type === '是非題') {
+    if (session.question_type === 'tf') {
       const display = (ans.display_answer ?? '').trim()
       const pairIsTrue = display === word.answer
       isCorrect = Boolean(ans.user_says_true) === pairIsTrue
-    } else if (session.question_type === '選擇題') {
+    } else if (session.question_type === 'choice') {
       isCorrect = (ans.selected_answer ?? '').trim() === word.answer
     } else {
       // 填空：顯示中文，輸入外文 → 比對 term
@@ -174,14 +174,14 @@ export async function POST(request: Request, context: Ctx) {
       reading: word.reading,
       pronunciation: word.pronunciation,
       prompt: word.answer,
-      correct_answer: session.question_type === '輸入題' ? word.term : word.answer,
+      correct_answer: session.question_type === 'input' ? word.term : word.answer,
       is_correct: isCorrect,
       user_input: ans.user_input,
       display_answer: ans.display_answer,
       selected_answer: ans.selected_answer,
       user_says_true: ans.user_says_true,
       diff:
-        session.question_type === '輸入題' && !isCorrect
+        session.question_type === 'input' && !isCorrect
           ? buildAnswerDiff(
               ans.user_input ?? '',
               fillDiffTarget(ans.user_input ?? '', word.term, word.reading)

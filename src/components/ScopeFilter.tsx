@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { useCallback, useEffect, useState } from 'react'
 
+import type { LanguageCounts } from '@/lib/quiz-language'
 import type { DbTag, WordbookWithCount } from '@/types/vocab'
 
 interface ScopeFilterProps {
@@ -15,7 +16,9 @@ interface ScopeFilterProps {
     wordbookIds: string[],
     tagIds: string[],
     poolSize: number,
-    poolLoading: boolean
+    poolLoading: boolean,
+    /** 各語言字數（測驗防呆依語言計算） */
+    languageCounts: LanguageCounts
   ) => void
 }
 
@@ -38,12 +41,12 @@ export function ScopeFilter({
       if (wbIds.length === 0) {
         setPoolLoading(false)
         setPoolSize(0)
-        onChange(wbIds, tIds, 0, false)
+        onChange(wbIds, tIds, 0, false, {})
         return
       }
 
       setPoolLoading(true)
-      onChange(wbIds, tIds, 0, true)
+      onChange(wbIds, tIds, 0, true, {})
 
       try {
         const res = await fetch('/api/words/pool-preview', {
@@ -56,12 +59,12 @@ export function ScopeFilter({
         const size = data.pool_size ?? 0
         setPoolSize(size)
         setPoolLoading(false)
-        onChange(wbIds, tIds, size, false)
+        onChange(wbIds, tIds, size, false, data.by_language ?? {})
       } catch {
         if (myId !== requestId.current) return
         setPoolSize(0)
         setPoolLoading(false)
-        onChange(wbIds, tIds, 0, false)
+        onChange(wbIds, tIds, 0, false, {})
       }
     },
     [onChange]
