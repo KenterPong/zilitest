@@ -141,7 +141,7 @@ export async function POST(request: Request, context: Ctx) {
     example_tts?: string | null
   }[] = []
 
-  const answerRows: { word_id: string; is_correct: boolean; progress: unknown }[] = []
+  const answerRows: { word_id: string; is_correct: boolean; progress: unknown; skip_stats?: boolean }[] = []
   const answeredInSession = new Set<string>()
   const today = taipeiToday()
   const nowIso = new Date().toISOString()
@@ -175,7 +175,7 @@ export async function POST(request: Request, context: Ctx) {
     if (isCorrect) correctCount++
 
     // 自由練習：答錯降級；到期答對才升級；stage 0 的字不引入（同場次同字只算第一次）。
-    // 例句題型只寫作答紀錄與 word_stats，progress 一律為 null（record_answers 不寫 word_progress）
+    // 例句題型只寫作答紀錄：progress 一律為 null（不寫 word_progress），skip_stats 不寫 word_stats
     if (!answeredInSession.has(word.id)) {
       answeredInSession.add(word.id)
       let progress: unknown = null
@@ -192,7 +192,12 @@ export async function POST(request: Request, context: Ctx) {
         }
         if (outcome.becameMastered) becameMastered = true
       }
-      answerRows.push({ word_id: word.id, is_correct: isCorrect, progress })
+      answerRows.push({
+        word_id: word.id,
+        is_correct: isCorrect,
+        progress,
+        ...(exampleType ? { skip_stats: true } : {}),
+      })
     }
 
     results.push({

@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { useCallback, useEffect, useRef, useState } from 'react'
 
 import { AnswerDiff } from '@/components/AnswerDiff'
+import { ExampleSentence, hasExample } from '@/components/ExampleSentence'
 import { SpeakButton } from '@/components/SpeakButton'
 import { TermSecondLine } from '@/components/TermSecondLine'
 import { StagePips } from '@/components/StagePips'
@@ -307,8 +308,8 @@ export function DailyTaskClient({ payload, currentStreak, showPronunciation }: D
         </span>
       </div>
 
-      {/* 牌堆：後方疊著尚未翻開的卡 */}
-      <div className="relative h-[270px] mb-6 card-3d">
+      {/* 牌堆：後方疊著尚未翻開的卡；新字卡片有例句時加高，整題維持同一高度避免跳動 */}
+      <div className={`relative ${q.kind === 'new' && hasExample(q) ? 'h-[340px]' : 'h-[270px]'} mb-6 card-3d`}>
         {Array.from({ length: behind }, (_, i) => (
           <div
             key={i}
@@ -351,6 +352,15 @@ export function DailyTaskClient({ payload, currentStreak, showPronunciation }: D
                         <p className="text-[12.5px] text-ink-soft mt-2 line-clamp-3 whitespace-pre-wrap">
                           {q.description}
                         </p>
+                      )}
+                      {q.term && (
+                        <ExampleSentence
+                          word={q}
+                          term={q.term}
+                          language={payload.language}
+                          compact
+                          className="mt-3 w-full"
+                        />
                       )}
                     </>
                   ) : (

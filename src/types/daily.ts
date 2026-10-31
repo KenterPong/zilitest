@@ -1,6 +1,6 @@
 import type { TaskQuestionKind } from '@/lib/daily-task'
 import type { DiffPart } from '@/lib/answer-match'
-import type { Language } from '@/types/vocab'
+import type { ExampleFields, Language } from '@/types/vocab'
 
 export type { TaskQuestionKind }
 
@@ -32,7 +32,8 @@ export interface TaskSummary {
   word_count?: number
 }
 
-export interface DailyQuestion {
+/** 例句欄位只有 new（新字卡片）回傳 */
+export interface DailyQuestion extends ExampleFields {
   word_id: string
   kind: TaskQuestionKind
   /** 作答前的熟練階段（卡片上的熟練度點數） */

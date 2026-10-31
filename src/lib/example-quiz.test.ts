@@ -7,6 +7,7 @@ import {
   isExampleQuestionWord,
   joinSentence,
   judgeExampleAnswer,
+  partOfSpeech,
   pickDistinctTerms,
   type ExampleQuizWord,
 } from '@/lib/example-quiz'
@@ -19,6 +20,7 @@ function word(id: string, term: string, opts: Partial<ExampleQuizWord> = {}): Ex
     reading: null,
     pronunciation: null,
     language: 'en',
+    description: null,
     example: null,
     example_translation: null,
     example_source: null,
@@ -78,6 +80,41 @@ describe('pickDistinctTerms', () => {
     expect(new Set(terms).size).toBe(terms.length)
     expect(picked.every((w) => w.language === 'en')).toBe(true)
     expect(picked).toHaveLength(3)
+  })
+})
+
+describe('partOfSpeech', () => {
+  it('取 description 第一段，沒有內容時為 null', () => {
+    expect(partOfSpeech('動詞')).toBe('動詞')
+    expect(partOfSpeech('名詞・約束')).toBe('名詞')
+    expect(partOfSpeech(' 形容詞、名詞 ')).toBe('形容詞')
+    expect(partOfSpeech('')).toBeNull()
+    expect(partOfSpeech(null)).toBeNull()
+  })
+})
+
+describe('pickDistinctTerms 同詞性優先', () => {
+  const verb = word('v0', 'hesitate', { description: '動詞' })
+  const verbs = ['burn', 'agree', 'refuse'].map((t, i) => word(`v${i + 1}`, t, { description: '動詞' }))
+  const nouns = ['apple', 'recipe', 'sauce'].map((t, i) => word(`n${i}`, t, { description: '名詞' }))
+
+  it('同詞性足夠時只取同詞性的字', () => {
+    for (const r of [0.01, 0.5, 0.99]) {
+      const picked = pickDistinctTerms([verb, ...nouns, ...verbs], verb, 3, () => r)
+      expect(picked.map((w) => w.description)).toEqual(['動詞', '動詞', '動詞'])
+    }
+  })
+
+  it('同詞性不夠時先放同詞性，再從其餘的字補', () => {
+    const picked = pickDistinctTerms([verb, verbs[0]!, ...nouns], verb, 3)
+    expect(picked[0]!.term).toBe('burn')
+    expect(picked).toHaveLength(3)
+  })
+
+  it('該字沒有詞性時照舊隨機，仍可取到有詞性的字', () => {
+    const plain = word('p0', 'quickly')
+    const picked = pickDistinctTerms([plain, ...nouns, ...verbs], plain, 6)
+    expect(picked).toHaveLength(6)
   })
 })
 

@@ -563,7 +563,8 @@ $$;
 -- =============================================
 -- 寫入作答（每日任務逐題／自由練習整批共用）
 -- p_answers: [{ word_id, is_correct, progress: {stage, due_date, introduced_at,
---              last_reviewed_date, lapse_count, mastered_at} | null }]
+--              last_reviewed_date, lapse_count, mastered_at} | null, skip_stats?: boolean }]
+-- skip_stats = true（例句題型）時不寫 word_stats，只寫作答紀錄
 -- 同一場次同一單字只記一次；回傳實際寫入的 word_id 陣列
 -- =============================================
 CREATE OR REPLACE FUNCTION record_answers(
@@ -611,12 +612,14 @@ BEGIN
     END IF;
     v_inserted := v_inserted || v_word_id;
 
-    INSERT INTO word_stats (word_id, user_id, attempt_count, correct_count, last_tested_at)
-    VALUES (v_word_id, p_user_id, 1, CASE WHEN v_correct THEN 1 ELSE 0 END, v_now)
-    ON CONFLICT (word_id) DO UPDATE SET
-      attempt_count = word_stats.attempt_count + 1,
-      correct_count = word_stats.correct_count + CASE WHEN v_correct THEN 1 ELSE 0 END,
-      last_tested_at = v_now;
+    IF NOT COALESCE((v_item->>'skip_stats')::boolean, false) THEN
+      INSERT INTO word_stats (word_id, user_id, attempt_count, correct_count, last_tested_at)
+      VALUES (v_word_id, p_user_id, 1, CASE WHEN v_correct THEN 1 ELSE 0 END, v_now)
+      ON CONFLICT (word_id) DO UPDATE SET
+        attempt_count = word_stats.attempt_count + 1,
+        correct_count = word_stats.correct_count + CASE WHEN v_correct THEN 1 ELSE 0 END,
+        last_tested_at = v_now;
+    END IF;
 
     IF v_progress IS NOT NULL AND jsonb_typeof(v_progress) = 'object' THEN
       INSERT INTO word_progress (

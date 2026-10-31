@@ -54,6 +54,8 @@ export function ChunkBoard({
 
   return (
     <>
+      {/* 判定只接受原句順序；語序較自由的日韓文與可移動的英文副詞容易排出另一種合理語序 */}
+      <p className="text-[12px] text-ink-soft mb-1.5">請依原句順序排列</p>
       <div
         lang={language}
         aria-label="排好的句子"

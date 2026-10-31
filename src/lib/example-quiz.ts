@@ -1,6 +1,6 @@
 /**
  * 自由練習例句題型（技術規格 v5 第五節 9.）的純邏輯：出題範圍、出題、伺服器判定、是否更新熟練度。
- * 干擾項與替換字只取同語言的字（第五節 6.、7.）；重組判定與打散沿用 example.ts / reorder.ts。
+ * 干擾項與替換字只取同語言的字（第五節 6.、7.），並以同詞性優先，避免靠文法刪去；重組判定與打散沿用 example.ts / reorder.ts。
  */
 import { normalizeAnswer } from '@/lib/answer-match'
 import { isReorderCorrect } from '@/lib/example'
@@ -15,6 +15,8 @@ export interface ExampleQuizWord {
   reading: string | null
   pronunciation: string | null
   language: Language
+  /** AI 抽字寫入詞性（如「動詞」「名詞・約束」）；手動新增可能是任意說明或 null */
+  description: string | null
   example: string | null
   example_translation: string | null
   example_source: ExampleSource | null
@@ -42,17 +44,31 @@ export function isExampleQuestionWord(type: ExampleQuestionType, w: ExampleQuizW
   return splitTarget(w.example, w.example_target) !== null
 }
 
-/** 同語言、term 正規化後與該字不同的其他字，隨機取 n 個 */
-export function pickDistinctTerms<T extends { id: string; term: string; language: Language }>(
+/** description 的第一段視為詞性（「名詞・約束」→「名詞」）；沒有內容時回傳 null */
+export function partOfSpeech(description: string | null | undefined): string | null {
+  const first = description?.trim().split(/[・、,，/／;；\s]/)[0]?.trim()
+  return first ? first.toLowerCase() : null
+}
+
+type TermWord = { id: string; term: string; language: Language; description?: string | null }
+
+/**
+ * 同語言、term 正規化後與該字不同的其他字，取 n 個。
+ * 該字有詞性時先從同詞性的字隨機取，不夠再從其餘的字隨機補
+ */
+export function pickDistinctTerms<T extends TermWord>(
   pool: T[],
-  word: { id: string; term: string; language: Language },
+  word: TermWord,
   n: number,
   random: () => number = Math.random
 ): T[] {
   const own = normalizeAnswer(word.term)
+  const pos = partOfSpeech(word.description)
+  const samePos = pos ? pool.filter((w) => partOfSpeech(w.description) === pos) : []
+  const rest = pos ? pool.filter((w) => partOfSpeech(w.description) !== pos) : pool
   const seen = new Set([own])
   const picked: T[] = []
-  for (const w of shuffled(pool, random)) {
+  for (const w of [...shuffled(samePos, random), ...shuffled(rest, random)]) {
     if (picked.length >= n) break
     if (w.id === word.id || w.language !== word.language) continue
     const key = normalizeAnswer(w.term)
@@ -106,7 +122,7 @@ export function buildExampleQuestion(
     return question
   }
 
-  // 例句是非：各半機率；不相符時目標字換成另一個同語言字的原形，翻譯不變
+  // 例句是非：各半機率；不相符時目標字換成另一個同語言字（同詞性優先）的原形，翻譯不變
   const replacement = random() < 0.5 ? null : pickDistinctTerms(pool, word, 1, random)[0]
   question.sentence = { ...parts, mark: replacement ? replacement.term : word.example_target! }
   return question

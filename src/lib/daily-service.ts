@@ -27,9 +27,10 @@ import type {
   TaskSummary,
 } from '@/types/daily'
 import type { DbUser } from '@/types/user'
-import type { Language } from '@/types/vocab'
+import type { ExampleFields, Language } from '@/types/vocab'
 
-export interface LanguageWord {
+/** 例句欄位由 migration 20261031 起的 RPC 回傳 */
+export interface LanguageWord extends ExampleFields {
   id: string
   term: string
   reading: string | null
@@ -387,6 +388,12 @@ export async function getDailyTaskPayload(
           pronunciation: w.pronunciation ?? null,
           answer: w.answer,
           description: w.description,
+          // 新字卡片顯示例句（第十三節 3.）；只是顯示，不影響熟練度
+          example: w.example ?? null,
+          example_translation: w.example_translation ?? null,
+          example_source: w.example_source ?? null,
+          example_target: w.example_target ?? null,
+          example_tts: w.example_tts ?? null,
           options,
         }
       }
