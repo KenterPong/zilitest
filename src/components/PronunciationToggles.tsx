@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 import type { DbLanguageSettings } from '@/types/daily'
 import type { Language } from '@/types/vocab'
@@ -16,11 +16,19 @@ function ToggleRow({ initial, disabled }: { initial: DbLanguageSettings; disable
   const [on, setOn] = useState(initial.show_pronunciation !== false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  /** 勾選即自動儲存，沒有儲存按鈕；成功後短暫顯示「已儲存」讓使用者知道已生效 */
+  const [saved, setSaved] = useState(false)
+  const savedTimer = useRef<number | null>(null)
   const label = TOGGLE_LABELS[initial.language]
+
+  useEffect(() => () => {
+    if (savedTimer.current) window.clearTimeout(savedTimer.current)
+  }, [])
 
   async function toggle(next: boolean) {
     setOn(next)
     setSaving(true)
+    setSaved(false)
     setError(null)
     try {
       const res = await fetch('/api/language-settings', {
@@ -32,6 +40,10 @@ function ToggleRow({ initial, disabled }: { initial: DbLanguageSettings; disable
         const data = await res.json().catch(() => ({}))
         setOn(!next)
         setError(data.error ?? '儲存失敗')
+      } else {
+        setSaved(true)
+        if (savedTimer.current) window.clearTimeout(savedTimer.current)
+        savedTimer.current = window.setTimeout(() => setSaved(false), 2000)
       }
     } catch {
       setOn(!next)
@@ -53,6 +65,9 @@ function ToggleRow({ initial, disabled }: { initial: DbLanguageSettings; disable
         />
         <span className="text-sm">
           <span className="font-semibold text-ink">{label.title}</span>
+          <span className="ml-2 text-[12px] text-good" aria-live="polite">
+            {saving ? <span className="text-ink-soft">儲存中…</span> : saved ? '✓ 已儲存' : ''}
+          </span>
           <span className="block text-ink-soft text-[12.5px]">{label.desc}</span>
         </span>
       </label>
