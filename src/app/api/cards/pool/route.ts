@@ -60,6 +60,7 @@ export async function POST(request: Request) {
       example_translation: w.example_translation,
       example_source: w.example_source,
       example_target: w.example_target,
+      example_chunks: w.example_chunks,
       example_tts: w.example_tts,
       familiarity: w.familiarity,
     })),

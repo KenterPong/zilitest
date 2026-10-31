@@ -3,15 +3,17 @@
 import Link from 'next/link'
 import { useCallback, useEffect, useRef, useState } from 'react'
 
+import { ReorderPractice, type ReorderCard } from '@/components/ReorderPractice'
 import { ScopeFilter } from '@/components/ScopeFilter'
 import { SwipeCard, type SwipeCardHandle } from '@/components/SwipeCard'
 import { WritingPractice } from '@/components/WritingPractice'
 import type { PronunciationPrefs } from '@/lib/pronunciation-display'
+import { pickReorderCards, reorderUnavailableReason, REORDER_ROUND_SIZE } from '@/lib/reorder'
 import { CARDS_SCOPE_KEY, parseScopeMemory, readScopeMemory, writeScopeMemory } from '@/lib/scope-memory'
 import { speechText } from '@/lib/speech'
 import { useAutoSpeak, useSpeaker } from '@/lib/use-speech'
 import { isWritable, WRITING_MAX_LENGTH, WRITING_ROUND_SIZE } from '@/lib/writing'
-import type { DbTag, ExampleSource, Language, WordbookWithCount } from '@/types/vocab'
+import type { DbTag, ExampleChunk, ExampleSource, Language, WordbookWithCount } from '@/types/vocab'
 
 interface CardItem {
   word_id: string
@@ -24,6 +26,7 @@ interface CardItem {
   example_translation?: string | null
   example_source?: ExampleSource | null
   example_target?: string | null
+  example_chunks?: ExampleChunk[] | null
   example_tts?: string | null
   language: Language
   familiarity: 'unknown' | 'known' | null
@@ -49,7 +52,7 @@ export function CardsClient({
   const [poolSize, setPoolSize] = useState(0)
   const [poolLoading, setPoolLoading] = useState(true)
   const [phase, setPhase] = useState<'setup' | 'play'>('setup')
-  const [mode, setMode] = useState<'swipe' | 'write'>('swipe')
+  const [mode, setMode] = useState<'swipe' | 'write' | 'reorder'>('swipe')
   /** 已讀取這台裝置記住的上次選擇（讀到之前不顯示篩選，避免先載入預設範圍） */
   const [restored, setRestored] = useState(false)
 
@@ -61,7 +64,7 @@ export function CardsClient({
     )
     setWordbookIds(m.wordbookIds)
     setTagIds(m.tagIds)
-    if (m.extra.mode === 'swipe' || m.extra.mode === 'write') setMode(m.extra.mode)
+    if (m.extra.mode === 'swipe' || m.extra.mode === 'write' || m.extra.mode === 'reorder') setMode(m.extra.mode)
     setRestored(true)
     // 網址帶入的單字本只用於這次進入；拿掉參數，重新整理時改用記住的選擇
     if (initialWordbookId) window.history.replaceState(null, '', window.location.pathname)
@@ -72,7 +75,7 @@ export function CardsClient({
   useEffect(() => {
     if (restored) writeScopeMemory(CARDS_SCOPE_KEY, { wordbookIds, tagIds, extra: { mode } })
   }, [restored, wordbookIds, tagIds, mode])
-  /** 書寫練習每輪重新掛載，狀態從頭開始 */
+  /** 書寫、重組練習每輪重新掛載，狀態從頭開始 */
   const [round, setRound] = useState(0)
   const [cards, setCards] = useState<CardItem[]>([])
   const [idx, setIdx] = useState(0)
@@ -80,6 +83,8 @@ export function CardsClient({
   const [knownCount, setKnownCount] = useState(0)
   const [unknownCount, setUnknownCount] = useState(0)
   const [error, setError] = useState<string | null>(null)
+  /** 重組：範圍內都沒有例句時，引導到單字本「AI 補例句」 */
+  const [needExamples, setNeedExamples] = useState(false)
   const [loading, setLoading] = useState(false)
 
   const onFilterChange = useCallback(
@@ -94,6 +99,7 @@ export function CardsClient({
 
   async function start() {
     setError(null)
+    setNeedExamples(false)
     setLoading(true)
     try {
       const res = await fetch('/api/cards/pool', {
@@ -116,6 +122,22 @@ export function CardsClient({
           return
         }
         setCards(writable.slice(0, WRITING_ROUND_SIZE))
+        setRound((r) => r + 1)
+      } else if (mode === 'reorder') {
+        // 依加權順序取有例句且詞塊 3–12 塊的前 10 句
+        const all = data.cards as CardItem[]
+        const usable = pickReorderCards(all)
+        if (usable.length === 0) {
+          if (reorderUnavailableReason(all) === 'no_example') {
+            setError('篩選範圍內的單字都還沒有例句，無法重組練習')
+            setNeedExamples(true)
+          } else {
+            setError('篩選範圍內的例句都不適合重組（詞塊需 3–12 塊），請換個範圍')
+          }
+          setPhase('setup')
+          return
+        }
+        setCards(usable)
         setRound((r) => r + 1)
       } else {
         setCards(data.cards)
@@ -186,6 +208,18 @@ export function CardsClient({
       <WritingPractice
         key={round}
         cards={cards}
+        pronunciationPrefs={pronunciationPrefs}
+        onRestart={start}
+        onExit={() => setPhase('setup')}
+      />
+    )
+  }
+
+  if (phase === 'play' && mode === 'reorder') {
+    return (
+      <ReorderPractice
+        key={round}
+        cards={cards as ReorderCard[]}
         pronunciationPrefs={pronunciationPrefs}
         onRestart={start}
         onExit={() => setPhase('setup')}
@@ -355,6 +389,7 @@ export function CardsClient({
             [
               ['swipe', '滑卡'],
               ['write', '書寫'],
+              ['reorder', '重組'],
             ] as const
           ).map(([value, label]) => (
             <button
@@ -365,6 +400,7 @@ export function CardsClient({
               onClick={() => {
                 setMode(value)
                 setError(null)
+                setNeedExamples(false)
               }}
               className={`px-5 py-2 text-sm font-medium ${
                 mode === value ? 'bg-ink text-cream' : 'bg-cream text-ink-soft hover:text-ink'
@@ -377,11 +413,28 @@ export function CardsClient({
         <p className="text-[12px] text-ink-soft mt-2">
           {mode === 'swipe'
             ? '翻卡自評認得或不認得'
-            : `先照著抄打，整輪抄完再看中文憑記憶打出單字（每輪最多 ${WRITING_ROUND_SIZE} 個字）`}
+            : mode === 'write'
+              ? `先照著抄打，整輪抄完再看中文憑記憶打出單字（每輪最多 ${WRITING_ROUND_SIZE} 個字）`
+              : `先看著例句把詞塊排回原句，整輪完成後只看中文翻譯默組（每輪最多 ${REORDER_ROUND_SIZE} 句）`}
         </p>
       </div>
 
       {error && <p className="text-sm text-stamp-red mb-3">{error}</p>}
+      {needExamples && (
+        <p className="text-[12.5px] text-ink-soft mb-3">
+          到單字本按「AI 補例句」產生例句：
+          {wordbooks
+            .filter((b) => wordbookIds.includes(b.id))
+            .map((b, i) => (
+              <span key={b.id}>
+                {i > 0 && '、'}
+                <Link href={`/app/wordbooks/${b.id}`} className="underline hover:text-ink">
+                  {b.name}
+                </Link>
+              </span>
+            ))}
+        </p>
+      )}
 
       <button
         type="button"
@@ -391,7 +444,7 @@ export function CardsClient({
         onClick={start}
         className="bg-stamp-red text-cream font-bold text-[15px] px-8 py-3.5 rounded-sm disabled:opacity-60"
       >
-        {loading ? '準備中…' : poolLoading ? '計算單字池…' : mode === 'write' ? '開始書寫' : '開始背誦'}
+        {loading ? '準備中…' : poolLoading ? '計算單字池…' : mode === 'write' ? '開始書寫' : mode === 'reorder' ? '開始重組' : '開始背誦'}
       </button>
       <Link href="/app" className="ml-3 text-sm text-ink-soft underline">
         返回

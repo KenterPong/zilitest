@@ -1,5 +1,5 @@
 import { fetchAllRows } from '@/lib/db-paging'
-import type { ExampleSource, Language } from '@/types/vocab'
+import type { ExampleChunk, ExampleSource, Language } from '@/types/vocab'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 
 export interface PoolWord {
@@ -14,6 +14,7 @@ export interface PoolWord {
   example_translation: string | null
   example_source: ExampleSource | null
   example_target: string | null
+  example_chunks: ExampleChunk[] | null
   example_tts: string | null
   language: Language
   attempt_count: number
@@ -54,12 +55,13 @@ export async function fetchWordPool(
     example_translation: string | null
     example_source: ExampleSource | null
     example_target: string | null
+    example_chunks: ExampleChunk[] | null
     example_tts: string | null
   }>((from, to) =>
     supabaseAdmin
       .from('words')
       .select(
-        'id, wordbook_id, term, reading, answer, description, pronunciation, example, example_translation, example_source, example_target, example_tts'
+        'id, wordbook_id, term, reading, answer, description, pronunciation, example, example_translation, example_source, example_target, example_chunks, example_tts'
       )
       .in('wordbook_id', ownedIds)
       .order('id')
