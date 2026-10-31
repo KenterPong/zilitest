@@ -145,3 +145,13 @@ export function resolveExampleSource(example: WordExample, sourceText: string): 
   if (example.example_source !== 'original') return 'generated'
   return normalizeSpaces(sourceText).includes(normalizeSpaces(example.example)) ? 'original' : 'generated'
 }
+
+/** 顯示用：把例句切成目標字前、目標字（第一次出現）、目標字後；找不到時整句放在 before */
+export function splitAtTarget(
+  example: string,
+  target: string | null | undefined
+): { before: string; target: string; after: string } {
+  const i = target ? example.indexOf(target) : -1
+  if (!target || i < 0) return { before: example, target: '', after: '' }
+  return { before: example.slice(0, i), target, after: example.slice(i + target.length) }
+}

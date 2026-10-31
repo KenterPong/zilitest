@@ -2,10 +2,11 @@
 
 import { forwardRef, useImperativeHandle, useRef, useState } from 'react'
 
+import { ExampleSentence, hasExample } from '@/components/ExampleSentence'
 import { SpeakButton } from '@/components/SpeakButton'
 import { TermSecondLine } from '@/components/TermSecondLine'
 import { isTap, swipeDecision, swipeHintOpacity, type SwipeChoice } from '@/lib/swipe'
-import type { Language } from '@/types/vocab'
+import type { ExampleFields, Language } from '@/types/vocab'
 
 export interface SwipeCardHandle {
   fly: (choice: SwipeChoice) => void
@@ -18,6 +19,8 @@ interface SwipeCardProps {
   pronunciation: string | null
   answer: string
   description: string | null
+  /** 背面顯示的例句 */
+  example?: ExampleFields
   language: Language
   /** 該語言的 show_pronunciation */
   showPronunciation: boolean
@@ -33,7 +36,7 @@ function prefersReducedMotion(): boolean {
 
 /** 卡牌背誦的單字卡：點擊翻面，右滑認得、左滑不認得 */
 export const SwipeCard = forwardRef<SwipeCardHandle, SwipeCardProps>(function SwipeCard(
-  { term, reading, pronunciation, answer, description, language, showPronunciation, onDecide },
+  { term, reading, pronunciation, answer, description, example, language, showPronunciation, onDecide },
   ref
 ) {
   const wrapRef = useRef<HTMLDivElement>(null)
@@ -101,6 +104,7 @@ export const SwipeCard = forwardRef<SwipeCardHandle, SwipeCardProps>(function Sw
     opacity = 0
   }
   const hint = flying ? 1 : swipeHintOpacity(dx, width)
+  const withExample = !!example && hasExample(example)
   const showKnown = flying === 'known' || (!flying && dx > 0)
   const showUnknown = flying === 'unknown' || (!flying && dx < 0)
 
@@ -114,7 +118,7 @@ export const SwipeCard = forwardRef<SwipeCardHandle, SwipeCardProps>(function Sw
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
       onPointerCancel={onPointerUp}
-      className="card-3d relative h-[250px] select-none cursor-grab active:cursor-grabbing touch-pan-y"
+      className={`card-3d relative ${withExample ? 'h-[310px]' : 'h-[250px]'} select-none cursor-grab active:cursor-grabbing touch-pan-y`}
       style={{
         transform,
         opacity,
@@ -143,7 +147,20 @@ export const SwipeCard = forwardRef<SwipeCardHandle, SwipeCardProps>(function Sw
           />
           <div className="text-lg mt-2">{answer}</div>
           {description && (
-            <p className="text-[12.5px] text-ink-soft mt-2 line-clamp-3 whitespace-pre-wrap">{description}</p>
+            <p
+              className={`text-[12.5px] text-ink-soft mt-2 whitespace-pre-wrap ${withExample ? 'line-clamp-2' : 'line-clamp-3'}`}
+            >
+              {description}
+            </p>
+          )}
+          {withExample && (
+            <ExampleSentence
+              word={example}
+              term={term}
+              language={language}
+              compact
+              className="w-full mt-3 pt-3 border-t border-line"
+            />
           )}
         </div>
       </div>

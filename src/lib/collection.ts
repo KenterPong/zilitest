@@ -4,6 +4,7 @@
  */
 
 import { MASTERED_STAGE } from '@/lib/progress'
+import type { ExampleFields } from '@/types/vocab'
 
 export interface CollectionTier {
   stage: number
@@ -23,7 +24,8 @@ export function tierFor(stage: number): CollectionTier | null {
   return COLLECTION_TIERS.find((t) => t.stage === Math.min(stage, 7)) ?? null
 }
 
-export interface CollectionWord {
+/** 卡冊背面「看例句」用（get_language_words 回傳） */
+export interface CollectionWord extends ExampleFields {
   id: string
   term: string
   reading: string | null

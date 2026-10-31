@@ -53,5 +53,11 @@ export function speechText(term: string, reading: string | null | undefined, lan
   return language === 'ja' && r ? r : term.trim()
 }
 
+/** 例句整句朗讀：日文有朗讀用假名時唸假名版，否則唸原句 */
+export function exampleSpeechText(example: string, tts: string | null | undefined, language: Language): string {
+  const k = tts?.trim()
+  return language === 'ja' && k ? k : example.trim()
+}
+
 /** 自動播放設定只存在這台裝置（localStorage） */
 export const AUTO_SPEAK_KEY = 'zilitest:auto-speak'

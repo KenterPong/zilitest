@@ -56,6 +56,11 @@ export async function POST(request: Request) {
       pronunciation: w.pronunciation,
       language: w.language,
       description: w.description,
+      example: w.example,
+      example_translation: w.example_translation,
+      example_source: w.example_source,
+      example_target: w.example_target,
+      example_tts: w.example_tts,
       familiarity: w.familiarity,
     })),
   })

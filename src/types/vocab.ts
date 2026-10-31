@@ -81,6 +81,15 @@ export interface ExampleChunk {
 
 export type ExampleSource = 'original' | 'generated'
 
+/** 顯示用的例句欄位（皆可缺；沒有例句時為 null） */
+export interface ExampleFields {
+  example?: string | null
+  example_translation?: string | null
+  example_source?: ExampleSource | null
+  example_target?: string | null
+  example_tts?: string | null
+}
+
 /** words 的例句欄位（第三節 2.）；一律由系統寫入 */
 export interface WordExample {
   example: string

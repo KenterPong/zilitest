@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { pickVoice, speechText } from '@/lib/speech'
+import { exampleSpeechText, pickVoice, speechText } from '@/lib/speech'
 
 const voices = [
   { name: 'Microsoft David', lang: 'en-US', default: true },
@@ -38,5 +38,18 @@ describe('speechText', () => {
     expect(speechText('受ける', null, 'ja')).toBe('受ける')
     expect(speechText(' journey ', 'x', 'en')).toBe('journey')
     expect(speechText('꾸준히', null, 'ko')).toBe('꾸준히')
+  })
+})
+
+describe('exampleSpeechText', () => {
+  it('日文有 tts 時唸假名版', () => {
+    expect(exampleSpeechText('昨日、試験を受けた。', 'きのう、 しけんを うけた。', 'ja')).toBe('きのう、 しけんを うけた。')
+  })
+  it('日文沒有 tts 時唸原句', () => {
+    expect(exampleSpeechText('昨日、試験を受けた。', ' ', 'ja')).toBe('昨日、試験を受けた。')
+  })
+  it('英韓一律唸原句', () => {
+    expect(exampleSpeechText(' I like it. ', 'x', 'en')).toBe('I like it.')
+    expect(exampleSpeechText('저는 갑니다.', null, 'ko')).toBe('저는 갑니다.')
   })
 })

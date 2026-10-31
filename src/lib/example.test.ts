@@ -6,6 +6,7 @@ import {
   isReorderable,
   isReorderCorrect,
   resolveExampleSource,
+  splitAtTarget,
   splitBySpaces,
   validateExample,
 } from '@/lib/example'
@@ -215,5 +216,15 @@ describe('resolveExampleSource', () => {
   })
   it('本來就是 generated → generated', () => {
     expect(resolveExampleSource({ ...e, example_source: 'generated' }, enRaw.example)).toBe('generated')
+  })
+})
+
+describe('splitAtTarget', () => {
+  it('以第一次出現處切分', () => {
+    expect(splitAtTarget('run, run', 'run')).toEqual({ before: '', target: 'run', after: ', run' })
+  })
+  it('找不到或沒有 target → 整句放在 before', () => {
+    expect(splitAtTarget('hello', 'bye')).toEqual({ before: 'hello', target: '', after: '' })
+    expect(splitAtTarget('hello', null)).toEqual({ before: 'hello', target: '', after: '' })
   })
 })

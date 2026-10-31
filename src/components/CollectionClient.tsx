@@ -1,7 +1,8 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 
+import { ExampleSentence, hasExample } from '@/components/ExampleSentence'
 import { SpeakButton } from '@/components/SpeakButton'
 import { StagePips } from '@/components/StagePips'
 import { TermSecondLine } from '@/components/TermSecondLine'
@@ -19,7 +20,66 @@ const TIER_FRAME: Record<number, string> = {
   7: 'border-2 border-gold [--card-bg:var(--amber-bg)] ring-1 ring-gold ring-offset-2 ring-offset-paper',
 }
 
-function WordCard({ word, language, show }: { word: CollectionWord; language: Language; show: boolean }) {
+/** 卡冊卡片太小放不下例句，改以小視窗顯示 */
+function ExampleDialog({
+  word,
+  language,
+  onClose,
+}: {
+  word: CollectionWord
+  language: Language
+  onClose: () => void
+}) {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [onClose])
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 p-4"
+      onClick={onClose}
+      role="presentation"
+    >
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={`${word.term} 的例句`}
+        onClick={(e) => e.stopPropagation()}
+        className="bg-cream border border-line rounded-lg p-5 w-full max-w-md shadow-xl"
+      >
+        <div className="font-serif font-bold text-lg">{word.term}</div>
+        <div className="text-sm text-ink-soft mb-3">{word.answer}</div>
+        <ExampleSentence word={word} term={word.term} language={language} />
+        <div className="flex justify-end mt-4">
+          <button
+            type="button"
+            onClick={onClose}
+            autoFocus
+            className="border border-line bg-cream rounded-[5px] px-4 py-1.5 text-sm text-ink-soft hover:border-ink hover:text-ink"
+          >
+            關閉
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function WordCard({
+  word,
+  language,
+  show,
+  onShowExample,
+}: {
+  word: CollectionWord
+  language: Language
+  show: boolean
+  onShowExample: (w: CollectionWord) => void
+}) {
   const [flipped, setFlipped] = useState(false)
   const tier = tierFor(word.stage)
   const frame = tier ? TIER_FRAME[tier.stage] : 'border border-line'
@@ -59,8 +119,29 @@ function WordCard({ word, language, show }: { word: CollectionWord; language: La
             <TermSecondLine language={language} word={word} show={show} className="text-[11.5px] mt-0.5" />
           </div>
         </div>
-        <div className={`card-face card-back card-ruled rounded-lg ${frame} p-3 flex items-center justify-center text-center`}>
-          <div className="text-[14px] leading-snug line-clamp-4">{word.answer}</div>
+        <div
+          className={`card-face card-back card-ruled rounded-lg ${frame} p-3 flex flex-col items-center justify-center text-center`}
+        >
+          <div className={`text-[14px] leading-snug ${hasExample(word) ? 'line-clamp-3' : 'line-clamp-4'}`}>
+            {word.answer}
+          </div>
+          {hasExample(word) && (
+            <button
+              type="button"
+              // 卡片本身點擊會翻面，按鈕事件不往上傳
+              onClick={(e) => {
+                e.stopPropagation()
+                onShowExample(word)
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') e.stopPropagation()
+              }}
+              tabIndex={flipped ? 0 : -1}
+              className="mt-1.5 text-[11.5px] text-ink-soft underline underline-offset-2 hover:text-ink"
+            >
+              看例句
+            </button>
+          )}
         </div>
       </div>
     </div>
@@ -69,11 +150,15 @@ function WordCard({ word, language, show }: { word: CollectionWord; language: La
 
 function CardGrid({ words, language, show }: { words: CollectionWord[]; language: Language; show: boolean }) {
   const [shown, setShown] = useState(PAGE_SIZE)
+  const [exampleWord, setExampleWord] = useState<CollectionWord | null>(null)
   return (
     <>
+      {exampleWord && (
+        <ExampleDialog word={exampleWord} language={language} onClose={() => setExampleWord(null)} />
+      )}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
         {words.slice(0, shown).map((w) => (
-          <WordCard key={w.id} word={w} language={language} show={show} />
+          <WordCard key={w.id} word={w} language={language} show={show} onShowExample={setExampleWord} />
         ))}
       </div>
       {words.length > shown && (

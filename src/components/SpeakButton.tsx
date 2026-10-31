@@ -10,10 +10,21 @@ interface SpeakButtonProps {
   language: Language
   size?: 'sm' | 'md'
   className?: string
+  /** 直接指定要唸的文字（如整句例句）；未指定時依 term／reading 決定 */
+  text?: string
+  label?: string
 }
 
 /** 單字發音按鈕；裝置沒有該語言語音時不顯示 */
-export function SpeakButton({ term, reading, language, size = 'md', className = '' }: SpeakButtonProps) {
+export function SpeakButton({
+  term,
+  reading,
+  language,
+  size = 'md',
+  className = '',
+  text,
+  label,
+}: SpeakButtonProps) {
   const speak = useSpeaker(language)
   if (!speak) return null
 
@@ -23,7 +34,7 @@ export function SpeakButton({ term, reading, language, size = 'md', className = 
   return (
     <button
       type="button"
-      aria-label={`播放「${term}」的發音`}
+      aria-label={label ?? `播放「${term}」的發音`}
       title="播放發音"
       // 卡片本身可拖曳或點擊翻面，按鈕事件不往上傳
       onPointerDown={(e) => e.stopPropagation()}
@@ -34,7 +45,7 @@ export function SpeakButton({ term, reading, language, size = 'md', className = 
       }}
       onClick={(e) => {
         e.stopPropagation()
-        speak(speechText(term, reading, language))
+        speak(text ?? speechText(term, reading, language))
       }}
       className={`inline-flex items-center justify-center rounded-full border border-line bg-cream text-ink-soft hover:text-ink hover:border-ink shrink-0 ${dim} ${className}`}
     >

@@ -69,3 +69,29 @@ describe('匯出含發音標註欄', () => {
     expect(roundTrip(rows)).toEqual([{ term: 'complete', answer: '完成', description: '動詞', reading: null }])
   })
 })
+
+describe('匯出含例句欄', () => {
+  it('第 6、7 欄為例句與例句翻譯，單字本與語言移到第 8、9 欄，再匯入只讀前 4 欄', () => {
+    const word = {
+      term: 'reimburse',
+      answer: '報銷',
+      description: null,
+      reading: null,
+      pronunciation: '/riɪmbɝs/',
+      example: 'The company reimbursed my travel expenses.',
+      example_translation: '公司報銷了我的差旅費。',
+    }
+    const rows = [
+      [...WORD_EXPORT_HEADER, '單字本', '語言'],
+      [...wordToExportRow(word), '第一課', '英文'],
+    ]
+    expect(rows[0]).toEqual(['單字', '答案', '描述', '讀音', '發音標註', '例句', '例句翻譯', '單字本', '語言'])
+    expect(rows[1]!.slice(5)).toEqual([word.example, word.example_translation, '第一課', '英文'])
+    expect(roundTrip(rows)).toEqual([{ term: 'reimburse', answer: '報銷', description: null, reading: null }])
+  })
+
+  it('沒有例句時第 6、7 欄為空字串', () => {
+    const row = wordToExportRow({ term: 'a', answer: 'b', description: null, reading: null, pronunciation: null })
+    expect(row.slice(5)).toEqual(['', ''])
+  })
+})

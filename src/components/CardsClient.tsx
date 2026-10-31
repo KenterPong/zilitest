@@ -10,7 +10,7 @@ import type { PronunciationPrefs } from '@/lib/pronunciation-display'
 import { speechText } from '@/lib/speech'
 import { useAutoSpeak, useSpeaker } from '@/lib/use-speech'
 import { isWritable, WRITING_MAX_LENGTH, WRITING_ROUND_SIZE } from '@/lib/writing'
-import type { DbTag, Language, WordbookWithCount } from '@/types/vocab'
+import type { DbTag, ExampleSource, Language, WordbookWithCount } from '@/types/vocab'
 
 interface CardItem {
   word_id: string
@@ -19,6 +19,11 @@ interface CardItem {
   pronunciation: string | null
   answer: string
   description: string | null
+  example?: string | null
+  example_translation?: string | null
+  example_source?: ExampleSource | null
+  example_target?: string | null
+  example_tts?: string | null
   language: Language
   familiarity: 'unknown' | 'known' | null
 }
@@ -239,6 +244,7 @@ export function CardsClient({
             pronunciation={card.pronunciation}
             answer={card.answer}
             description={card.description}
+            example={card}
             language={card.language}
             showPronunciation={pronunciationPrefs[card.language]}
             onDecide={(choice) => void mark(choice)}

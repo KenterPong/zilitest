@@ -40,13 +40,15 @@ export async function GET() {
       answer: string
       description: string | null
       pronunciation: string | null
+      example: string | null
+      example_translation: string | null
       wordbook_id: string
     }[]
     try {
       words = await fetchAllRows((from, to) =>
         supabaseAdmin
           .from('words')
-          .select('term, reading, answer, description, pronunciation, wordbook_id')
+          .select('term, reading, answer, description, pronunciation, example, example_translation, wordbook_id')
           .in('wordbook_id', bookIds)
           .order('created_at', { ascending: true })
           .order('id')
