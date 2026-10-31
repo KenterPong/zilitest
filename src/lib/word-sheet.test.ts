@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 
 import {
   parseWordRows,
+  uniqueSheetNames,
   WORD_EXPORT_HEADER,
   WORD_SHEET_HEADER,
   wordToExportRow,
@@ -93,5 +94,36 @@ describe('匯出含例句欄', () => {
   it('沒有例句時第 6、7 欄為空字串', () => {
     const row = wordToExportRow({ term: 'a', answer: 'b', description: null, reading: null, pronunciation: null })
     expect(row.slice(5)).toEqual(['', ''])
+  })
+})
+
+describe('uniqueSheetNames', () => {
+  it('不同語言同名單字本加上語言，仍撞名再加編號', () => {
+    const names = uniqueSheetNames(
+      [
+        { name: '046', languageLabel: '英文' },
+        { name: '046', languageLabel: '日文' },
+        { name: '046', languageLabel: '日文' },
+        { name: '全部單字', languageLabel: '韓文' },
+      ],
+      ['全部單字']
+    )
+    expect(names).toEqual(['046', '046 日文', '046 日文 2', '全部單字 韓文'])
+  })
+
+  it('去除不允許的字元並限制 31 字，結果可寫入 xlsx', () => {
+    const long = 'a'.repeat(40)
+    const names = uniqueSheetNames([
+      { name: 'A:B/C?', languageLabel: '英文' },
+      { name: long, languageLabel: '英文' },
+      { name: long, languageLabel: '日文' },
+      { name: '  ', languageLabel: '韓文' },
+    ])
+    expect(names[0]).toBe('A_B_C_')
+    expect(names.every((n) => n.length <= 31)).toBe(true)
+    expect(names[3]).toBe('單字本')
+    const wb = XLSX.utils.book_new()
+    for (const n of names) XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet([['x']]), n)
+    expect(wb.SheetNames).toEqual(names)
   })
 })

@@ -5,7 +5,7 @@ import { requireUser } from '@/lib/api-auth'
 import { fetchAllRows } from '@/lib/db-paging'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { taipeiToday } from '@/lib/taipei-date'
-import { WORD_EXPORT_HEADER, wordToExportRow } from '@/lib/word-sheet'
+import { uniqueSheetNames, WORD_EXPORT_HEADER, wordToExportRow } from '@/lib/word-sheet'
 import { LANGUAGE_LABELS, type Language } from '@/types/vocab'
 
 export const runtime = 'nodejs'
@@ -74,17 +74,20 @@ export async function GET() {
     const sheet = XLSX.utils.aoa_to_sheet(rows)
     XLSX.utils.book_append_sheet(wb, sheet, '全部單字')
 
-    // 每個單字本一張 sheet（名稱截斷）
-    for (const book of books) {
+    // 每個單字本一張 sheet（不同語言可同名，名稱需去重）
+    const sheetNames = uniqueSheetNames(
+      books.map((b) => ({ name: b.name, languageLabel: LANGUAGE_LABELS[b.language as Language] ?? '' })),
+      ['全部單字']
+    )
+    books.forEach((book, i) => {
       const bookWords = words.filter((w) => w.wordbook_id === book.id)
       const sheetRows = [
         [...WORD_EXPORT_HEADER],
         ...bookWords.map(wordToExportRow),
       ]
       const s = XLSX.utils.aoa_to_sheet(sheetRows)
-      const safeName = book.name.replace(/[\\/?*[\]]/g, '_').slice(0, 28) || '單字本'
-      XLSX.utils.book_append_sheet(wb, s, safeName)
-    }
+      XLSX.utils.book_append_sheet(wb, s, sheetNames[i])
+    })
   }
 
   const buffer = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' }) as Buffer

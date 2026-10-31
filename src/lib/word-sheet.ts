@@ -45,3 +45,26 @@ export function parseWordRows(rows: unknown[]): SheetWord[] {
   }
   return parsed
 }
+
+/** Excel 工作表名稱最多 31 字，不可含 : \ / ? * [ ]，且不分大小寫不可重複 */
+const SHEET_NAME_MAX = 31
+
+/**
+ * 依序為每個單字本取不重複的工作表名稱（不同語言可有同名單字本）。
+ * 撞名時加上語言，仍撞名再加編號；`taken` 先放入已使用的名稱（如「全部單字」）
+ */
+export function uniqueSheetNames(
+  books: { name: string; languageLabel: string }[],
+  taken: string[] = []
+): string[] {
+  const used = new Set(taken.map((n) => n.toLowerCase()))
+  const fit = (base: string, suffix = '') => base.slice(0, SHEET_NAME_MAX - suffix.length) + suffix
+  return books.map(({ name, languageLabel }) => {
+    const base = name.replace(/[:\/?*[\]]/g, '_').trim() || '單字本'
+    let candidate = fit(base)
+    if (used.has(candidate.toLowerCase())) candidate = fit(base, ` ${languageLabel}`)
+    for (let i = 2; used.has(candidate.toLowerCase()); i++) candidate = fit(base, ` ${languageLabel} ${i}`)
+    used.add(candidate.toLowerCase())
+    return candidate
+  })
+}
