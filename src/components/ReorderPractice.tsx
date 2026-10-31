@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
+import { ChunkBoard } from '@/components/ChunkBoard'
 import { ExampleSentence } from '@/components/ExampleSentence'
 import { SpeakButton } from '@/components/SpeakButton'
 import type { PronunciationPrefs } from '@/lib/pronunciation-display'
@@ -53,18 +54,6 @@ interface ReorderPracticeProps {
 type Stage = 'follow' | 'between' | 'recall' | 'result'
 /** arranging：排列中；passed：排對，等待下一句；wrong：排錯，空格短暫標示後詞塊全部退回 */
 type Status = 'arranging' | 'passed' | 'wrong'
-
-/** 詞塊文字；日文含漢字的詞塊在上方顯示讀音 */
-function ChunkLabel({ tile, showReading }: { tile: ReorderTile; showReading: boolean }) {
-  return (
-    <span className="flex flex-col items-center leading-tight">
-      {showReading && tile.reading && (
-        <span className="font-sans font-normal text-[10.5px] text-ink-soft">{tile.reading}</span>
-      )}
-      <span>{tile.text}</span>
-    </span>
-  )
-}
 
 /** 重組練習（技術規格 v5 第六節 5.）：先看著原句跟組整輪，再只看中文翻譯默組 */
 export function ReorderPractice({ cards, pronunciationPrefs, onRestart, onExit }: ReorderPracticeProps) {
@@ -342,8 +331,6 @@ export function ReorderPractice({ cards, pronunciationPrefs, onRestart, onExit }
         ? `默組 ${recall.index + 1} / ${total}`
         : `再一次 ${recall.index - total + 1} / ${recall.queue.length - total}`
   const showReading = card.language === 'ja' && pronunciationPrefs.ja
-  const usedIds = new Set(filled.map((t) => t.id))
-  const remaining = card.example_chunks.length - filled.length
 
   const message =
     status === 'passed' ? (
@@ -384,61 +371,16 @@ export function ReorderPractice({ cards, pronunciationPrefs, onRestart, onExit }
       </div>
 
       <div className="w-[520px] max-w-full mt-5">
-        <div
-          lang={card.language}
-          aria-label="排好的句子"
-          className={`min-h-[60px] flex flex-wrap items-end gap-1.5 rounded-[5px] border-[1.5px] px-2.5 py-2.5 ${
-            status === 'wrong'
-              ? 'tile-shake border-stamp-red bg-warn-bg'
-              : status === 'passed'
-                ? 'border-good bg-good-bg'
-                : 'border-dashed border-line bg-paper'
-          }`}
-        >
-          {filled.map((t) => (
-            <button
-              key={t.id}
-              type="button"
-              disabled={status !== 'arranging'}
-              onClick={() => unpick(t.id)}
-              aria-label={`退回 ${t.text}`}
-              className="min-h-10 px-2.5 py-1 rounded-[5px] border-[1.5px] border-ink bg-white font-serif font-bold text-[17px]"
-            >
-              <ChunkLabel tile={t} showReading={showReading} />
-            </button>
-          ))}
-          {status === 'arranging' &&
-            Array.from({ length: remaining }, (_, i) => (
-              <span
-                key={`slot-${i}`}
-                aria-hidden
-                className="w-8 h-10 rounded-[5px] border-[1.5px] border-dashed border-line"
-              />
-            ))}
-        </div>
-
-        <div className="min-h-[24px] mt-2 text-center text-sm" aria-live="polite">
-          {message}
-        </div>
-
-        <div className="flex justify-center flex-wrap gap-2 mt-3" lang={card.language}>
-          {tiles.map((t) => {
-            const used = usedIds.has(t.id)
-            return (
-              <button
-                key={t.id}
-                type="button"
-                disabled={used || status !== 'arranging'}
-                onClick={() => pick(t)}
-                className={`card-ruled min-h-12 px-3 py-1.5 rounded-[5px] border-[1.5px] font-serif font-bold text-[18px] shadow-[0_2px_6px_rgba(30,42,64,0.08)] transition-opacity motion-reduce:transition-none ${
-                  used ? 'opacity-25 border-line' : 'border-line hover:border-ink'
-                }`}
-              >
-                <ChunkLabel tile={t} showReading={showReading} />
-              </button>
-            )
-          })}
-        </div>
+        <ChunkBoard
+          language={card.language}
+          tiles={tiles}
+          filled={filled}
+          status={status}
+          showReading={showReading}
+          message={message}
+          onPick={pick}
+          onUnpick={unpick}
+        />
 
         <div className="flex justify-center mt-6">
           {stage === 'follow' && (

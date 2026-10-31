@@ -7,12 +7,14 @@ import {
 } from '@/lib/answer-match'
 import { assertCanMutate, requireUser } from '@/lib/api-auth'
 import { toProgressState } from '@/lib/daily-service'
+import { affectsProgress, judgeExampleAnswer } from '@/lib/example-quiz'
 import { fetchByIds } from '@/lib/db-paging'
 import { refreshPeakMastered, unlockAchievements } from '@/lib/growth-service'
 import { applyAnswer, type ProgressState } from '@/lib/progress'
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { taipeiToday } from '@/lib/taipei-date'
-import type { Language } from '@/types/vocab'
+import { isExampleQuestionType } from '@/types/quiz'
+import type { ExampleChunk, ExampleSource, Language } from '@/types/vocab'
 
 export const runtime = 'nodejs'
 
@@ -28,6 +30,10 @@ interface AnswerPayload {
   selected_answer?: string
   /** 輸入題：使用者輸入 */
   user_input?: string
+  /** 例句是非：畫面上顯示的句子 */
+  display_sentence?: string
+  /** 例句重組：依序填入的詞塊文字 */
+  chunk_texts?: string[]
 }
 
 export async function POST(request: Request, context: Ctx) {
@@ -76,6 +82,12 @@ export async function POST(request: Request, context: Ctx) {
     pronunciation: string | null
     answer: string
     wordbook_id: string
+    example: string | null
+    example_translation: string | null
+    example_source: ExampleSource | null
+    example_target: string | null
+    example_chunks: ExampleChunk[] | null
+    example_tts: string | null
     // PostgREST 對 !inner 多對一回傳物件；型別推論為陣列，兩者都接受
     wordbooks: { language: string } | { language: string }[]
   }[]
@@ -85,7 +97,9 @@ export async function POST(request: Request, context: Ctx) {
       fetchByIds(wordIds, (ids) =>
         supabaseAdmin
           .from('words')
-          .select('id, term, reading, pronunciation, answer, wordbook_id, wordbooks!inner(user_id, language)')
+          .select(
+            'id, term, reading, pronunciation, answer, wordbook_id, example, example_translation, example_source, example_target, example_chunks, example_tts, wordbooks!inner(user_id, language)'
+          )
           .eq('wordbooks.user_id', auth.user.id)
           .in('id', ids)
       ),
@@ -119,6 +133,12 @@ export async function POST(request: Request, context: Ctx) {
     selected_answer?: string
     user_says_true?: boolean
     diff: ReturnType<typeof buildAnswerDiff>
+    /** 例句題：結果頁顯示完整例句 */
+    example?: string | null
+    example_translation?: string | null
+    example_source?: ExampleSource | null
+    example_target?: string | null
+    example_tts?: string | null
   }[] = []
 
   const answerRows: { word_id: string; is_correct: boolean; progress: unknown }[] = []
@@ -127,6 +147,10 @@ export async function POST(request: Request, context: Ctx) {
   const nowIso = new Date().toISOString()
   let becameMastered = false
   let correctCount = 0
+  const questionType = session.question_type
+  const exampleType = isExampleQuestionType(questionType) ? questionType : null
+  // 例句題型不升級也不降級 word_progress（第五節 9.）
+  const updateProgress = affectsProgress(questionType)
 
   for (const ans of answers) {
     const word = wordMap.get(ans.word_id)
@@ -135,7 +159,9 @@ export async function POST(request: Request, context: Ctx) {
     }
 
     let isCorrect = false
-    if (session.question_type === 'tf') {
+    if (exampleType) {
+      isCorrect = judgeExampleAnswer(exampleType, word, ans)
+    } else if (session.question_type === 'tf') {
       const display = (ans.display_answer ?? '').trim()
       const pairIsTrue = display === word.answer
       isCorrect = Boolean(ans.user_says_true) === pairIsTrue
@@ -148,22 +174,25 @@ export async function POST(request: Request, context: Ctx) {
 
     if (isCorrect) correctCount++
 
-    // 自由練習：答錯降級；到期答對才升級；stage 0 的字不引入（同場次同字只算第一次）
+    // 自由練習：答錯降級；到期答對才升級；stage 0 的字不引入（同場次同字只算第一次）。
+    // 例句題型只寫作答紀錄與 word_stats，progress 一律為 null（record_answers 不寫 word_progress）
     if (!answeredInSession.has(word.id)) {
       answeredInSession.add(word.id)
-      const outcome = applyAnswer(progressMap.get(word.id) ?? null, {
-        isCorrect,
-        isNewIntroduction: false,
-        today,
-        now: nowIso,
-      })
-      if (outcome.changed) progressMap.set(word.id, outcome.next)
-      if (outcome.becameMastered) becameMastered = true
-      answerRows.push({
-        word_id: word.id,
-        is_correct: isCorrect,
-        progress: outcome.changed ? outcome.next : null,
-      })
+      let progress: unknown = null
+      if (updateProgress) {
+        const outcome = applyAnswer(progressMap.get(word.id) ?? null, {
+          isCorrect,
+          isNewIntroduction: false,
+          today,
+          now: nowIso,
+        })
+        if (outcome.changed) {
+          progressMap.set(word.id, outcome.next)
+          progress = outcome.next
+        }
+        if (outcome.becameMastered) becameMastered = true
+      }
+      answerRows.push({ word_id: word.id, is_correct: isCorrect, progress })
     }
 
     results.push({
@@ -174,7 +203,7 @@ export async function POST(request: Request, context: Ctx) {
       reading: word.reading,
       pronunciation: word.pronunciation,
       prompt: word.answer,
-      correct_answer: session.question_type === 'input' ? word.term : word.answer,
+      correct_answer: session.question_type === 'input' || exampleType ? word.term : word.answer,
       is_correct: isCorrect,
       user_input: ans.user_input,
       display_answer: ans.display_answer,
@@ -187,6 +216,15 @@ export async function POST(request: Request, context: Ctx) {
               fillDiffTarget(ans.user_input ?? '', word.term, word.reading)
             )
           : null,
+      ...(exampleType
+        ? {
+            example: word.example,
+            example_translation: word.example_translation,
+            example_source: word.example_source,
+            example_target: word.example_target,
+            example_tts: word.example_tts,
+          }
+        : {}),
     })
   }
 

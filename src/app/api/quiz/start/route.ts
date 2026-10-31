@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 
 import { assertCanMutate, requireUser } from '@/lib/api-auth'
+import { buildExampleQuestion, isExampleQuestionWord } from '@/lib/example-quiz'
 import {
   filterEligibleByLanguage,
   insufficientLanguagesText,
@@ -10,7 +11,13 @@ import {
 import { fetchWordPool } from '@/lib/word-pool'
 import { quizWeight, shuffle, weightedSampleWithoutReplacement } from '@/lib/weighted-sample'
 import { supabaseAdmin } from '@/lib/supabase-admin'
-import { isQuestionType, QUESTION_TYPE_LABELS, type QuestionType, type QuizQuestion } from '@/types/quiz'
+import {
+  isExampleQuestionType,
+  isQuestionType,
+  QUESTION_TYPE_LABELS,
+  type QuestionType,
+  type QuizQuestion,
+} from '@/types/quiz'
 
 export const runtime = 'nodejs'
 
@@ -75,13 +82,31 @@ export async function POST(request: Request) {
     )
   }
 
+  // 例句題型：出題字限有可用例句者，干擾項來源仍為 pool 全部字（第五節 9.）
+  const exampleType = isExampleQuestionType(questionType) ? questionType : null
+  const candidates = exampleType ? pool.filter((w) => isExampleQuestionWord(exampleType, w)) : pool
+  if (candidates.length === 0) {
+    return NextResponse.json(
+      {
+        error:
+          questionType === 'example_reorder'
+            ? '篩選範圍內沒有適合重組的例句（詞塊需 3–12 塊）'
+            : '篩選範圍內沒有例句，可到單字本使用「AI 補例句」',
+        pool_size: 0,
+      },
+      { status: 400 }
+    )
+  }
+
   const selected = weightedSampleWithoutReplacement(
-    pool,
+    candidates,
     (w) => quizWeight(w.attempt_count, w.correct_count),
     requested
   )
 
   const questions: QuizQuestion[] = selected.map((word) => {
+    if (exampleType) return buildExampleQuestion(exampleType, word, pool)
+
     if (questionType === 'input') {
       // 填空：顯示中文，使用者輸入外文單字；language 供提示文字與輸入法提示（混合語言時每題不同）
       return { word_id: word.id, prompt: word.answer, language: word.language }
@@ -130,7 +155,7 @@ export async function POST(request: Request) {
   return NextResponse.json({
     session_id: session.id,
     question_type: questionType,
-    pool_size: pool.length,
+    pool_size: candidates.length,
     truncated: selected.length < requested,
     /** 字數不足而不出題的語言說明（如「日文少於 4 個字」） */
     excluded_languages: insufficientLanguagesText(insufficient, min),

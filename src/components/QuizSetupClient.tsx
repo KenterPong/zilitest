@@ -4,7 +4,9 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useCallback, useEffect, useRef, useState } from 'react'
 
-import { ScopeFilter } from '@/components/ScopeFilter'
+import { ExampleQuizQuestion, type ExampleAnswerDraft } from '@/components/ExampleQuizQuestion'
+import { ExampleSentence } from '@/components/ExampleSentence'
+import { ScopeFilter, type ExampleCounts } from '@/components/ScopeFilter'
 import { TermSecondLine } from '@/components/TermSecondLine'
 import { useAppDialog } from '@/components/AppDialog'
 import { ACHIEVEMENT_BY_KEY } from '@/lib/growth'
@@ -16,13 +18,27 @@ import {
   splitLanguagesByMinimum,
   type LanguageCounts,
 } from '@/lib/quiz-language'
-import { QUESTION_TYPE_LABELS, type QuestionType, type QuizQuestion } from '@/types/quiz'
-import { LANGUAGE_LABELS, type DbTag, type Language, type WordbookWithCount } from '@/types/vocab'
+import {
+  isExampleQuestionType,
+  QUESTION_TYPE_LABELS,
+  type QuestionType,
+  type QuizQuestion,
+} from '@/types/quiz'
+import {
+  LANGUAGE_LABELS,
+  type DbTag,
+  type ExampleSource,
+  type Language,
+  type WordbookWithCount,
+} from '@/types/vocab'
 
 const QTYPES: { type: QuestionType; name: string; desc: string }[] = [
   { type: 'tf', name: QUESTION_TYPE_LABELS.tf, desc: '判斷單字與翻譯配對是否正確' },
   { type: 'choice', name: QUESTION_TYPE_LABELS.choice, desc: '從 4 個選項選出正確翻譯' },
   { type: 'input', name: QUESTION_TYPE_LABELS.input, desc: '顯示中文，輸入外文單字' },
+  { type: 'example_choice', name: QUESTION_TYPE_LABELS.example_choice, desc: '例句挖空，從 4 個單字選出正確的字' },
+  { type: 'example_tf', name: QUESTION_TYPE_LABELS.example_tf, desc: '判斷例句與中文翻譯是否相符' },
+  { type: 'example_reorder', name: QUESTION_TYPE_LABELS.example_reorder, desc: '看中文翻譯，把詞塊排回原句' },
 ]
 
 interface QuizSetupClientProps {
@@ -32,11 +48,8 @@ interface QuizSetupClientProps {
   pronunciationPrefs: PronunciationPrefs
 }
 
-type AnswerDraft = {
-  word_id: string
-  user_says_true?: boolean
+type AnswerDraft = ExampleAnswerDraft & {
   display_answer?: string
-  selected_answer?: string
   user_input?: string
 }
 
@@ -53,6 +66,7 @@ export function QuizSetupClient({
   )
   const [tagIds, setTagIds] = useState<string[]>([])
   const [languageCounts, setLanguageCounts] = useState<LanguageCounts>({})
+  const [exampleCounts, setExampleCounts] = useState<ExampleCounts>({ example: {}, reorder: {} })
   const [poolLoading, setPoolLoading] = useState(true)
   const [qtype, setQtype] = useState<QuestionType>('choice')
   const [countInput, setCountInput] = useState('')
@@ -112,15 +126,29 @@ export function QuizSetupClient({
       correct_answer: string
       is_correct: boolean
       user_input?: string
+      selected_answer?: string
       diff: { type: string; text: string }[] | null
+      example?: string | null
+      example_translation?: string | null
+      example_source?: ExampleSource | null
+      example_target?: string | null
+      example_tts?: string | null
     }[]
   } | null>(null)
 
   const onFilterChange = useCallback(
-    (wb: string[], tg: string[], _size: number, loadingPool: boolean, counts: LanguageCounts) => {
+    (
+      wb: string[],
+      tg: string[],
+      _size: number,
+      loadingPool: boolean,
+      counts: LanguageCounts,
+      examples: ExampleCounts
+    ) => {
       setWordbookIds(wb)
       setTagIds(tg)
       setLanguageCounts(counts)
+      setExampleCounts(examples)
       setPoolLoading(loadingPool)
     },
     []
@@ -293,7 +321,31 @@ export function QuizSetupClient({
             <div className="font-mono text-[11.5px] tracking-wide text-ink-soft mb-3.5">
               答錯的單字
             </div>
-            {wrongs.map((r) => (
+            {isExampleQuestionType(result.question_type) &&
+              wrongs.map((r) => (
+                <div key={r.word_id} className="bg-cream border border-line rounded-md px-5 py-4 mb-2.5">
+                  <div className="flex items-baseline gap-2 flex-wrap mb-2 text-sm">
+                    <span lang={r.language} className="font-serif font-bold text-base">
+                      {r.term}
+                    </span>
+                    <TermSecondLine
+                      language={r.language}
+                      word={r}
+                      show={pronunciationPrefs[r.language]}
+                      className="text-xs text-ink-soft"
+                    />
+                    {result.question_type === 'example_choice' && r.selected_answer && (
+                      <span className="text-[12.5px] text-ink-soft">
+                        你的選擇：<span className="text-stamp-red-deep font-semibold">{r.selected_answer}</span>
+                      </span>
+                    )}
+                  </div>
+                  <div lang={r.language}>
+                    <ExampleSentence word={r} term={r.term} language={r.language} />
+                  </div>
+                </div>
+              ))}
+            {!isExampleQuestionType(result.question_type) && wrongs.map((r) => (
               <div
                 key={r.word_id}
                 className="bg-cream border border-line rounded-md px-5 py-4 mb-2.5 flex items-center justify-between gap-5 flex-wrap"
@@ -381,7 +433,9 @@ export function QuizSetupClient({
           </Link>
         </div>
         <p className="text-xs text-ink-soft mt-2.5">
-          答錯率越高的單字，下次練習出現的機率越高；答錯的字會回到每日任務重新複習。
+          {isExampleQuestionType(result.question_type)
+            ? '答錯率越高的單字，下次練習出現的機率越高；例句題型不影響熟練度。'
+            : '答錯率越高的單字，下次練習出現的機率越高；答錯的字會回到每日任務重新複習。'}
         </p>
       </div>
     )
@@ -408,131 +462,145 @@ export function QuizSetupClient({
           </span>
         </div>
         <div className="bg-cream border border-line rounded-lg p-6">
-          <div className="font-serif font-black text-2xl text-center mb-5 pt-1">
-            {qtype === 'input' ? q.prompt : q.term}
-            {/* 填空題作答前不顯示第二層（會洩漏拼法） */}
-            {qtype !== 'input' && q.term && q.language && (
-              <TermSecondLine
-                language={q.language}
-                word={{ term: q.term, reading: q.reading, pronunciation: q.pronunciation }}
-                show={pronunciationPrefs[q.language]}
-                className="font-normal text-sm mt-1"
-              />
-            )}
-          </div>
-
-          {qtype === 'tf' && (
+          {isExampleQuestionType(qtype) ? (
+            <ExampleQuizQuestion
+              key={`${idx}-${q.word_id}`}
+              type={qtype}
+              question={q}
+              pronunciationPrefs={pronunciationPrefs}
+              disabled={loading}
+              isLast={idx + 1 >= questions.length}
+              onNext={(draft) => void pushAnswer(draft)}
+            />
+          ) : (
             <>
-              <div className="flex items-center justify-center gap-2 text-[15px] mb-4 p-3.5 bg-paper-deep rounded-md">
-                中文翻譯：<b>{q.display_answer}</b>
+              <div className="font-serif font-black text-2xl text-center mb-5 pt-1">
+                {qtype === 'input' ? q.prompt : q.term}
+                {/* 填空題作答前不顯示第二層（會洩漏拼法） */}
+                {qtype !== 'input' && q.term && q.language && (
+                  <TermSecondLine
+                    language={q.language}
+                    word={{ term: q.term, reading: q.reading, pronunciation: q.pronunciation }}
+                    show={pronunciationPrefs[q.language]}
+                    className="font-normal text-sm mt-1"
+                  />
+                )}
               </div>
-              <div className="flex gap-2.5">
-                <button
-                  type="button"
-                  disabled={loading}
-                  onClick={() =>
-                    pushAnswer({
-                      word_id: q.word_id,
-                      user_says_true: true,
-                      display_answer: q.display_answer,
-                    })
-                  }
-                  className="flex-1 py-2.5 rounded-sm font-bold text-sm border-[1.5px] border-good text-good"
-                >
-                  正確
-                </button>
-                <button
-                  type="button"
-                  disabled={loading}
-                  onClick={() =>
-                    pushAnswer({
-                      word_id: q.word_id,
-                      user_says_true: false,
-                      display_answer: q.display_answer,
-                    })
-                  }
-                  className="flex-1 py-2.5 rounded-sm font-bold text-sm border-[1.5px] border-stamp-red text-stamp-red-deep"
-                >
-                  錯誤
-                </button>
-              </div>
-            </>
-          )}
 
-          {qtype === 'choice' && q.options && (
-            <div key={q.word_id} className="flex flex-col gap-2">
-              {q.options.map((opt, i) => {
-                const selected = selectedChoice === opt
-                return (
+              {qtype === 'tf' && (
+                <>
+                  <div className="flex items-center justify-center gap-2 text-[15px] mb-4 p-3.5 bg-paper-deep rounded-md">
+                    中文翻譯：<b>{q.display_answer}</b>
+                  </div>
+                  <div className="flex gap-2.5">
+                    <button
+                      type="button"
+                      disabled={loading}
+                      onClick={() =>
+                        pushAnswer({
+                          word_id: q.word_id,
+                          user_says_true: true,
+                          display_answer: q.display_answer,
+                        })
+                      }
+                      className="flex-1 py-2.5 rounded-sm font-bold text-sm border-[1.5px] border-good text-good"
+                    >
+                      正確
+                    </button>
+                    <button
+                      type="button"
+                      disabled={loading}
+                      onClick={() =>
+                        pushAnswer({
+                          word_id: q.word_id,
+                          user_says_true: false,
+                          display_answer: q.display_answer,
+                        })
+                      }
+                      className="flex-1 py-2.5 rounded-sm font-bold text-sm border-[1.5px] border-stamp-red text-stamp-red-deep"
+                    >
+                      錯誤
+                    </button>
+                  </div>
+                </>
+              )}
+
+              {qtype === 'choice' && q.options && (
+                <div key={q.word_id} className="flex flex-col gap-2">
+                  {q.options.map((opt, i) => {
+                    const selected = selectedChoice === opt
+                    return (
+                      <button
+                        key={`${q.word_id}-${i}-${opt}`}
+                        type="button"
+                        disabled={loading}
+                        onClick={() => setSelectedChoice(opt)}
+                        className={`block w-full text-left px-3.5 py-2.5 border rounded-md text-sm transition-colors ${
+                          selected
+                            ? 'border-stamp-red bg-warn-bg text-ink'
+                            : 'border-line bg-paper hover:border-stamp-red'
+                        }`}
+                      >
+                        {String.fromCharCode(65 + i)}. {opt}
+                      </button>
+                    )
+                  })}
                   <button
-                    key={`${q.word_id}-${i}-${opt}`}
                     type="button"
-                    disabled={loading}
-                    onClick={() => setSelectedChoice(opt)}
-                    className={`block w-full text-left px-3.5 py-2.5 border rounded-md text-sm transition-colors ${
-                      selected
-                        ? 'border-stamp-red bg-warn-bg text-ink'
-                        : 'border-line bg-paper hover:border-stamp-red'
-                    }`}
+                    disabled={loading || !selectedChoice}
+                    onClick={() => {
+                      if (!selectedChoice) return
+                      void pushAnswer({
+                        word_id: q.word_id,
+                        selected_answer: selectedChoice,
+                      })
+                    }}
+                    className="mt-2 w-full bg-ink text-cream font-bold py-2.5 rounded-md text-sm disabled:opacity-60"
                   >
-                    {String.fromCharCode(65 + i)}. {opt}
+                    確認答案
                   </button>
-                )
-              })}
-              <button
-                type="button"
-                disabled={loading || !selectedChoice}
-                onClick={() => {
-                  if (!selectedChoice) return
-                  void pushAnswer({
-                    word_id: q.word_id,
-                    selected_answer: selectedChoice,
-                  })
-                }}
-                className="mt-2 w-full bg-ink text-cream font-bold py-2.5 rounded-md text-sm disabled:opacity-60"
-              >
-                確認答案
-              </button>
-            </div>
-          )}
+                </div>
+              )}
 
-          {qtype === 'input' && (
-            <div className="text-center">
-              <p className="text-xs text-ink-soft mb-3">請輸入對應的外文單字</p>
-              <input
-                ref={answerInputRef}
-                value={inputVal}
-                onChange={(e) => setInputVal(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && inputVal.trim()) {
-                    void pushAnswer({
-                      word_id: q.word_id,
-                      user_input: inputVal,
-                    })
-                  }
-                }}
-                lang={q.language}
-                placeholder={q.language ? `輸入${LANGUAGE_LABELS[q.language]}單字…` : '輸入單字…'}
-                className="w-full border-[1.5px] border-line rounded-md px-3.5 py-3 text-[15px] text-center mb-3.5 font-mono"
-                autoFocus
-                autoCapitalize="off"
-                autoCorrect="off"
-                spellCheck={false}
-              />
-              <button
-                type="button"
-                disabled={loading || !inputVal.trim()}
-                onClick={() =>
-                  pushAnswer({
-                    word_id: q.word_id,
-                    user_input: inputVal,
-                  })
-                }
-                className="w-full bg-ink text-cream font-bold py-2.5 rounded-md text-sm disabled:opacity-60"
-              >
-                送出答案
-              </button>
-            </div>
+              {qtype === 'input' && (
+                <div className="text-center">
+                  <p className="text-xs text-ink-soft mb-3">請輸入對應的外文單字</p>
+                  <input
+                    ref={answerInputRef}
+                    value={inputVal}
+                    onChange={(e) => setInputVal(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && inputVal.trim()) {
+                        void pushAnswer({
+                          word_id: q.word_id,
+                          user_input: inputVal,
+                        })
+                      }
+                    }}
+                    lang={q.language}
+                    placeholder={q.language ? `輸入${LANGUAGE_LABELS[q.language]}單字…` : '輸入單字…'}
+                    className="w-full border-[1.5px] border-line rounded-md px-3.5 py-3 text-[15px] text-center mb-3.5 font-mono"
+                    autoFocus
+                    autoCapitalize="off"
+                    autoCorrect="off"
+                    spellCheck={false}
+                  />
+                  <button
+                    type="button"
+                    disabled={loading || !inputVal.trim()}
+                    onClick={() =>
+                      pushAnswer({
+                        word_id: q.word_id,
+                        user_input: inputVal,
+                      })
+                    }
+                    className="w-full bg-ink text-cream font-bold py-2.5 rounded-md text-sm disabled:opacity-60"
+                  >
+                    送出答案
+                  </button>
+                </div>
+              )}
+            </>
           )}
         </div>
 
@@ -562,7 +630,15 @@ export function QuizSetupClient({
   // 防呆依語言計算：字數不足的語言不出題（第五節 5.）
   const minPool = MIN_WORDS_PER_LANGUAGE[qtype]
   const split = splitLanguagesByMinimum(languageCounts, minPool)
-  const poolSize = split.ok.reduce((sum, l) => sum + (languageCounts[l] ?? 0), 0)
+  // 例句題型：門檻以全部字計算，可出題數只算有可用例句的字（第五節 9.）
+  const isExample = isExampleQuestionType(qtype)
+  const questionCounts = !isExample
+    ? languageCounts
+    : qtype === 'example_reorder'
+      ? exampleCounts.reorder
+      : exampleCounts.example
+  const poolSize = split.ok.reduce((sum, l) => sum + (questionCounts[l] ?? 0), 0)
+  const noExamples = isExample && !poolLoading && split.ok.length > 0 && poolSize === 0
   const totalWords = Object.values(languageCounts).reduce((sum, n) => sum + (n ?? 0), 0)
   const excludedText = insufficientLanguagesText(split.insufficient, minPool)
   const parsedCount = parseCountInput(countInput)
@@ -570,7 +646,7 @@ export function QuizSetupClient({
   const canStart =
     wordbookIds.length > 0 &&
     !poolLoading &&
-    poolSize >= minPool &&
+    poolSize >= (isExample ? 1 : minPool) &&
     parsedCount !== null &&
     parsedCount <= maxCount
 
@@ -664,6 +740,13 @@ export function QuizSetupClient({
             {poolSize === 0
               ? `${QUESTION_TYPE_LABELS[qtype]}每個語言需至少 ${minPool} 個字（${excludedText}），請擴大篩選或改題型。`
               : `${excludedText}，${QUESTION_TYPE_LABELS[qtype]}不出這些語言的字。`}
+          </div>
+        )}
+        {noExamples && (
+          <div className="text-[12.5px] text-stamp-red-deep bg-warn-bg border border-warn-line px-3 py-2 rounded mt-2">
+            {qtype === 'example_reorder'
+              ? '篩選範圍內沒有適合重組的例句（詞塊需 3–12 塊），請擴大篩選或改題型。'
+              : '篩選範圍內沒有例句，可到單字本使用「AI 補例句」，或改選其他題型。'}
           </div>
         )}
       </div>

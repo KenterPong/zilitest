@@ -6,8 +6,18 @@
 import { shuffled } from '@/lib/games'
 import { LANGUAGE_LABELS, LANGUAGES, type Language } from '@/types/vocab'
 
-/** 各題型每個語言至少需要的字數：選擇題 1 正確 + 3 干擾項、是非題要有另一個字可替換 */
-export const MIN_WORDS_PER_LANGUAGE = { tf: 2, choice: 4, input: 1 } as const
+/**
+ * 各題型每個語言至少需要的字數：選擇題 1 正確 + 3 干擾項、是非題要有另一個字可替換。
+ * 例句題型同規則，以篩選範圍內該語言的全部字計算（干擾項不限有例句，第五節 9.）
+ */
+export const MIN_WORDS_PER_LANGUAGE = {
+  tf: 2,
+  choice: 4,
+  input: 1,
+  example_tf: 2,
+  example_choice: 4,
+  example_reorder: 1,
+} as const
 
 export type LanguageCounts = Partial<Record<Language, number>>
 

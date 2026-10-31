@@ -1,12 +1,13 @@
 import { NextResponse } from 'next/server'
 
 import { requireUser } from '@/lib/api-auth'
+import { countExampleWordsByLanguage } from '@/lib/example-quiz'
 import { countByLanguage } from '@/lib/quiz-language'
 import { fetchWordPool } from '@/lib/word-pool'
 
 export const runtime = 'nodejs'
 
-/** 預覽篩選池大小與各語言字數（測驗／卡牌設定用） */
+/** 預覽篩選池大小與各語言字數（測驗／卡牌設定用）；例句題型另需各語言可出題的字數 */
 export async function POST(request: Request) {
   const auth = await requireUser()
   if (auth.error) return auth.error
@@ -22,12 +23,18 @@ export async function POST(request: Request) {
   const tagIds = Array.isArray(body.tag_ids) ? body.tag_ids : []
 
   if (wordbookIds.length === 0) {
-    return NextResponse.json({ pool_size: 0, by_language: {} })
+    return NextResponse.json({ pool_size: 0, by_language: {}, example_by_language: {}, reorder_by_language: {} })
   }
 
   try {
     const pool = await fetchWordPool(auth.user.id, wordbookIds, tagIds)
-    return NextResponse.json({ pool_size: pool.length, by_language: countByLanguage(pool) })
+    const { example, reorder } = countExampleWordsByLanguage(pool)
+    return NextResponse.json({
+      pool_size: pool.length,
+      by_language: countByLanguage(pool),
+      example_by_language: example,
+      reorder_by_language: reorder,
+    })
   } catch (e) {
     const msg = e instanceof Error ? e.message : '查詢失敗'
     return NextResponse.json({ error: msg }, { status: 500 })

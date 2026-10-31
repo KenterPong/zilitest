@@ -6,6 +6,13 @@ import { useCallback, useEffect, useState } from 'react'
 import type { LanguageCounts } from '@/lib/quiz-language'
 import type { DbTag, WordbookWithCount } from '@/types/vocab'
 
+export interface ExampleCounts {
+  example: LanguageCounts
+  reorder: LanguageCounts
+}
+
+const NO_EXAMPLES: ExampleCounts = { example: {}, reorder: {} }
+
 interface ScopeFilterProps {
   wordbooks: WordbookWithCount[]
   tags: DbTag[]
@@ -20,7 +27,9 @@ interface ScopeFilterProps {
     poolSize: number,
     poolLoading: boolean,
     /** 各語言字數（測驗防呆依語言計算） */
-    languageCounts: LanguageCounts
+    languageCounts: LanguageCounts,
+    /** 各語言可出例句題（example）與例句重組（reorder）的字數 */
+    exampleCounts: ExampleCounts
   ) => void
 }
 
@@ -44,12 +53,12 @@ export function ScopeFilter({
       if (wbIds.length === 0) {
         setPoolLoading(false)
         setPoolSize(0)
-        onChange(wbIds, tIds, 0, false, {})
+        onChange(wbIds, tIds, 0, false, {}, NO_EXAMPLES)
         return
       }
 
       setPoolLoading(true)
-      onChange(wbIds, tIds, 0, true, {})
+      onChange(wbIds, tIds, 0, true, {}, NO_EXAMPLES)
 
       try {
         const res = await fetch('/api/words/pool-preview', {
@@ -62,12 +71,15 @@ export function ScopeFilter({
         const size = data.pool_size ?? 0
         setPoolSize(size)
         setPoolLoading(false)
-        onChange(wbIds, tIds, size, false, data.by_language ?? {})
+        onChange(wbIds, tIds, size, false, data.by_language ?? {}, {
+          example: data.example_by_language ?? {},
+          reorder: data.reorder_by_language ?? {},
+        })
       } catch {
         if (myId !== requestId.current) return
         setPoolSize(0)
         setPoolLoading(false)
-        onChange(wbIds, tIds, 0, false, {})
+        onChange(wbIds, tIds, 0, false, {}, NO_EXAMPLES)
       }
     },
     [onChange]
