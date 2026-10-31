@@ -184,7 +184,7 @@
 - [x] 跟組:原句(目標字粗體)、翻譯、自動/手動播放;點選填入、點選退回、Backspace;錯誤退回重排;跳過
 - [x] 默組:第一題不是最後跟組的句子;只顯示翻譯與播放;答錯/不會須以跟組方式再排一次;最後重出 1 次
 - [x] 日文詞塊上方讀音,跟隨「顯示假名讀音」
-- [ ] 結果畫面與 `card_familiarity` 寫入(規則同書寫練習);不寫 `word_progress`、`word_stats`、`quiz_*`
+- [x] 結果畫面與 `card_familiarity` 寫入(規則同書寫練習);不寫 `word_progress`、`word_stats`、`quiz_*`
 - [x] `prefers-reduced-motion`;每畫面一個紅色主要按鈕
 
 ---
