@@ -13,7 +13,7 @@ export default async function FeedbackPage() {
   }
 
   return (
-    <main className="px-8 py-10 max-w-3xl mx-auto">
+    <main className="px-5 sm:px-8 py-10 max-w-3xl mx-auto">
       <Link href="/app" className="text-sm text-ink-soft underline">
         ← 返回首頁
       </Link>

@@ -23,7 +23,7 @@ export default async function CardsPage({ searchParams }: Props) {
   ])
 
   return (
-    <main className="px-8 py-7 max-w-5xl mx-auto">
+    <main className="px-5 sm:px-8 py-7 max-w-5xl mx-auto">
       <CardsClient
         wordbooks={wordbooks}
         tags={tags}

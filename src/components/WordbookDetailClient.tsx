@@ -61,6 +61,63 @@ export function WordbookDetailClient({
   const [filterTagId, setFilterTagId] = useState<string | null>(null)
   /** 展開顯示例句的列 */
   const [expanded, setExpanded] = useState<Set<string>>(() => new Set())
+
+  function toggleExpanded(id: string) {
+    setExpanded((s) => {
+      const next = new Set(s)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  // 表格（桌機）與卡片（手機）共用的片段
+  function renderExpandButton(word: WordWithMeta, isOpen: boolean) {
+    if (!hasExample(word)) return null
+    return (
+      <button
+        type="button"
+        aria-expanded={isOpen}
+        aria-label={isOpen ? '收合例句' : '展開例句'}
+        title={isOpen ? '收合例句' : '展開例句'}
+        onClick={() => toggleExpanded(word.id)}
+        className="font-sans font-normal text-[11px] text-ink-soft hover:text-ink w-5 h-6 -ml-1 shrink-0"
+      >
+        {isOpen ? '▾' : '▸'}
+      </button>
+    )
+  }
+
+  function renderTags(word: WordWithMeta) {
+    return word.tags.map((t) => (
+      <span key={t.id} className="font-mono text-[10px] text-ink-soft bg-paper-deep px-1.5 py-0.5 rounded-full">
+        {t.name}
+      </span>
+    ))
+  }
+
+  function renderActions(word: WordWithMeta) {
+    return (
+      <div className="flex gap-3 text-xs text-ink-soft shrink-0">
+        <button
+          type="button"
+          disabled={!canMutate}
+          onClick={() => openEdit(word)}
+          className="hover:text-stamp-red disabled:opacity-50 py-1"
+        >
+          編輯
+        </button>
+        <button
+          type="button"
+          disabled={!canMutate}
+          onClick={() => deleteWord(word)}
+          className="hover:text-stamp-red disabled:opacity-50 py-1"
+        >
+          刪除
+        </button>
+      </div>
+    )
+  }
   const [wordCount, setWordCount] = useState(accountWordCount)
   // AI 抽字與補例句共用等級與每月次數；任一邊用掉後另一邊要同步
   const [aiLevel, setAiLevel] = useState(aiExtract.level)
@@ -482,115 +539,113 @@ export function WordbookDetailClient({
           {words.length === 0 ? '此單字本尚無單字，點「新增單字」開始。' : '沒有符合此標籤的單字。'}
         </div>
       ) : (
-        <div className="overflow-x-auto border border-line rounded-md bg-cream">
-          <table className="w-full border-collapse text-sm">
-            <thead>
-              <tr>
-                {['單字', '答案', '正確率', '標籤', '操作'].map((h) => (
-                  <th
-                    key={h}
-                    className="text-left font-mono text-[11px] tracking-wide text-ink-soft bg-paper-deep px-4 py-2.5 font-medium"
-                  >
-                    {h}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map((word) => {
-                const acc = accuracyLabel(word.accuracy)
-                const withExample = hasExample(word)
-                const isOpen = withExample && expanded.has(word.id)
-                return (
-                  <Fragment key={word.id}>
-                    <tr className="border-t border-line">
-                      <td className="px-4 py-3 font-serif font-bold text-[15.5px]">
-                        <span className="inline-flex items-center gap-2">
-                          {withExample && (
-                            <button
-                              type="button"
-                              aria-expanded={isOpen}
-                              aria-label={isOpen ? '收合例句' : '展開例句'}
-                              title={isOpen ? '收合例句' : '展開例句'}
-                              onClick={() =>
-                                setExpanded((s) => {
-                                  const next = new Set(s)
-                                  if (next.has(word.id)) next.delete(word.id)
-                                  else next.add(word.id)
-                                  return next
-                                })
-                              }
-                              className="font-sans font-normal text-[11px] text-ink-soft hover:text-ink w-4 -ml-1"
-                            >
-                              {isOpen ? '▾' : '▸'}
-                            </button>
-                          )}
-                          {word.term}
-                          <SpeakButton term={word.term} reading={word.reading} language={wordbookLanguage} size="sm" />
-                        </span>
-                        <TermSecondLine
-                          language={wordbookLanguage}
-                          word={word}
-                          show={showPronunciation}
-                          className="font-normal text-xs"
-                        />
-                        {needsReadingHint(wordbookLanguage, word.term, word.reading) && (
-                          <span className="block font-sans font-normal text-[11px] text-gold">未填讀音</span>
-                        )}
-                      </td>
-                      <td className="px-4 py-3">{word.answer}</td>
-                      <td className={`px-4 py-3 ${acc.className}`}>{acc.text}</td>
-                      <td className="px-4 py-3">
-                        <div className="flex gap-1 flex-wrap">
-                          {word.tags.map((t) => (
-                            <span
-                              key={t.id}
-                              className="font-mono text-[10px] text-ink-soft bg-paper-deep px-1.5 py-0.5 rounded-full"
-                            >
-                              {t.name}
-                            </span>
-                          ))}
-                        </div>
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="flex gap-3 text-xs text-ink-soft">
-                          <button
-                            type="button"
-                            disabled={!canMutate}
-                            onClick={() => openEdit(word)}
-                            className="hover:text-stamp-red disabled:opacity-50"
-                          >
-                            編輯
-                          </button>
-                          <button
-                            type="button"
-                            disabled={!canMutate}
-                            onClick={() => deleteWord(word)}
-                            className="hover:text-stamp-red disabled:opacity-50"
-                          >
-                            刪除
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                    {isOpen && (
-                      <tr>
-                        <td colSpan={5} className="px-4 pb-3 pt-0">
-                          <ExampleSentence
-                            word={word}
-                            term={word.term}
+        <>
+          {/* 手機：每個字一張卡片，答案、正確率與標籤分行，不用左右捲動 */}
+          <ul className="sm:hidden border border-line rounded-md bg-cream divide-y divide-line">
+            {filtered.map((word) => {
+              const acc = accuracyLabel(word.accuracy)
+              const isOpen = hasExample(word) && expanded.has(word.id)
+              return (
+                <li key={word.id} className="px-4 py-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2 font-serif font-bold text-[16px] break-words">
+                        {renderExpandButton(word, isOpen)}
+                        <span className="min-w-0">{word.term}</span>
+                        <SpeakButton term={word.term} reading={word.reading} language={wordbookLanguage} size="sm" />
+                      </div>
+                      <TermSecondLine language={wordbookLanguage} word={word} show={showPronunciation} className="text-xs" />
+                      {needsReadingHint(wordbookLanguage, word.term, word.reading) && (
+                        <span className="block text-[11px] text-gold">未填讀音</span>
+                      )}
+                    </div>
+                    {renderActions(word)}
+                  </div>
+                  <div className="mt-1 text-[14px]">{word.answer}</div>
+                  <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11.5px]">
+                    <span className={acc.className}>
+                      {word.accuracy === null ? acc.text : `正確率 ${acc.text}`}
+                    </span>
+                    {renderTags(word)}
+                  </div>
+                  {isOpen && (
+                    <ExampleSentence
+                      word={word}
+                      term={word.term}
+                      language={wordbookLanguage}
+                      className="mt-2 pl-3 border-l-2 border-line"
+                    />
+                  )}
+                </li>
+              )
+            })}
+          </ul>
+
+          <div className="hidden sm:block overflow-x-auto border border-line rounded-md bg-cream">
+            <table className="w-full border-collapse text-sm">
+              <thead>
+                <tr>
+                  {['單字', '答案', '正確率', '標籤', '操作'].map((h) => (
+                    <th
+                      key={h}
+                      className="text-left font-mono text-[11px] tracking-wide text-ink-soft bg-paper-deep px-4 py-2.5 font-medium"
+                    >
+                      {h}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map((word) => {
+                  const acc = accuracyLabel(word.accuracy)
+                  const isOpen = hasExample(word) && expanded.has(word.id)
+                  return (
+                    <Fragment key={word.id}>
+                      <tr className="border-t border-line">
+                        <td className="px-4 py-3 font-serif font-bold text-[15.5px]">
+                          <span className="inline-flex items-center gap-2">
+                            {renderExpandButton(word, isOpen)}
+                            {word.term}
+                            <SpeakButton term={word.term} reading={word.reading} language={wordbookLanguage} size="sm" />
+                          </span>
+                          <TermSecondLine
                             language={wordbookLanguage}
-                            className="max-w-2xl pl-4 border-l-2 border-line"
+                            word={word}
+                            show={showPronunciation}
+                            className="font-normal text-xs"
                           />
+                          {needsReadingHint(wordbookLanguage, word.term, word.reading) && (
+                            <span className="block font-sans font-normal text-[11px] text-gold">未填讀音</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-3">{word.answer}</td>
+                        <td className={`px-4 py-3 ${acc.className}`}>{acc.text}</td>
+                        <td className="px-4 py-3">
+                          <div className="flex gap-1 flex-wrap">{renderTags(word)}</div>
+                        </td>
+                        <td className="px-4 py-3">
+                          {renderActions(word)}
                         </td>
                       </tr>
-                    )}
-                  </Fragment>
-                )
-              })}
-            </tbody>
-          </table>
-        </div>
+                      {isOpen && (
+                        <tr>
+                          <td colSpan={5} className="px-4 pb-3 pt-0">
+                            <ExampleSentence
+                              word={word}
+                              term={word.term}
+                              language={wordbookLanguage}
+                              className="max-w-2xl pl-4 border-l-2 border-line"
+                            />
+                          </td>
+                        </tr>
+                      )}
+                    </Fragment>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        </>
       )}
 
       {/* 新增／編輯單字 */}

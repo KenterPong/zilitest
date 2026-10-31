@@ -35,7 +35,7 @@ export default async function WordbookDetailPage({ params }: Props) {
   const level = settings.find((s) => s.language === book.language)?.extract_level ?? null
 
   return (
-    <main className="px-8 py-7 max-w-5xl mx-auto">
+    <main className="px-5 sm:px-8 py-7 max-w-5xl mx-auto">
       <WordbookDetailClient
         wordbookId={book.id}
         wordbookName={book.name}
