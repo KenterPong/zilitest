@@ -13,6 +13,8 @@ interface SpeakButtonProps {
   /** 直接指定要唸的文字（如整句例句）；未指定時依 term／reading 決定 */
   text?: string
   label?: string
+  /** 點擊時不搶走輸入框焦點（書寫練習：避免手機鍵盤收起） */
+  keepFocus?: boolean
 }
 
 /** 單字發音按鈕；裝置沒有該語言語音時不顯示 */
@@ -24,6 +26,7 @@ export function SpeakButton({
   className = '',
   text,
   label,
+  keepFocus = false,
 }: SpeakButtonProps) {
   const speak = useSpeaker(language)
   if (!speak) return null
@@ -39,6 +42,7 @@ export function SpeakButton({
       // 卡片本身可拖曳或點擊翻面，按鈕事件不往上傳
       onPointerDown={(e) => e.stopPropagation()}
       onPointerUp={(e) => e.stopPropagation()}
+      onMouseDown={keepFocus ? (e) => e.preventDefault() : undefined}
       onKeyDown={(e) => {
         // 只攔 Enter／空白鍵，避免連帶觸發卡片翻面；其他快捷鍵照常
         if (e.key === 'Enter' || e.key === ' ') e.stopPropagation()

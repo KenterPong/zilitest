@@ -122,7 +122,8 @@ export function WritingPractice({ cards, pronunciationPrefs, onRestart, onExit }
     return () => window.removeEventListener('keydown', onKey)
   }, [stage, revealed, card, speakCard])
 
-  // 每題出現時清空並聚焦；整輪共用同一個輸入框，手機鍵盤不會每題收起
+  // 每題出現時清空並聚焦；整輪共用同一個輸入框且焦點不離開，手機鍵盤不會每題收起。
+  // 程式呼叫 focus() 在手機上叫不出已收起的鍵盤，所以重點是一開始就別讓輸入框失去焦點
   const resetInput = useCallback(() => {
     setInput('')
     setFeedback(null)
@@ -244,7 +245,7 @@ export function WritingPractice({ cards, pronunciationPrefs, onRestart, onExit }
     setStep('recopy')
     setInput('')
     setFeedback(null)
-    window.requestAnimationFrame(() => inputRef.current?.focus())
+    inputRef.current?.focus()
   }
 
   if (stage === 'between') {
@@ -354,7 +355,7 @@ export function WritingPractice({ cards, pronunciationPrefs, onRestart, onExit }
               <span lang={card.language} className="font-serif font-black text-[28px] break-words">
                 {card.term}
               </span>
-              <SpeakButton term={card.term} reading={card.reading} language={card.language} size="sm" />
+              <SpeakButton term={card.term} reading={card.reading} language={card.language} size="sm" keepFocus />
             </div>
             <TermSecondLine language={card.language} word={card} show={pronunciationPrefs[card.language]} />
             <div className="mt-3 text-[15px]">{card.answer}</div>
@@ -395,9 +396,11 @@ export function WritingPractice({ cards, pronunciationPrefs, onRestart, onExit }
           ref={inputRef}
           lang={card.language}
           value={input}
-          readOnly={step === 'passed'}
+          // 通過後到下一題前忽略輸入；不用 readOnly，焦點中的輸入框變成唯讀會讓手機鍵盤收起
+          aria-readonly={step === 'passed'}
           autoFocus
           onChange={(e) => {
+            if (step === 'passed') return
             setInput(e.target.value)
             if (!composingRef.current && !(e.nativeEvent as InputEvent).isComposing) {
               autoCheck(e.target.value)
@@ -453,6 +456,8 @@ export function WritingPractice({ cards, pronunciationPrefs, onRestart, onExit }
           {stage === 'copy' && (
             <button
               type="button"
+              // 不讓按鈕搶走輸入框焦點，手機鍵盤才不會收起
+              onMouseDown={(e) => e.preventDefault()}
               onClick={skipCopy}
               disabled={step === 'passed'}
               className="flex-1 border border-line bg-cream py-3 rounded-[5px] text-sm font-medium disabled:opacity-60"
@@ -463,6 +468,8 @@ export function WritingPractice({ cards, pronunciationPrefs, onRestart, onExit }
           {stage === 'recall' && step === 'typing' && (
             <button
               type="button"
+              // 不讓按鈕搶走輸入框焦點，手機鍵盤才不會收起
+              onMouseDown={(e) => e.preventDefault()}
               onClick={giveUp}
               className="flex-1 bg-cream border-[1.5px] border-stamp-red text-stamp-red-deep py-3 rounded-[5px] text-sm font-bold"
             >
@@ -471,6 +478,8 @@ export function WritingPractice({ cards, pronunciationPrefs, onRestart, onExit }
           )}
           <button
             type="button"
+            // 不讓按鈕搶走輸入框焦點，手機鍵盤才不會收起
+            onMouseDown={(e) => e.preventDefault()}
             onClick={() => {
               submit()
               inputRef.current?.focus()
