@@ -4,6 +4,7 @@ import { redirect } from 'next/navigation'
 import { AutoSpeakToggle } from '@/components/AutoSpeakToggle'
 import { DeleteAccountSection } from '@/components/DeleteAccountSection'
 import { ExportWordsButton } from '@/components/ExportWordsButton'
+import { InstallAppSection } from '@/components/InstallAppSection'
 import { LanguageSettingsForm } from '@/components/LanguageSettingsForm'
 import { PronunciationToggles } from '@/components/PronunciationToggles'
 import { daysRemaining, formatTrialEndDate, getSessionUser } from '@/lib/auth'
@@ -132,6 +133,8 @@ export default async function SettingsPage() {
         <AutoSpeakToggle />
         <PronunciationToggles settings={languageSettings} disabled={user.status === 'suspended'} />
       </div>
+
+      <InstallAppSection />
 
       <div className="bg-cream border border-line rounded-lg p-6 mb-4">
         <h2 className="font-serif font-bold mb-2">資料備份</h2>

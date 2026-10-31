@@ -1,7 +1,8 @@
-import type { Metadata } from 'next'
+import type { Metadata, Viewport } from 'next'
 import { IBM_Plex_Mono, Noto_Sans_TC, Noto_Serif_TC } from 'next/font/google'
 
 import { AppDialogProvider } from '@/components/AppDialog'
+import { InstallPromptListener } from '@/components/InstallAppSection'
 import { SITE_URL } from '@/lib/site'
 
 import './globals.css'
@@ -52,8 +53,19 @@ export const metadata: Metadata = {
   },
   icons: {
     icon: '/favicon.ico',
-    apple: '/logo.png',
+    // logo.png 背景透明，iOS 主畫面會補成黑底，改用合成紙色底的版本
+    apple: '/icons/apple-touch-icon.png',
   },
+  // iPhone「加入主畫面」後以全螢幕開啟（manifest 見 src/app/manifest.ts）
+  appleWebApp: {
+    capable: true,
+    title: '字力測驗',
+    statusBarStyle: 'default',
+  },
+}
+
+export const viewport: Viewport = {
+  themeColor: '#f6f3ea',
 }
 
 export default function RootLayout({
@@ -67,6 +79,7 @@ export default function RootLayout({
       className={`${notoSans.variable} ${notoSerif.variable} ${plexMono.variable}`}
     >
       <body>
+        <InstallPromptListener />
         <AppDialogProvider>{children}</AppDialogProvider>
       </body>
     </html>
