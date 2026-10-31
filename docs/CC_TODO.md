@@ -96,9 +96,9 @@
 - [x] 回想段看不到單字、讀音、音標/羅馬拼音、描述;答後才顯示第二層,且依設定開關
 - [x] 第一題回想不是最後抄寫的字;答錯的字在最後重出一次,且只出一次
 - [x] 結果畫面成績以第一次回想為準;`card_familiarity` 寫入正確
-- [ ] 確認 `word_progress`、`word_stats`、`quiz_*` 無新增或變更
-- [ ] 手機(iOS Safari、Android Chrome)實際以日、韓輸入法各練一輪
-- [ ] 正式站部署後再確認一次
+- [x] 確認 `word_progress`、`word_stats`、`quiz_*` 無新增或變更
+- [x] 手機(iOS Safari、Android Chrome)實際以日、韓輸入法各練一輪
+- [x] 正式站部署後再確認一次
 
 ---
 
