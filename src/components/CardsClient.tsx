@@ -7,6 +7,7 @@ import { ScopeFilter } from '@/components/ScopeFilter'
 import { SwipeCard, type SwipeCardHandle } from '@/components/SwipeCard'
 import { WritingPractice } from '@/components/WritingPractice'
 import type { PronunciationPrefs } from '@/lib/pronunciation-display'
+import { CARDS_SCOPE_KEY, parseScopeMemory, readScopeMemory, writeScopeMemory } from '@/lib/scope-memory'
 import { speechText } from '@/lib/speech'
 import { useAutoSpeak, useSpeaker } from '@/lib/use-speech'
 import { isWritable, WRITING_MAX_LENGTH, WRITING_ROUND_SIZE } from '@/lib/writing'
@@ -46,9 +47,31 @@ export function CardsClient({
   )
   const [tagIds, setTagIds] = useState<string[]>([])
   const [poolSize, setPoolSize] = useState(0)
-  const [poolLoading, setPoolLoading] = useState(!!initialWordbookId)
+  const [poolLoading, setPoolLoading] = useState(true)
   const [phase, setPhase] = useState<'setup' | 'play'>('setup')
   const [mode, setMode] = useState<'swipe' | 'write'>('swipe')
+  /** 已讀取這台裝置記住的上次選擇（讀到之前不顯示篩選，避免先載入預設範圍） */
+  const [restored, setRestored] = useState(false)
+
+  useEffect(() => {
+    const m = parseScopeMemory(
+      readScopeMemory(CARDS_SCOPE_KEY),
+      { wordbookIds: wordbooks.map((b) => b.id), tagIds: tags.map((t) => t.id) },
+      initialWordbookId
+    )
+    setWordbookIds(m.wordbookIds)
+    setTagIds(m.tagIds)
+    if (m.extra.mode === 'swipe' || m.extra.mode === 'write') setMode(m.extra.mode)
+    setRestored(true)
+    // 網址帶入的單字本只用於這次進入；拿掉參數，重新整理時改用記住的選擇
+    if (initialWordbookId) window.history.replaceState(null, '', window.location.pathname)
+    // 只在進入頁面時讀取一次
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  useEffect(() => {
+    if (restored) writeScopeMemory(CARDS_SCOPE_KEY, { wordbookIds, tagIds, extra: { mode } })
+  }, [restored, wordbookIds, tagIds, mode])
   /** 書寫練習每輪重新掛載，狀態從頭開始 */
   const [round, setRound] = useState(0)
   const [cards, setCards] = useState<CardItem[]>([])
@@ -314,14 +337,16 @@ export function CardsClient({
       </p>
       <h1 className="font-serif font-black text-2xl mb-6">卡牌背誦</h1>
 
-      <ScopeFilter
-        wordbooks={wordbooks}
-        tags={tags}
-        // 練習結束回到篩選畫面時沿用同樣範圍（初次進入時為網址帶入的單字本）
-        initialWordbookIds={wordbookIds}
-        initialTagIds={tagIds}
-        onChange={onFilterChange}
-      />
+      {restored && (
+        <ScopeFilter
+          wordbooks={wordbooks}
+          tags={tags}
+          // 沿用目前範圍：進入頁面時為記住的上次選擇或網址帶入的單字本，練習結束回來時為同樣範圍
+          initialWordbookIds={wordbookIds}
+          initialTagIds={tagIds}
+          onChange={onFilterChange}
+        />
+      )}
 
       <div className="mb-5">
         <div className="text-[13px] font-bold mb-2">背誦方式</div>

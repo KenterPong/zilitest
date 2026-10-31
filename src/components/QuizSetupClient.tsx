@@ -9,6 +9,7 @@ import { TermSecondLine } from '@/components/TermSecondLine'
 import { useAppDialog } from '@/components/AppDialog'
 import { ACHIEVEMENT_BY_KEY } from '@/lib/growth'
 import type { PronunciationPrefs } from '@/lib/pronunciation-display'
+import { parseScopeMemory, QUIZ_SCOPE_KEY, readScopeMemory, writeScopeMemory } from '@/lib/scope-memory'
 import {
   insufficientLanguagesText,
   MIN_WORDS_PER_LANGUAGE,
@@ -52,9 +53,35 @@ export function QuizSetupClient({
   )
   const [tagIds, setTagIds] = useState<string[]>([])
   const [languageCounts, setLanguageCounts] = useState<LanguageCounts>({})
-  const [poolLoading, setPoolLoading] = useState(!!initialWordbookId)
+  const [poolLoading, setPoolLoading] = useState(true)
   const [qtype, setQtype] = useState<QuestionType>('choice')
   const [countInput, setCountInput] = useState('')
+  /** 已讀取這台裝置記住的上次選擇（讀到之前不顯示篩選，避免先載入預設範圍） */
+  const [restored, setRestored] = useState(false)
+
+  useEffect(() => {
+    const m = parseScopeMemory(
+      readScopeMemory(QUIZ_SCOPE_KEY),
+      { wordbookIds: wordbooks.map((b) => b.id), tagIds: tags.map((t) => t.id) },
+      initialWordbookId
+    )
+    setWordbookIds(m.wordbookIds)
+    setTagIds(m.tagIds)
+    const saved = QTYPES.find((q) => q.type === m.extra.qtype)
+    if (saved) setQtype(saved.type)
+    if (typeof m.extra.count === 'string') setCountInput(m.extra.count)
+    setRestored(true)
+    // 網址帶入的單字本只用於這次進入；拿掉參數，重新整理時改用記住的選擇
+    if (initialWordbookId) window.history.replaceState(null, '', window.location.pathname)
+    // 只在進入頁面時讀取一次
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  useEffect(() => {
+    if (restored) {
+      writeScopeMemory(QUIZ_SCOPE_KEY, { wordbookIds, tagIds, extra: { qtype, count: countInput } })
+    }
+  }, [restored, wordbookIds, tagIds, qtype, countInput])
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
 
@@ -562,15 +589,17 @@ export function QuizSetupClient({
         自選範圍與題型練習，可複選多本單字本；錯誤率越高的單字越常出現。連續天數只計每日任務。
       </p>
 
-      <ScopeFilter
-        wordbooks={wordbooks}
-        tags={tags}
-        // 練習結束回到篩選畫面時沿用同樣範圍（初次進入時為網址帶入的單字本）
-        initialWordbookIds={wordbookIds}
-        initialTagIds={tagIds}
-        onChange={onFilterChange}
-        emphasizeCombined
-      />
+      {restored && (
+        <ScopeFilter
+          wordbooks={wordbooks}
+          tags={tags}
+          // 沿用目前範圍：進入頁面時為記住的上次選擇或網址帶入的單字本，練習結束回來時為同樣範圍
+          initialWordbookIds={wordbookIds}
+          initialTagIds={tagIds}
+          onChange={onFilterChange}
+          emphasizeCombined
+        />
+      )}
 
       <div className="mb-6">
         <div className="font-mono text-[11.5px] tracking-wide text-ink-soft mb-2.5">
